@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>计算器 App</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="calculator" aria-label="计算器">
+      <h1>计算器</h1>
+      <section class="display" aria-live="polite">
+        <div id="history" class="history"></div>
+        <div id="output" class="output">0</div>
+      </section>
+      <section class="keys" aria-label="按键区">
+        <button data-action="clear" class="span-2">AC</button>
+        <button data-action="delete">DEL</button>
+        <button data-action="operator" data-value="/">÷</button>
+
+        <button data-action="number" data-value="7">7</button>
+        <button data-action="number" data-value="8">8</button>
+        <button data-action="number" data-value="9">9</button>
+        <button data-action="operator" data-value="*">×</button>
+
+        <button data-action="number" data-value="4">4</button>
+        <button data-action="number" data-value="5">5</button>
+        <button data-action="number" data-value="6">6</button>
+        <button data-action="operator" data-value="-">−</button>
+
+        <button data-action="number" data-value="1">1</button>
+        <button data-action="number" data-value="2">2</button>
+        <button data-action="number" data-value="3">3</button>
+        <button data-action="operator" data-value="+">＋</button>
+
+        <button data-action="number" data-value="0" class="span-2">0</button>
+        <button data-action="decimal">.</button>
+        <button data-action="equals" class="accent">=</button>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
