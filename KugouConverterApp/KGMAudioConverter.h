@@ -12,5 +12,6 @@ typedef NS_ENUM(NSInteger, KGOutputFormat) {
              completion:(void (^)(NSURL * _Nullable outputURL, NSError * _Nullable error))completion;
 
 - (NSData *)decryptKugouData:(NSData *)data headerSize:(NSUInteger)headerSize;
+- (NSString *)latestDecryptCandidateInfo;
 
 @end

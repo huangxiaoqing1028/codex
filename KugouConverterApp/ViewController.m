@@ -9,6 +9,7 @@
 @property (nonatomic, strong) UILabel *statusLabel;
 @property (nonatomic, strong) UISegmentedControl *formatControl;
 @property (nonatomic, strong) UIButton *convertButton;
+@property (nonatomic, strong) UIButton *diagnosticButton;
 @property (nonatomic, strong) UIActivityIndicatorView *indicator;
 @property (nonatomic, strong) NSURL *selectedFileURL;
 @property (nonatomic, strong) KGMAudioConverter *converter;
@@ -80,6 +81,10 @@
     self.convertButton = [self primaryButtonWithTitle:@"开始转换" action:@selector(convertAction)];
     self.convertButton.translatesAutoresizingMaskIntoConstraints = NO;
 
+    self.diagnosticButton = [self primaryButtonWithTitle:@"导出诊断" action:@selector(exportDiagnosticAction)];
+    self.diagnosticButton.translatesAutoresizingMaskIntoConstraints = NO;
+    self.diagnosticButton.backgroundColor = [UIColor colorWithRed:0.15 green:0.68 blue:0.56 alpha:1];
+
     self.indicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleLarge];
     self.indicator.translatesAutoresizingMaskIntoConstraints = NO;
     self.indicator.color = UIColor.whiteColor;
@@ -99,6 +104,7 @@
     [self.cardView addSubview:self.fileLabel];
     [self.cardView addSubview:self.formatControl];
     [self.cardView addSubview:self.convertButton];
+    [self.cardView addSubview:self.diagnosticButton];
     [self.cardView addSubview:self.indicator];
     [self.cardView addSubview:self.statusLabel];
 
@@ -132,8 +138,11 @@
         [self.convertButton.topAnchor constraintEqualToAnchor:self.formatControl.bottomAnchor constant:20],
         [self.convertButton.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:16],
 
+        [self.diagnosticButton.centerYAnchor constraintEqualToAnchor:self.convertButton.centerYAnchor],
+        [self.diagnosticButton.leadingAnchor constraintEqualToAnchor:self.convertButton.trailingAnchor constant:10],
+
         [self.indicator.centerYAnchor constraintEqualToAnchor:self.convertButton.centerYAnchor],
-        [self.indicator.leadingAnchor constraintEqualToAnchor:self.convertButton.trailingAnchor constant:12],
+        [self.indicator.leadingAnchor constraintEqualToAnchor:self.diagnosticButton.trailingAnchor constant:10],
 
         [self.statusLabel.topAnchor constraintEqualToAnchor:self.convertButton.bottomAnchor constant:18],
         [self.statusLabel.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:16],
@@ -189,6 +198,66 @@
     self.selectedFileURL = url;
     self.fileLabel.text = url.lastPathComponent;
     self.statusLabel.text = @"文件已选择，点击开始转换。";
+}
+
+- (void)exportDiagnosticAction {
+    NSURL *documents = [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] firstObject];
+    if (!documents) {
+        self.statusLabel.text = @"导出失败：无法访问 Documents 目录";
+        return;
+    }
+
+    NSURL *logURL = [documents URLByAppendingPathComponent:@"ffmpeg_last_error.log"];
+    NSString *logText = @"(ffmpeg_last_error.log 不存在，可能尚未触发 ffmpeg 失败)";
+    NSData *logData = [NSData dataWithContentsOfURL:logURL];
+    if (logData.length > 0) {
+        logText = [[NSString alloc] initWithData:logData encoding:NSUTF8StringEncoding] ?: @"(日志编码不可读)";
+    }
+
+    NSString *candidateInfo = [self.converter latestDecryptCandidateInfo];
+    if (candidateInfo.length == 0) {
+        candidateInfo = @"(暂无候选信息，请先执行一次转换)";
+    }
+
+    NSString *selected = self.selectedFileURL.lastPathComponent ?: @"(未选择文件)";
+    NSString *status = self.statusLabel.text ?: @"";
+
+    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+    formatter.dateFormat = @"yyyy-MM-dd HH:mm:ss";
+    NSString *time = [formatter stringFromDate:[NSDate date]];
+
+    NSString *report = [NSString stringWithFormat:
+                        @"Kugou Converter 诊断导出\n时间: %@\n文件: %@\n状态: %@\n\n=== 解密候选信息 ===\n%@\n\n=== ffmpeg_last_error.log ===\n%@\n",
+                        time,
+                        selected,
+                        status,
+                        candidateInfo,
+                        logText];
+
+    NSURL *diagDir = [documents URLByAppendingPathComponent:@"Diagnostics" isDirectory:YES];
+    [[NSFileManager defaultManager] createDirectoryAtURL:diagDir withIntermediateDirectories:YES attributes:nil error:nil];
+
+    NSString *safeName = [[selected stringByReplacingOccurrencesOfString:@"/" withString:@"_"] stringByReplacingOccurrencesOfString:@":" withString:@"_"];
+    if (safeName.length == 0) {
+        safeName = @"unknown";
+    }
+    NSString *fileName = [NSString stringWithFormat:@"diagnostic-%@-%@.txt", [time stringByReplacingOccurrencesOfString:@" " withString:@"_"], safeName];
+    NSURL *reportURL = [diagDir URLByAppendingPathComponent:fileName];
+
+    NSError *writeError = nil;
+    BOOL ok = [report writeToURL:reportURL atomically:YES encoding:NSUTF8StringEncoding error:&writeError];
+    if (!ok || writeError) {
+        self.statusLabel.text = [NSString stringWithFormat:@"导出失败：%@", writeError.localizedDescription ?: @"未知错误"];
+        return;
+    }
+
+    UIActivityViewController *activity = [[UIActivityViewController alloc] initWithActivityItems:@[reportURL] applicationActivities:nil];
+    if (activity.popoverPresentationController) {
+        activity.popoverPresentationController.sourceView = self.diagnosticButton;
+        activity.popoverPresentationController.sourceRect = self.diagnosticButton.bounds;
+    }
+    [self presentViewController:activity animated:YES completion:nil];
+    self.statusLabel.text = [NSString stringWithFormat:@"诊断已导出：%@", reportURL.lastPathComponent ?: @""];
 }
 
 - (KGOutputFormat)currentFormat {

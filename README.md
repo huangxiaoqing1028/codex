@@ -20,6 +20,7 @@ OC 解密（多头部策略：16/1024/4096/0）
 - 自动识别解密后音频类型并喂给 ffmpeg，减少“格式误判”失败
 - ffmpeg 支持多套编码参数回退（`libmp3lame/mp3` + 参数兜底）
 - 精美 UI：渐变背景、毛玻璃卡片、圆角按钮、状态反馈与加载动画
+- 新增“导出诊断”按钮：一键导出 `ffmpeg_last_error.log` + 本次解密候选信息
 
 ## ffmpeg 集成要求（不依赖 FFmpegKit）
 工程已内置 `KugouConverterApp/ffmpeg`（开发 wrapper，可在模拟器调用系统 ffmpeg）。
@@ -37,6 +38,7 @@ App 会自动查找可执行 `ffmpeg`，按如下顺序：
 - 代码通过 `posix_spawn` 调用 ffmpeg，并自动执行多轮回退（编码器 + 参数）
 - 若未找到，会在 App 内提示：`未找到 ffmpeg 文件`
 - 转码失败时会附带 ffmpeg stderr 摘要，并将完整日志写入 `Documents/ffmpeg_last_error.log`
+- 点击“导出诊断”会生成 `Documents/Diagnostics/diagnostic-*.txt`，可直接分享给开发者排障
 
 ## Xcode 运行
 1. 用 Xcode 打开 `KugouConverterApp.xcodeproj`

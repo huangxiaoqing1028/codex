@@ -10,6 +10,10 @@ extern char **environ;
 
 static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE8,0x39,0x5D,0x7F,0x91,0xB2,0xD4,0x66};
 
+@interface KGMAudioConverter ()
+@property (atomic, copy) NSString *latestDecryptCandidateInfoInternal;
+@end
+
 @implementation KGMAudioConverter
 
 - (NSString *)resolveFFmpegPath {
@@ -247,6 +251,7 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
 
         NSMutableArray<NSURL *> *tempInputs = [NSMutableArray array];
         NSMutableArray<NSString *> *typeHints = [NSMutableArray array];
+        NSMutableString *candidateDiagnostics = [NSMutableString stringWithFormat:@"input=%@\next=%@\n", inputURL.lastPathComponent ?: @"", ext ?: @""];
 
         if (isKugouEncrypted) {
             NSData *raw = [NSData dataWithContentsOfURL:inputURL options:0 error:&error];
@@ -259,17 +264,24 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
             NSUInteger idx = 0;
             for (NSNumber *header in headerCandidates) {
                 NSData *decrypted = [self decryptKugouData:raw headerSize:header.unsignedIntegerValue];
+                NSString *hint = [self formatHintForData:decrypted fallbackExtension:nil];
+                [candidateDiagnostics appendFormat:@"candidate#%lu header=%@ bytes=%lu hint=%@\n", (unsigned long)idx, header, (unsigned long)decrypted.length, hint];
+
                 if (decrypted.length == 0) {
+                    idx += 1;
                     continue;
                 }
-                NSString *hint = [self formatHintForData:decrypted fallbackExtension:nil];
+
                 NSURL *tempURL = [outputDir URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.candidate%lu.%@", baseName, (unsigned long)idx, hint]];
-                idx += 1;
                 [[NSFileManager defaultManager] removeItemAtURL:tempURL error:nil];
                 if ([decrypted writeToURL:tempURL options:NSDataWritingAtomic error:nil]) {
                     [tempInputs addObject:tempURL];
                     [typeHints addObject:hint];
+                    [candidateDiagnostics appendFormat:@"  -> accepted temp=%@\n", tempURL.lastPathComponent ?: @"(null)"];
+                } else {
+                    [candidateDiagnostics appendString:@"  -> rejected (write failed)\n"];
                 }
+                idx += 1;
             }
         } else {
             NSData *sourceData = [NSData dataWithContentsOfURL:inputURL options:0 error:&error];
@@ -286,7 +298,10 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
             }
             [tempInputs addObject:tempURL];
             [typeHints addObject:hint];
+            [candidateDiagnostics appendFormat:@"source-pass-through bytes=%lu hint=%@ file=%@\n", (unsigned long)sourceData.length, hint, tempURL.lastPathComponent ?: @"(null)"];
         }
+
+        self.latestDecryptCandidateInfoInternal = [candidateDiagnostics copy];
 
         if (tempInputs.count == 0) {
             NSError *e = [NSError errorWithDomain:@"KugouConverter" code:100 userInfo:@{NSLocalizedDescriptionKey:@"解密后没有可用音频数据：已尝试多种头部策略（16/1024/4096/0）"}];
@@ -333,6 +348,10 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
 
         dispatch_async(dispatch_get_main_queue(), ^{ completion(finalMP3URL, nil); });
     });
+}
+
+- (NSString *)latestDecryptCandidateInfo {
+    return self.latestDecryptCandidateInfoInternal ?: @"";
 }
 
 @end
