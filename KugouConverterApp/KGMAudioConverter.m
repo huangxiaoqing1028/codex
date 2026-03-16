@@ -2,6 +2,7 @@
 #include <spawn.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <TargetConditionals.h>
 
 extern char **environ;
@@ -38,9 +39,43 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
     NSFileManager *fm = [NSFileManager defaultManager];
     for (NSString *path in candidates) {
         BOOL isDir = NO;
-        if (path.length > 0 && [fm fileExistsAtPath:path isDirectory:&isDir] && !isDir && access(path.UTF8String, X_OK) == 0) {
+        if (path.length > 0 && [fm fileExistsAtPath:path isDirectory:&isDir] && !isDir) {
             return path;
         }
+    }
+    return nil;
+}
+
+- (NSString *)prepareExecutableFFmpegPath:(NSString *)originalPath {
+    if (originalPath.length == 0) {
+        return nil;
+    }
+
+    if (access(originalPath.UTF8String, X_OK) == 0) {
+        return originalPath;
+    }
+
+    NSURL *documents = [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] firstObject];
+    if (!documents) {
+        return nil;
+    }
+
+    NSString *runtimePath = [documents.path stringByAppendingPathComponent:@"ffmpeg_runtime"];
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSError *copyError = nil;
+
+    [fm removeItemAtPath:runtimePath error:nil];
+    BOOL copied = [fm copyItemAtPath:originalPath toPath:runtimePath error:&copyError];
+    if (!copied || copyError) {
+        return nil;
+    }
+
+    if (chmod(runtimePath.UTF8String, 0755) != 0) {
+        return nil;
+    }
+
+    if (access(runtimePath.UTF8String, X_OK) == 0) {
+        return runtimePath;
     }
     return nil;
 }
@@ -62,9 +97,14 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
 }
 
 - (int)runBundledFFmpegWithInput:(NSURL *)inputURL output:(NSURL *)outputURL {
-    NSString *ffmpegPath = [self resolveFFmpegPath];
-    if (ffmpegPath.length == 0) {
+    NSString *resolvedPath = [self resolveFFmpegPath];
+    if (resolvedPath.length == 0) {
         return -1001;
+    }
+
+    NSString *ffmpegPath = [self prepareExecutableFFmpegPath:resolvedPath];
+    if (ffmpegPath.length == 0) {
+        return -1004;
     }
 
     const char *argv[] = {
@@ -155,9 +195,14 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
         [[NSFileManager defaultManager] removeItemAtURL:tempMP3URL error:nil];
 
         if (ffmpegCode != 0) {
-            NSString *message = ffmpegCode == -1001
-                ? @"未找到可用 ffmpeg：请放入 App Bundle(文件名ffmpeg) 或 Documents/ffmpeg，并确保可执行权限"
-                : [NSString stringWithFormat:@"ffmpeg 转码失败，退出码: %d", ffmpegCode];
+            NSString *message = nil;
+            if (ffmpegCode == -1001) {
+                message = @"未找到 ffmpeg 文件：请放入 App Bundle(文件名ffmpeg) 或 Documents/ffmpeg";
+            } else if (ffmpegCode == -1004) {
+                message = @"找到 ffmpeg 但不可执行：请检查二进制架构与签名，或放置可执行的 Documents/ffmpeg";
+            } else {
+                message = [NSString stringWithFormat:@"ffmpeg 转码失败，退出码: %d", ffmpegCode];
+            }
             NSError *e = [NSError errorWithDomain:@"KugouConverter" code:101 userInfo:@{NSLocalizedDescriptionKey: message}];
             dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, e); });
             return;

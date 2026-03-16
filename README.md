@@ -29,9 +29,10 @@ App 会自动查找可执行 `ffmpeg`，按如下顺序：
 - iOS 模拟器下额外尝试系统路径（`/opt/homebrew/bin/ffmpeg` 等）
 
 注意：
-- 如果你把 ffmpeg 放到 `Documents/ffmpeg`，请确保该文件具有可执行权限
+- 代码会优先直接执行找到的 ffmpeg；若不可执行，会尝试复制到 `Documents/ffmpeg_runtime` 并自动 `chmod +x`
+- 如果仍失败，通常是 ffmpeg 架构/签名问题（尤其是真机）
 - 代码通过 `posix_spawn` 调用 ffmpeg
-- 若未找到，会在 App 内提示：`未找到可用 ffmpeg`
+- 若未找到，会在 App 内提示：`未找到 ffmpeg 文件`
 
 ## Xcode 运行
 1. 用 Xcode 打开 `KugouConverterApp.xcodeproj`
