@@ -46,7 +46,7 @@
 
     UILabel *subtitle = [[UILabel alloc] init];
     subtitle.translatesAutoresizingMaskIntoConstraints = NO;
-    subtitle.text = @"KGM → OC解密 → 临时MP3 → FFmpeg → 标准MP3";
+    subtitle.text = @"KGM/KGG/KMG/VPR → OC多策略解密 → FFmpeg多参数回退 → 标准MP3";
     subtitle.textColor = [UIColor colorWithWhite:1 alpha:0.85];
     subtitle.font = [UIFont systemFontOfSize:16 weight:UIFontWeightMedium];
 

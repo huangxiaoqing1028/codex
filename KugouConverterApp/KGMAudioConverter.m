@@ -12,7 +12,6 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
 
 @implementation KGMAudioConverter
 
-
 - (NSString *)resolveFFmpegPath {
     NSMutableArray<NSString *> *candidates = [NSMutableArray array];
 
@@ -28,7 +27,7 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
 
     NSURL *documents = [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] firstObject];
     if (documents) {
-        [candidates addObject:[[documents.path stringByAppendingPathComponent:@"ffmpeg"] copy]];
+        [candidates addObject:[documents.path stringByAppendingPathComponent:@"ffmpeg"]];
     }
 
 #if TARGET_OS_SIMULATOR
@@ -63,11 +62,9 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
 
     NSString *runtimePath = [documents.path stringByAppendingPathComponent:@"ffmpeg_runtime"];
     NSFileManager *fm = [NSFileManager defaultManager];
-    NSError *copyError = nil;
 
     [fm removeItemAtPath:runtimePath error:nil];
-    BOOL copied = [fm copyItemAtPath:originalPath toPath:runtimePath error:&copyError];
-    if (!copied || copyError) {
+    if (![fm copyItemAtPath:originalPath toPath:runtimePath error:nil]) {
         return nil;
     }
 
@@ -75,10 +72,7 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
         return nil;
     }
 
-    if (access(runtimePath.UTF8String, X_OK) == 0) {
-        return runtimePath;
-    }
-    return nil;
+    return access(runtimePath.UTF8String, X_OK) == 0 ? runtimePath : nil;
 }
 
 - (NSData *)decryptKugouData:(NSData *)data headerSize:(NSUInteger)headerSize {
@@ -97,7 +91,6 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
     return payload;
 }
 
-
 - (BOOL)isShellScriptAtPath:(NSString *)path {
     if (path.length == 0) {
         return NO;
@@ -110,7 +103,41 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
     return bytes[0] == '#' && bytes[1] == '!';
 }
 
-- (int)runBundledFFmpegWithInput:(NSURL *)inputURL output:(NSURL *)outputURL logPath:(NSString * _Nullable * _Nullable)logPath {
+- (NSString *)shellQuoted:(NSString *)raw {
+    if (raw.length == 0) {
+        return @"''";
+    }
+    NSString *escaped = [raw stringByReplacingOccurrencesOfString:@"'" withString:@"'\\''"];
+    return [NSString stringWithFormat:@"'%@'", escaped];
+}
+
+- (NSString *)formatHintForData:(NSData *)data fallbackExtension:(NSString *)extension {
+    if (data.length >= 4) {
+        const uint8_t *b = data.bytes;
+        if (b[0] == 'I' && b[1] == 'D' && b[2] == '3') return @"mp3";
+        if (b[0] == 0xFF && (b[1] & 0xE0) == 0xE0) return @"mp3";
+        if (b[0] == 'f' && b[1] == 'L' && b[2] == 'a' && b[3] == 'C') return @"flac";
+        if (b[0] == 'O' && b[1] == 'g' && b[2] == 'g' && b[3] == 'S') return @"ogg";
+        if (b[0] == 'R' && b[1] == 'I' && b[2] == 'F' && b[3] == 'F') return @"wav";
+        if (b[0] == 0x4D && b[1] == 0x34 && b[2] == 0x41 && b[3] == 0x20) return @"m4a";
+    }
+    if ([extension isEqualToString:@"mp3"] || [extension isEqualToString:@"flac"] || [extension isEqualToString:@"ogg"] || [extension isEqualToString:@"wav"] || [extension isEqualToString:@"m4a"] || [extension isEqualToString:@"aac"]) {
+        return extension;
+    }
+    return @"bin";
+}
+
+- (NSArray<NSNumber *> *)headerCandidatesForExtension:(NSString *)ext {
+    if ([ext isEqualToString:@"kgg"] || [ext isEqualToString:@"kmg"]) {
+        return @[@1024, @16, @0, @4096, @2048];
+    }
+    return @[@16, @1024, @0, @4096];
+}
+
+- (int)runBundledFFmpegWithInput:(NSURL *)inputURL
+                          output:(NSURL *)outputURL
+                     assumedType:(NSString *)assumedType
+                         logPath:(NSString * _Nullable * _Nullable)logPath {
     NSString *resolvedPath = [self resolveFFmpegPath];
     if (resolvedPath.length == 0) {
         return -1001;
@@ -135,40 +162,44 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
         *logPath = stderrLogPath;
     }
 
-    int (^spawnWithCodec)(const char *) = ^int(const char *codecName) {
-        const char *argvExec[] = {
-            ffmpegPath.UTF8String,
-            "-y",
-            "-hide_banner",
-            "-i",
-            inputURL.path.UTF8String,
-            "-vn",
-            "-codec:a",
-            codecName,
-            "-b:a",
-            "320k",
-            outputURL.path.UTF8String,
-            NULL
-        };
+    NSString *ffmpegInvocation = useShellWrapper ? [NSString stringWithFormat:@"/bin/sh %@", [self shellQuoted:ffmpegPath]] : [self shellQuoted:ffmpegPath];
+    NSArray<NSDictionary<NSString *, NSString *> *> *attempts = @[
+        @{@"codec": @"libmp3lame", @"extra": @"-q:a 2"},
+        @{@"codec": @"mp3", @"extra": @"-b:a 320k"},
+        @{@"codec": @"libmp3lame", @"extra": @"-ar 44100 -ac 2 -b:a 192k"},
+        @{@"codec": @"mp3", @"extra": @"-ar 44100 -ac 2 -b:a 192k"}
+    ];
 
-        const char *argvShell[] = {
-            "/bin/sh",
-            ffmpegPath.UTF8String,
-            "-y",
-            "-hide_banner",
-            "-i",
-            inputURL.path.UTF8String,
-            "-vn",
-            "-codec:a",
-            codecName,
-            "-b:a",
-            "320k",
-            outputURL.path.UTF8String,
-            NULL
-        };
+    for (NSUInteger i = 0; i < attempts.count; i++) {
+        NSDictionary *attempt = attempts[i];
+        NSString *codec = attempt[@"codec"];
+        NSString *extra = attempt[@"extra"];
+        NSString *formatClause = @"";
+        if (assumedType.length > 0 && ![assumedType isEqualToString:@"bin"]) {
+            formatClause = [NSString stringWithFormat:@"-f %@", assumedType];
+        }
 
-        const char *launchPath = useShellWrapper ? "/bin/sh" : ffmpegPath.UTF8String;
-        char *const *argv = (char *const *)(useShellWrapper ? argvShell : argvExec);
+        NSString *cmd = [NSString stringWithFormat:@"%@ -y -hide_banner -loglevel info -analyzeduration 100M -probesize 100M %@ -i %@ -vn -codec:a %@ %@ %@",
+                         ffmpegInvocation,
+                         formatClause,
+                         [self shellQuoted:inputURL.path],
+                         codec,
+                         extra,
+                         [self shellQuoted:outputURL.path]];
+
+        if (stderrLogPath.length > 0) {
+            NSString *section = [NSString stringWithFormat:@"\n===== ffmpeg attempt #%lu codec=%@ type=%@ =====\n%@\n", (unsigned long)(i + 1), codec, assumedType ?: @"", cmd];
+            NSFileHandle *fh = [NSFileHandle fileHandleForWritingAtPath:stderrLogPath];
+            if (!fh) {
+                [section writeToFile:stderrLogPath atomically:YES encoding:NSUTF8StringEncoding error:nil];
+            } else {
+                [fh seekToEndOfFile];
+                [fh writeData:[section dataUsingEncoding:NSUTF8StringEncoding]];
+                [fh closeFile];
+            }
+        }
+
+        const char *argv[] = {"/bin/sh", "-c", cmd.UTF8String, NULL};
 
         posix_spawn_file_actions_t fileActions;
         posix_spawn_file_actions_init(&fileActions);
@@ -178,9 +209,8 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
         }
 
         pid_t pid;
-        int spawnStatus = posix_spawn(&pid, launchPath, &fileActions, NULL, argv, environ);
+        int spawnStatus = posix_spawn(&pid, "/bin/sh", &fileActions, NULL, (char *const *)argv, environ);
         posix_spawn_file_actions_destroy(&fileActions);
-
         if (spawnStatus != 0) {
             return spawnStatus;
         }
@@ -190,47 +220,18 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
             return -1002;
         }
 
-        if (WIFEXITED(waitStatus)) {
-            return WEXITSTATUS(waitStatus);
-        }
-        return -1003;
-    };
-
-    if (stderrLogPath.length > 0) {
-        NSString *head = @"
-===== ffmpeg attempt #1 codec=libmp3lame =====
-";
-        [head writeToFile:stderrLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-    }
-
-    int code = spawnWithCodec("libmp3lame");
-    if (code == 0) {
-        return 0;
-    }
-
-    if (stderrLogPath.length > 0) {
-        NSString *mid = @"
-===== ffmpeg attempt #2 codec=mp3 (fallback) =====
-";
-        NSFileHandle *fh = [NSFileHandle fileHandleForWritingAtPath:stderrLogPath];
-        if (fh) {
-            [fh seekToEndOfFile];
-            [fh writeData:[mid dataUsingEncoding:NSUTF8StringEncoding]];
-            [fh closeFile];
+        if (WIFEXITED(waitStatus) && WEXITSTATUS(waitStatus) == 0) {
+            return 0;
         }
     }
 
-    int fallbackCode = spawnWithCodec("mp3");
-    if (fallbackCode == 0) {
-        return 0;
-    }
-    return fallbackCode;
+    return 1;
 }
 
 - (void)convertFileAtURL:(NSURL *)inputURL
-              outputDir:(NSURL *)outputDir
-                 format:(KGOutputFormat)format
-             completion:(void (^)(NSURL * _Nullable outputURL, NSError * _Nullable error))completion {
+               outputDir:(NSURL *)outputDir
+                  format:(KGOutputFormat)format
+              completion:(void (^)(NSURL * _Nullable outputURL, NSError * _Nullable error))completion {
     (void)format;
 
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
@@ -238,14 +239,14 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
         [[NSFileManager defaultManager] createDirectoryAtURL:outputDir withIntermediateDirectories:YES attributes:nil error:nil];
 
         NSString *baseName = inputURL.lastPathComponent.stringByDeletingPathExtension;
-        NSURL *tempMP3URL = [outputDir URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.temp.mp3", baseName]];
         NSURL *finalMP3URL = [outputDir URLByAppendingPathComponent:[baseName stringByAppendingPathExtension:@"mp3"]];
-
-        [[NSFileManager defaultManager] removeItemAtURL:tempMP3URL error:nil];
         [[NSFileManager defaultManager] removeItemAtURL:finalMP3URL error:nil];
 
         NSString *ext = inputURL.pathExtension.lowercaseString;
         BOOL isKugouEncrypted = [ext isEqualToString:@"kgm"] || [ext isEqualToString:@"kmg"] || [ext isEqualToString:@"kgg"] || [ext isEqualToString:@"vpr"];
+
+        NSMutableArray<NSURL *> *tempInputs = [NSMutableArray array];
+        NSMutableArray<NSString *> *typeHints = [NSMutableArray array];
 
         if (isKugouEncrypted) {
             NSData *raw = [NSData dataWithContentsOfURL:inputURL options:0 error:&error];
@@ -254,17 +255,21 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
                 return;
             }
 
-            NSData *decryptedMP3Bytes = [self decryptKugouData:raw headerSize:16];
-            if (decryptedMP3Bytes.length == 0) {
-                NSError *e = [NSError errorWithDomain:@"KugouConverter" code:100 userInfo:@{NSLocalizedDescriptionKey:@"KGM/KGG/VPR 解密失败或文件内容为空"}];
-                dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, e); });
-                return;
-            }
-
-            BOOL ok = [decryptedMP3Bytes writeToURL:tempMP3URL options:NSDataWritingAtomic error:&error];
-            if (!ok || error) {
-                dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, error); });
-                return;
+            NSArray<NSNumber *> *headerCandidates = [self headerCandidatesForExtension:ext];
+            NSUInteger idx = 0;
+            for (NSNumber *header in headerCandidates) {
+                NSData *decrypted = [self decryptKugouData:raw headerSize:header.unsignedIntegerValue];
+                if (decrypted.length == 0) {
+                    continue;
+                }
+                NSString *hint = [self formatHintForData:decrypted fallbackExtension:nil];
+                NSURL *tempURL = [outputDir URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.candidate%lu.%@", baseName, (unsigned long)idx, hint]];
+                idx += 1;
+                [[NSFileManager defaultManager] removeItemAtURL:tempURL error:nil];
+                if ([decrypted writeToURL:tempURL options:NSDataWritingAtomic error:nil]) {
+                    [tempInputs addObject:tempURL];
+                    [typeHints addObject:hint];
+                }
             }
         } else {
             NSData *sourceData = [NSData dataWithContentsOfURL:inputURL options:0 error:&error];
@@ -272,17 +277,35 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
                 dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, error); });
                 return;
             }
-
-            BOOL ok = [sourceData writeToURL:tempMP3URL options:NSDataWritingAtomic error:&error];
-            if (!ok || error) {
+            NSString *hint = [self formatHintForData:sourceData fallbackExtension:ext];
+            NSURL *tempURL = [outputDir URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.source.%@", baseName, hint]];
+            [[NSFileManager defaultManager] removeItemAtURL:tempURL error:nil];
+            if (![sourceData writeToURL:tempURL options:NSDataWritingAtomic error:&error] || error) {
                 dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, error); });
                 return;
             }
+            [tempInputs addObject:tempURL];
+            [typeHints addObject:hint];
         }
 
+        if (tempInputs.count == 0) {
+            NSError *e = [NSError errorWithDomain:@"KugouConverter" code:100 userInfo:@{NSLocalizedDescriptionKey:@"解密后没有可用音频数据：已尝试多种头部策略（16/1024/4096/0）"}];
+            dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, e); });
+            return;
+        }
+
+        int ffmpegCode = 1;
         NSString *ffmpegLogPath = nil;
-        int ffmpegCode = [self runBundledFFmpegWithInput:tempMP3URL output:finalMP3URL logPath:&ffmpegLogPath];
-        [[NSFileManager defaultManager] removeItemAtURL:tempMP3URL error:nil];
+        for (NSUInteger i = 0; i < tempInputs.count; i++) {
+            ffmpegCode = [self runBundledFFmpegWithInput:tempInputs[i] output:finalMP3URL assumedType:typeHints[i] logPath:&ffmpegLogPath];
+            if (ffmpegCode == 0) {
+                break;
+            }
+        }
+
+        for (NSURL *tempURL in tempInputs) {
+            [[NSFileManager defaultManager] removeItemAtURL:tempURL error:nil];
+        }
 
         if (ffmpegCode != 0) {
             NSString *message = nil;
@@ -298,10 +321,10 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
                         logText = [[NSString alloc] initWithData:logData encoding:NSUTF8StringEncoding] ?: @"";
                     }
                 }
-                if (logText.length > 800) {
-                    logText = [logText substringFromIndex:logText.length - 800];
+                if (logText.length > 1200) {
+                    logText = [logText substringFromIndex:logText.length - 1200];
                 }
-                message = [NSString stringWithFormat:@"ffmpeg 转码失败（已尝试 libmp3lame/mp3），退出码: %d\n%@", ffmpegCode, logText];
+                message = [NSString stringWithFormat:@"ffmpeg 转码失败：已尝试多头部解密 + 多编码器参数回退，退出码: %d\n%@", ffmpegCode, logText];
             }
             NSError *e = [NSError errorWithDomain:@"KugouConverter" code:101 userInfo:@{NSLocalizedDescriptionKey: message}];
             dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, e); });
