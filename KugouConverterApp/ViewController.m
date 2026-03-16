@@ -219,6 +219,11 @@
         candidateInfo = @"(暂无候选信息，请先执行一次转换)";
     }
 
+    NSString *ffmpegSummary = [self.converter latestFFmpegSummary];
+    if (ffmpegSummary.length == 0) {
+        ffmpegSummary = @"(暂无摘要，请查看完整 ffmpeg_last_error.log)";
+    }
+
     NSString *selected = self.selectedFileURL.lastPathComponent ?: @"(未选择文件)";
     NSString *status = self.statusLabel.text ?: @"";
 
@@ -227,10 +232,11 @@
     NSString *time = [formatter stringFromDate:[NSDate date]];
 
     NSString *report = [NSString stringWithFormat:
-                        @"Kugou Converter 诊断导出\n时间: %@\n文件: %@\n状态: %@\n\n=== 解密候选信息 ===\n%@\n\n=== ffmpeg_last_error.log ===\n%@\n",
+                        @"Kugou Converter 诊断导出\n时间: %@\n文件: %@\n状态: %@\n\n=== ffmpeg摘要 ===\n%@\n\n=== 解密候选信息 ===\n%@\n\n=== ffmpeg_last_error.log ===\n%@\n",
                         time,
                         selected,
                         status,
+                        ffmpegSummary,
                         candidateInfo,
                         logText];
 

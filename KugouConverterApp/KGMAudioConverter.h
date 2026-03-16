@@ -13,5 +13,6 @@ typedef NS_ENUM(NSInteger, KGOutputFormat) {
 
 - (NSData *)decryptKugouData:(NSData *)data headerSize:(NSUInteger)headerSize;
 - (NSString *)latestDecryptCandidateInfo;
+- (NSString *)latestFFmpegSummary;
 
 @end

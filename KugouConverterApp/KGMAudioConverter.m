@@ -12,6 +12,7 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
 
 @interface KGMAudioConverter ()
 @property (atomic, copy) NSString *latestDecryptCandidateInfoInternal;
+@property (atomic, copy) NSString *latestFFmpegSummaryInternal;
 @end
 
 @implementation KGMAudioConverter
@@ -131,6 +132,85 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
     return @"bin";
 }
 
+
+- (BOOL)isDevelopmentWrapperScriptAtPath:(NSString *)path {
+    if (![self isShellScriptAtPath:path]) {
+        return NO;
+    }
+    NSString *text = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+    if (text.length == 0) {
+        return NO;
+    }
+    return [text containsString:@"command -v ffmpeg"];
+}
+
+- (NSInteger)qualityScoreForDecryptedData:(NSData *)data hint:(NSString *)hint header:(NSUInteger)header {
+    if (data.length == 0) {
+        return 0;
+    }
+
+    NSInteger score = 0;
+    if (![hint isEqualToString:@"bin"]) {
+        score += 80;
+    }
+
+    if (header == 0 || header == 16 || header == 1024) {
+        score += 20;
+    }
+
+    const uint8_t *bytes = data.bytes;
+    NSUInteger scanLen = MIN(data.length, (NSUInteger)4096);
+    NSUInteger mp3SyncHits = 0;
+    for (NSUInteger i = 0; i + 1 < scanLen; i++) {
+        if (bytes[i] == 0xFF && (bytes[i + 1] & 0xE0) == 0xE0) {
+            mp3SyncHits++;
+        }
+    }
+    if (mp3SyncHits > 20) {
+        score += 45;
+    } else if (mp3SyncHits > 5) {
+        score += 25;
+    }
+
+    return score;
+}
+
+- (NSString *)summarizeFFmpegLogAtPath:(NSString *)logPath {
+    if (logPath.length == 0) {
+        return @"";
+    }
+    NSString *text = [NSString stringWithContentsOfFile:logPath encoding:NSUTF8StringEncoding error:nil];
+    if (text.length == 0) {
+        return @"";
+    }
+
+    NSMutableArray<NSString *> *hits = [NSMutableArray array];
+    NSArray<NSString *> *lines = [text componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+    NSArray<NSString *> *keywords = @[@"error", @"invalid", @"unknown", @"not found", @"failed", @"unsupported"];
+
+    for (NSString *line in lines) {
+        NSString *lower = line.lowercaseString;
+        BOOL matched = NO;
+        for (NSString *kw in keywords) {
+            if ([lower containsString:kw]) {
+                matched = YES;
+                break;
+            }
+        }
+        if (matched && line.length > 0) {
+            [hits addObject:line];
+            if (hits.count >= 12) {
+                break;
+            }
+        }
+    }
+
+    if (hits.count == 0) {
+        return @"(未提取到关键错误行，请查看完整 ffmpeg_last_error.log)";
+    }
+    return [hits componentsJoinedByString:@"\n"];
+}
+
 - (NSArray<NSNumber *> *)headerCandidatesForExtension:(NSString *)ext {
     if ([ext isEqualToString:@"kgg"] || [ext isEqualToString:@"kmg"]) {
         return @[@1024, @16, @0, @4096, @2048];
@@ -156,6 +236,11 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
     if (ffmpegPath.length == 0) {
         return -1004;
     }
+#if !TARGET_OS_SIMULATOR
+    if ([self isDevelopmentWrapperScriptAtPath:ffmpegPath]) {
+        return -1005;
+    }
+#endif
 
     NSURL *documents = [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] firstObject];
     NSString *stderrLogPath = documents ? [documents.path stringByAppendingPathComponent:@"ffmpeg_last_error.log"] : nil;
@@ -261,6 +346,7 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
 
         NSMutableArray<NSURL *> *tempInputs = [NSMutableArray array];
         NSMutableArray<NSString *> *typeHints = [NSMutableArray array];
+        NSMutableArray<NSNumber *> *candidateScores = [NSMutableArray array];
         NSMutableString *candidateDiagnostics = [NSMutableString stringWithFormat:@"input=%@\next=%@\n", inputURL.lastPathComponent ?: @"", ext ?: @""];
 
         if (isKugouEncrypted) {
@@ -275,7 +361,8 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
             for (NSNumber *header in headerCandidates) {
                 NSData *decrypted = [self decryptKugouData:raw headerSize:header.unsignedIntegerValue];
                 NSString *hint = [self formatHintForData:decrypted fallbackExtension:nil];
-                [candidateDiagnostics appendFormat:@"candidate#%lu header=%@ bytes=%lu hint=%@\n", (unsigned long)idx, header, (unsigned long)decrypted.length, hint];
+                NSInteger score = [self qualityScoreForDecryptedData:decrypted hint:hint header:header.unsignedIntegerValue];
+                [candidateDiagnostics appendFormat:@"candidate#%lu header=%@ bytes=%lu hint=%@ score=%ld\n", (unsigned long)idx, header, (unsigned long)decrypted.length, hint, (long)score];
 
                 if (decrypted.length == 0) {
                     idx += 1;
@@ -287,6 +374,7 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
                 if ([decrypted writeToURL:tempURL options:NSDataWritingAtomic error:nil]) {
                     [tempInputs addObject:tempURL];
                     [typeHints addObject:hint];
+                    [candidateScores addObject:@(score)];
                     [candidateDiagnostics appendFormat:@"  -> accepted temp=%@\n", tempURL.lastPathComponent ?: @"(null)"];
                 } else {
                     [candidateDiagnostics appendString:@"  -> rejected (write failed)\n"];
@@ -308,7 +396,37 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
             }
             [tempInputs addObject:tempURL];
             [typeHints addObject:hint];
-            [candidateDiagnostics appendFormat:@"source-pass-through bytes=%lu hint=%@ file=%@\n", (unsigned long)sourceData.length, hint, tempURL.lastPathComponent ?: @"(null)"];
+            [candidateScores addObject:@1000];
+            [candidateDiagnostics appendFormat:@"source-pass-through bytes=%lu hint=%@ file=%@ score=1000\n", (unsigned long)sourceData.length, hint, tempURL.lastPathComponent ?: @"(null)"];
+        }
+
+
+        if (tempInputs.count > 1) {
+            NSMutableArray<NSDictionary *> *items = [NSMutableArray arrayWithCapacity:tempInputs.count];
+            for (NSUInteger i = 0; i < tempInputs.count; i++) {
+                [items addObject:@{@"url": tempInputs[i], @"hint": typeHints[i], @"score": candidateScores[i]}];
+            }
+            [items sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
+                return [b[@"score"] compare:a[@"score"]];
+            }];
+            [tempInputs removeAllObjects];
+            [typeHints removeAllObjects];
+            [candidateScores removeAllObjects];
+            [candidateDiagnostics appendString:@"candidate-order(after-score):\n"];
+            for (NSDictionary *item in items) {
+                [tempInputs addObject:item[@"url"]];
+                [typeHints addObject:item[@"hint"]];
+                [candidateScores addObject:item[@"score"]];
+                [candidateDiagnostics appendFormat:@"  file=%@ hint=%@ score=%@\n", [item[@"url"] lastPathComponent], item[@"hint"], item[@"score"]];
+            }
+        }
+
+        NSNumber *bestScore = [candidateScores valueForKeyPath:@"@max.self"];
+        if (isKugouEncrypted && (!bestScore || bestScore.integerValue < 25)) {
+            self.latestDecryptCandidateInfoInternal = [candidateDiagnostics copy];
+            NSError *e = [NSError errorWithDomain:@"KugouConverter" code:102 userInfo:@{NSLocalizedDescriptionKey:@"疑似解密失败：候选音频特征评分过低，请更换解密策略或确认源文件完整"}];
+            dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, e); });
+            return;
         }
 
         if (tempInputs.count == 0) {
@@ -345,6 +463,9 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
                 message = @"未找到 ffmpeg 文件：请放入 App Bundle(文件名ffmpeg) 或 Documents/ffmpeg";
             } else if (ffmpegCode == -1004) {
                 message = @"找到 ffmpeg 但不可执行：若为脚本请确保内容有效；若为二进制请检查架构与签名，或放置可执行的 Documents/ffmpeg";
+            } else if (ffmpegCode == -1005) {
+                self.latestFFmpegSummaryInternal = @"检测到开发版 ffmpeg wrapper（command -v ffmpeg），该方式仅适用于模拟器开发环境";
+                message = @"当前使用的是开发版 ffmpeg wrapper（依赖系统 PATH），真机不可用：请替换为 iOS 可执行 ffmpeg 二进制";
             } else {
                 NSString *logText = @"";
                 if (ffmpegLogPath.length > 0) {
@@ -356,19 +477,28 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
                 if (logText.length > 1200) {
                     logText = [logText substringFromIndex:logText.length - 1200];
                 }
-                message = [NSString stringWithFormat:@"ffmpeg 转码失败：已尝试多头部解密 + 多编码器参数回退 + 原始PCM兜底，退出码: %d\n%@", ffmpegCode, logText];
+                NSString *summary = [self summarizeFFmpegLogAtPath:ffmpegLogPath];
+                self.latestFFmpegSummaryInternal = summary;
+                [candidateDiagnostics appendFormat:@"\nffmpeg-summary:\n%@\n", summary ?: @"(empty)"];
+                self.latestDecryptCandidateInfoInternal = [candidateDiagnostics copy];
+                message = [NSString stringWithFormat:@"ffmpeg 转码失败：已尝试多头部解密 + 多编码器参数回退 + 原始PCM兜底，退出码: %d\n\n摘要：\n%@\n\n日志尾部：\n%@", ffmpegCode, summary ?: @"", logText];
             }
             NSError *e = [NSError errorWithDomain:@"KugouConverter" code:101 userInfo:@{NSLocalizedDescriptionKey: message}];
             dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, e); });
             return;
         }
 
+        self.latestFFmpegSummaryInternal = @"";
         dispatch_async(dispatch_get_main_queue(), ^{ completion(finalMP3URL, nil); });
     });
 }
 
 - (NSString *)latestDecryptCandidateInfo {
     return self.latestDecryptCandidateInfoInternal ?: @"";
+}
+
+- (NSString *)latestFFmpegSummary {
+    return self.latestFFmpegSummaryInternal ?: @"";
 }
 
 @end
