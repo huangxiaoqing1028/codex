@@ -102,7 +102,8 @@
     [self.view.layer insertSublayer:self.previewLayer atIndex:1];
 
     AVCaptureConnection *connection = [self.previewLayer connection];
-    if (connection.isVideoMirroringSupported) {
+    if (connection && connection.isVideoMirroringSupported) {
+        connection.automaticallyAdjustsVideoMirroring = NO;
         connection.videoMirrored = NO;
     }
 }
@@ -110,7 +111,8 @@
 - (void)capturePhoto {
     AVCapturePhotoSettings *settings = [AVCapturePhotoSettings photoSettings];
     AVCaptureConnection *connection = [self.photoOutput connectionWithMediaType:AVMediaTypeVideo];
-    if (connection.isVideoMirroringSupported) {
+    if (connection && connection.isVideoMirroringSupported) {
+        connection.automaticallyAdjustsVideoMirroring = NO;
         connection.videoMirrored = NO;
     }
     [self.photoOutput capturePhotoWithSettings:settings delegate:self];
