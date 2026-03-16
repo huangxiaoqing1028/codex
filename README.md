@@ -32,7 +32,7 @@ App 会自动查找可执行 `ffmpeg`，按如下顺序：
 - 代码会优先直接执行找到的 ffmpeg；若不可执行，会尝试复制到 `Documents/ffmpeg_runtime` 并自动 `chmod +x`
 - 若 `ffmpeg` 是脚本 wrapper（如仓库内置版本），会自动尝试通过 `/bin/sh ffmpeg ...` 方式执行
 - 如果仍失败，通常是 ffmpeg 架构/签名问题（尤其是真机）
-- 代码通过 `posix_spawn` 调用 ffmpeg
+- 代码通过 `posix_spawn` 调用 ffmpeg（会优先尝试 `libmp3lame`，失败后自动回退 `mp3` 编码器）
 - 若未找到，会在 App 内提示：`未找到 ffmpeg 文件`
 - 转码失败时会附带 ffmpeg stderr 摘要，并将完整日志写入 `Documents/ffmpeg_last_error.log`
 

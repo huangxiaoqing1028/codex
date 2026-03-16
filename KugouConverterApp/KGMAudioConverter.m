@@ -135,64 +135,96 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
         *logPath = stderrLogPath;
     }
 
-    const char *argvExec[] = {
-        ffmpegPath.UTF8String,
-        "-y",
-        "-hide_banner",
-        "-i",
-        inputURL.path.UTF8String,
-        "-vn",
-        "-codec:a",
-        "libmp3lame",
-        "-b:a",
-        "320k",
-        outputURL.path.UTF8String,
-        NULL
+    int (^spawnWithCodec)(const char *) = ^int(const char *codecName) {
+        const char *argvExec[] = {
+            ffmpegPath.UTF8String,
+            "-y",
+            "-hide_banner",
+            "-i",
+            inputURL.path.UTF8String,
+            "-vn",
+            "-codec:a",
+            codecName,
+            "-b:a",
+            "320k",
+            outputURL.path.UTF8String,
+            NULL
+        };
+
+        const char *argvShell[] = {
+            "/bin/sh",
+            ffmpegPath.UTF8String,
+            "-y",
+            "-hide_banner",
+            "-i",
+            inputURL.path.UTF8String,
+            "-vn",
+            "-codec:a",
+            codecName,
+            "-b:a",
+            "320k",
+            outputURL.path.UTF8String,
+            NULL
+        };
+
+        const char *launchPath = useShellWrapper ? "/bin/sh" : ffmpegPath.UTF8String;
+        char *const *argv = (char *const *)(useShellWrapper ? argvShell : argvExec);
+
+        posix_spawn_file_actions_t fileActions;
+        posix_spawn_file_actions_init(&fileActions);
+        if (stderrLogPath.length > 0) {
+            posix_spawn_file_actions_addopen(&fileActions, STDERR_FILENO, stderrLogPath.UTF8String, O_WRONLY | O_CREAT | O_APPEND, 0644);
+            posix_spawn_file_actions_addopen(&fileActions, STDOUT_FILENO, stderrLogPath.UTF8String, O_WRONLY | O_CREAT | O_APPEND, 0644);
+        }
+
+        pid_t pid;
+        int spawnStatus = posix_spawn(&pid, launchPath, &fileActions, NULL, argv, environ);
+        posix_spawn_file_actions_destroy(&fileActions);
+
+        if (spawnStatus != 0) {
+            return spawnStatus;
+        }
+
+        int waitStatus = 0;
+        if (waitpid(pid, &waitStatus, 0) < 0) {
+            return -1002;
+        }
+
+        if (WIFEXITED(waitStatus)) {
+            return WEXITSTATUS(waitStatus);
+        }
+        return -1003;
     };
 
-    const char *argvShell[] = {
-        "/bin/sh",
-        ffmpegPath.UTF8String,
-        "-y",
-        "-hide_banner",
-        "-i",
-        inputURL.path.UTF8String,
-        "-vn",
-        "-codec:a",
-        "libmp3lame",
-        "-b:a",
-        "320k",
-        outputURL.path.UTF8String,
-        NULL
-    };
-
-    const char *launchPath = useShellWrapper ? "/bin/sh" : ffmpegPath.UTF8String;
-    char *const *argv = (char *const *)(useShellWrapper ? argvShell : argvExec);
-
-    posix_spawn_file_actions_t fileActions;
-    posix_spawn_file_actions_init(&fileActions);
     if (stderrLogPath.length > 0) {
-        posix_spawn_file_actions_addopen(&fileActions, STDERR_FILENO, stderrLogPath.UTF8String, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        posix_spawn_file_actions_addopen(&fileActions, STDOUT_FILENO, stderrLogPath.UTF8String, O_WRONLY | O_CREAT | O_APPEND, 0644);
+        NSString *head = @"
+===== ffmpeg attempt #1 codec=libmp3lame =====
+";
+        [head writeToFile:stderrLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     }
 
-    pid_t pid;
-    int spawnStatus = posix_spawn(&pid, launchPath, &fileActions, NULL, argv, environ);
-    posix_spawn_file_actions_destroy(&fileActions);
-
-    if (spawnStatus != 0) {
-        return spawnStatus;
+    int code = spawnWithCodec("libmp3lame");
+    if (code == 0) {
+        return 0;
     }
 
-    int waitStatus = 0;
-    if (waitpid(pid, &waitStatus, 0) < 0) {
-        return -1002;
+    if (stderrLogPath.length > 0) {
+        NSString *mid = @"
+===== ffmpeg attempt #2 codec=mp3 (fallback) =====
+";
+        NSFileHandle *fh = [NSFileHandle fileHandleForWritingAtPath:stderrLogPath];
+        if (fh) {
+            [fh seekToEndOfFile];
+            [fh writeData:[mid dataUsingEncoding:NSUTF8StringEncoding]];
+            [fh closeFile];
+        }
     }
 
-    if (WIFEXITED(waitStatus)) {
-        return WEXITSTATUS(waitStatus);
+    int fallbackCode = spawnWithCodec("mp3");
+    if (fallbackCode == 0) {
+        return 0;
     }
-    return -1003;
+    return fallbackCode;
 }
 
 - (void)convertFileAtURL:(NSURL *)inputURL
@@ -269,7 +301,7 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
                 if (logText.length > 800) {
                     logText = [logText substringFromIndex:logText.length - 800];
                 }
-                message = [NSString stringWithFormat:@"ffmpeg 转码失败，退出码: %d\n%@", ffmpegCode, logText];
+                message = [NSString stringWithFormat:@"ffmpeg 转码失败（已尝试 libmp3lame/mp3），退出码: %d\n%@", ffmpegCode, logText];
             }
             NSError *e = [NSError errorWithDomain:@"KugouConverter" code:101 userInfo:@{NSLocalizedDescriptionKey: message}];
             dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, e); });
