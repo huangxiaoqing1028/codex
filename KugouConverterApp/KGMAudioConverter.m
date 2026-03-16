@@ -159,40 +159,49 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
 
     NSURL *documents = [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] firstObject];
     NSString *stderrLogPath = documents ? [documents.path stringByAppendingPathComponent:@"ffmpeg_last_error.log"] : nil;
-    if (stderrLogPath.length > 0) {
-        [[NSFileManager defaultManager] removeItemAtPath:stderrLogPath error:nil];
-    }
     if (logPath) {
         *logPath = stderrLogPath;
     }
 
     NSString *ffmpegInvocation = useShellWrapper ? [NSString stringWithFormat:@"/bin/sh %@", [self shellQuoted:ffmpegPath]] : [self shellQuoted:ffmpegPath];
-    NSArray<NSDictionary<NSString *, NSString *> *> *attempts = @[
+
+    NSArray<NSString *> *inputModes;
+    if ([assumedType isEqualToString:@"bin"] || assumedType.length == 0) {
+        inputModes = @[
+            @"",
+            @"-f s16le -ar 44100 -ac 2",
+            @"-f s16le -ar 48000 -ac 2",
+            @"-f s16le -ar 44100 -ac 1",
+            @"-f u8 -ar 44100 -ac 2"
+        ];
+    } else {
+        inputModes = @[[NSString stringWithFormat:@"-f %@", assumedType]];
+    }
+
+    NSArray<NSDictionary<NSString *, NSString *> *> *encodeModes = @[
         @{@"codec": @"libmp3lame", @"extra": @"-q:a 2"},
         @{@"codec": @"mp3", @"extra": @"-b:a 320k"},
         @{@"codec": @"libmp3lame", @"extra": @"-ar 44100 -ac 2 -b:a 192k"},
         @{@"codec": @"mp3", @"extra": @"-ar 44100 -ac 2 -b:a 192k"}
     ];
 
-    for (NSUInteger i = 0; i < attempts.count; i++) {
-        NSDictionary *attempt = attempts[i];
-        NSString *codec = attempt[@"codec"];
-        NSString *extra = attempt[@"extra"];
-        NSString *formatClause = @"";
-        if (assumedType.length > 0 && ![assumedType isEqualToString:@"bin"]) {
-            formatClause = [NSString stringWithFormat:@"-f %@", assumedType];
-        }
+    NSUInteger attemptIndex = 0;
+    for (NSString *inputMode in inputModes) {
+        for (NSDictionary *encode in encodeModes) {
+            attemptIndex += 1;
+            NSString *codec = encode[@"codec"];
+            NSString *extra = encode[@"extra"];
 
-        NSString *cmd = [NSString stringWithFormat:@"%@ -y -hide_banner -loglevel info -analyzeduration 100M -probesize 100M %@ -i %@ -vn -codec:a %@ %@ %@",
-                         ffmpegInvocation,
-                         formatClause,
-                         [self shellQuoted:inputURL.path],
-                         codec,
-                         extra,
-                         [self shellQuoted:outputURL.path]];
+            NSString *cmd = [NSString stringWithFormat:@"%@ -y -hide_banner -loglevel info -analyzeduration 100M -probesize 100M %@ -i %@ -vn -codec:a %@ %@ %@",
+                             ffmpegInvocation,
+                             inputMode,
+                             [self shellQuoted:inputURL.path],
+                             codec,
+                             extra,
+                             [self shellQuoted:outputURL.path]];
 
         if (stderrLogPath.length > 0) {
-            NSString *section = [NSString stringWithFormat:@"\n===== ffmpeg attempt #%lu codec=%@ type=%@ =====\n%@\n", (unsigned long)(i + 1), codec, assumedType ?: @"", cmd];
+            NSString *section = [NSString stringWithFormat:@"\n===== ffmpeg attempt #%lu codec=%@ type=%@ inputMode=%@ =====\n%@\n", (unsigned long)attemptIndex, codec, assumedType ?: @"", inputMode.length > 0 ? inputMode : @"auto", cmd];
             NSFileHandle *fh = [NSFileHandle fileHandleForWritingAtPath:stderrLogPath];
             if (!fh) {
                 [section writeToFile:stderrLogPath atomically:YES encoding:NSUTF8StringEncoding error:nil];
@@ -226,6 +235,7 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
 
         if (WIFEXITED(waitStatus) && WEXITSTATUS(waitStatus) == 0) {
             return 0;
+        }
         }
     }
 
@@ -301,8 +311,6 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
             [candidateDiagnostics appendFormat:@"source-pass-through bytes=%lu hint=%@ file=%@\n", (unsigned long)sourceData.length, hint, tempURL.lastPathComponent ?: @"(null)"];
         }
 
-        self.latestDecryptCandidateInfoInternal = [candidateDiagnostics copy];
-
         if (tempInputs.count == 0) {
             NSError *e = [NSError errorWithDomain:@"KugouConverter" code:100 userInfo:@{NSLocalizedDescriptionKey:@"解密后没有可用音频数据：已尝试多种头部策略（16/1024/4096/0）"}];
             dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, e); });
@@ -311,12 +319,21 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
 
         int ffmpegCode = 1;
         NSString *ffmpegLogPath = nil;
+        NSURL *documents = [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] firstObject];
+        if (documents) {
+            NSString *logPath = [documents.path stringByAppendingPathComponent:@"ffmpeg_last_error.log"];
+            [[NSFileManager defaultManager] removeItemAtPath:logPath error:nil];
+        }
+
         for (NSUInteger i = 0; i < tempInputs.count; i++) {
+            [candidateDiagnostics appendFormat:@"ffmpeg candidate try #%lu file=%@ type=%@\n", (unsigned long)(i + 1), tempInputs[i].lastPathComponent ?: @"", typeHints[i] ?: @""];
             ffmpegCode = [self runBundledFFmpegWithInput:tempInputs[i] output:finalMP3URL assumedType:typeHints[i] logPath:&ffmpegLogPath];
             if (ffmpegCode == 0) {
                 break;
             }
         }
+
+        self.latestDecryptCandidateInfoInternal = [candidateDiagnostics copy];
 
         for (NSURL *tempURL in tempInputs) {
             [[NSFileManager defaultManager] removeItemAtURL:tempURL error:nil];
@@ -339,7 +356,7 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
                 if (logText.length > 1200) {
                     logText = [logText substringFromIndex:logText.length - 1200];
                 }
-                message = [NSString stringWithFormat:@"ffmpeg 转码失败：已尝试多头部解密 + 多编码器参数回退，退出码: %d\n%@", ffmpegCode, logText];
+                message = [NSString stringWithFormat:@"ffmpeg 转码失败：已尝试多头部解密 + 多编码器参数回退 + 原始PCM兜底，退出码: %d\n%@", ffmpegCode, logText];
             }
             NSError *e = [NSError errorWithDomain:@"KugouConverter" code:101 userInfo:@{NSLocalizedDescriptionKey: message}];
             dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, e); });
