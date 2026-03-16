@@ -1,8 +1,8 @@
 #import "KGMAudioConverter.h"
-#import <ffmpegkit/FFmpegKit.h>
-#import <ffmpegkit/FFmpegKitConfig.h>
-#import <ffmpegkit/FFmpegSession.h>
-#import <ffmpegkit/ReturnCode.h>
+#include <spawn.h>
+#include <sys/wait.h>
+
+extern char **environ;
 
 static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE8,0x39,0x5D,0x7F,0x91,0xB2,0xD4,0x66};
 
@@ -24,6 +24,43 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
     return payload;
 }
 
+- (int)runBundledFFmpegWithInput:(NSURL *)inputURL output:(NSURL *)outputURL {
+    NSString *ffmpegPath = [[NSBundle mainBundle] pathForResource:@"ffmpeg" ofType:nil];
+    if (ffmpegPath.length == 0) {
+        return -1001;
+    }
+
+    const char *argv[] = {
+        ffmpegPath.UTF8String,
+        "-y",
+        "-i",
+        inputURL.path.UTF8String,
+        "-vn",
+        "-codec:a",
+        "libmp3lame",
+        "-b:a",
+        "320k",
+        outputURL.path.UTF8String,
+        NULL
+    };
+
+    pid_t pid;
+    int spawnStatus = posix_spawn(&pid, ffmpegPath.UTF8String, NULL, NULL, (char *const *)argv, environ);
+    if (spawnStatus != 0) {
+        return spawnStatus;
+    }
+
+    int waitStatus = 0;
+    if (waitpid(pid, &waitStatus, 0) < 0) {
+        return -1002;
+    }
+
+    if (WIFEXITED(waitStatus)) {
+        return WEXITSTATUS(waitStatus);
+    }
+    return -1003;
+}
+
 - (void)convertFileAtURL:(NSURL *)inputURL
               outputDir:(NSURL *)outputDir
                  format:(KGOutputFormat)format
@@ -42,7 +79,9 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
         [[NSFileManager defaultManager] removeItemAtURL:finalMP3URL error:nil];
 
         NSString *ext = inputURL.pathExtension.lowercaseString;
-        if ([ext isEqualToString:@"kgm"] || [ext isEqualToString:@"vpr"]) {
+        BOOL isKugouEncrypted = [ext isEqualToString:@"kgm"] || [ext isEqualToString:@"kmg"] || [ext isEqualToString:@"kgg"] || [ext isEqualToString:@"vpr"];
+
+        if (isKugouEncrypted) {
             NSData *raw = [NSData dataWithContentsOfURL:inputURL options:0 error:&error];
             if (!raw || error) {
                 dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, error); });
@@ -51,7 +90,7 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
 
             NSData *decryptedMP3Bytes = [self decryptKugouData:raw headerSize:16];
             if (decryptedMP3Bytes.length == 0) {
-                NSError *e = [NSError errorWithDomain:@"KugouConverter" code:100 userInfo:@{NSLocalizedDescriptionKey:@"KGM/VPR 解密失败或文件内容为空"}];
+                NSError *e = [NSError errorWithDomain:@"KugouConverter" code:100 userInfo:@{NSLocalizedDescriptionKey:@"KGM/KGG/VPR 解密失败或文件内容为空"}];
                 dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, e); });
                 return;
             }
@@ -75,23 +114,19 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
             }
         }
 
-        NSString *command = [NSString stringWithFormat:@"-y -i '%@' -vn -codec:a libmp3lame -b:a 320k '%@'", tempMP3URL.path, finalMP3URL.path];
+        int ffmpegCode = [self runBundledFFmpegWithInput:tempMP3URL output:finalMP3URL];
+        [[NSFileManager defaultManager] removeItemAtURL:tempMP3URL error:nil];
 
-        [FFmpegKit executeAsync:command withCompleteCallback:^(FFmpegSession *session) {
-            [[NSFileManager defaultManager] removeItemAtURL:tempMP3URL error:nil];
-
-            ReturnCode *rc = [session getReturnCode];
-            if ([ReturnCode isSuccess:rc]) {
-                dispatch_async(dispatch_get_main_queue(), ^{ completion(finalMP3URL, nil); });
-                return;
-            }
-
-            NSString *logs = [session getAllLogsAsString] ?: @"";
-            NSError *e = [NSError errorWithDomain:@"KugouConverter"
-                                             code:101
-                                         userInfo:@{NSLocalizedDescriptionKey: [NSString stringWithFormat:@"FFmpegKit 转码失败: %@", logs]}];
+        if (ffmpegCode != 0) {
+            NSString *message = ffmpegCode == -1001
+                ? @"未找到 ffmpeg 可执行文件，请将 ffmpeg 放入 App Bundle（文件名: ffmpeg）"
+                : [NSString stringWithFormat:@"ffmpeg 转码失败，退出码: %d", ffmpegCode];
+            NSError *e = [NSError errorWithDomain:@"KugouConverter" code:101 userInfo:@{NSLocalizedDescriptionKey: message}];
             dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, e); });
-        }];
+            return;
+        }
+
+        dispatch_async(dispatch_get_main_queue(), ^{ completion(finalMP3URL, nil); });
     });
 }
 
