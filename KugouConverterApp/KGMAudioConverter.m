@@ -3,6 +3,7 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <TargetConditionals.h>
 
 extern char **environ;
@@ -109,7 +110,7 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
     return bytes[0] == '#' && bytes[1] == '!';
 }
 
-- (int)runBundledFFmpegWithInput:(NSURL *)inputURL output:(NSURL *)outputURL {
+- (int)runBundledFFmpegWithInput:(NSURL *)inputURL output:(NSURL *)outputURL logPath:(NSString * _Nullable * _Nullable)logPath {
     NSString *resolvedPath = [self resolveFFmpegPath];
     if (resolvedPath.length == 0) {
         return -1001;
@@ -125,9 +126,19 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
         return -1004;
     }
 
+    NSURL *documents = [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] firstObject];
+    NSString *stderrLogPath = documents ? [documents.path stringByAppendingPathComponent:@"ffmpeg_last_error.log"] : nil;
+    if (stderrLogPath.length > 0) {
+        [[NSFileManager defaultManager] removeItemAtPath:stderrLogPath error:nil];
+    }
+    if (logPath) {
+        *logPath = stderrLogPath;
+    }
+
     const char *argvExec[] = {
         ffmpegPath.UTF8String,
         "-y",
+        "-hide_banner",
         "-i",
         inputURL.path.UTF8String,
         "-vn",
@@ -143,6 +154,7 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
         "/bin/sh",
         ffmpegPath.UTF8String,
         "-y",
+        "-hide_banner",
         "-i",
         inputURL.path.UTF8String,
         "-vn",
@@ -157,8 +169,17 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
     const char *launchPath = useShellWrapper ? "/bin/sh" : ffmpegPath.UTF8String;
     char *const *argv = (char *const *)(useShellWrapper ? argvShell : argvExec);
 
+    posix_spawn_file_actions_t fileActions;
+    posix_spawn_file_actions_init(&fileActions);
+    if (stderrLogPath.length > 0) {
+        posix_spawn_file_actions_addopen(&fileActions, STDERR_FILENO, stderrLogPath.UTF8String, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        posix_spawn_file_actions_addopen(&fileActions, STDOUT_FILENO, stderrLogPath.UTF8String, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    }
+
     pid_t pid;
-    int spawnStatus = posix_spawn(&pid, launchPath, NULL, NULL, argv, environ);
+    int spawnStatus = posix_spawn(&pid, launchPath, &fileActions, NULL, argv, environ);
+    posix_spawn_file_actions_destroy(&fileActions);
+
     if (spawnStatus != 0) {
         return spawnStatus;
     }
@@ -227,7 +248,8 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
             }
         }
 
-        int ffmpegCode = [self runBundledFFmpegWithInput:tempMP3URL output:finalMP3URL];
+        NSString *ffmpegLogPath = nil;
+        int ffmpegCode = [self runBundledFFmpegWithInput:tempMP3URL output:finalMP3URL logPath:&ffmpegLogPath];
         [[NSFileManager defaultManager] removeItemAtURL:tempMP3URL error:nil];
 
         if (ffmpegCode != 0) {
@@ -237,7 +259,17 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
             } else if (ffmpegCode == -1004) {
                 message = @"找到 ffmpeg 但不可执行：若为脚本请确保内容有效；若为二进制请检查架构与签名，或放置可执行的 Documents/ffmpeg";
             } else {
-                message = [NSString stringWithFormat:@"ffmpeg 转码失败，退出码: %d", ffmpegCode];
+                NSString *logText = @"";
+                if (ffmpegLogPath.length > 0) {
+                    NSData *logData = [NSData dataWithContentsOfFile:ffmpegLogPath];
+                    if (logData.length > 0) {
+                        logText = [[NSString alloc] initWithData:logData encoding:NSUTF8StringEncoding] ?: @"";
+                    }
+                }
+                if (logText.length > 800) {
+                    logText = [logText substringFromIndex:logText.length - 800];
+                }
+                message = [NSString stringWithFormat:@"ffmpeg 转码失败，退出码: %d\n%@", ffmpegCode, logText];
             }
             NSError *e = [NSError errorWithDomain:@"KugouConverter" code:101 userInfo:@{NSLocalizedDescriptionKey: message}];
             dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, e); });

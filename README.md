@@ -34,6 +34,7 @@ App 会自动查找可执行 `ffmpeg`，按如下顺序：
 - 如果仍失败，通常是 ffmpeg 架构/签名问题（尤其是真机）
 - 代码通过 `posix_spawn` 调用 ffmpeg
 - 若未找到，会在 App 内提示：`未找到 ffmpeg 文件`
+- 转码失败时会附带 ffmpeg stderr 摘要，并将完整日志写入 `Documents/ffmpeg_last_error.log`
 
 ## Xcode 运行
 1. 用 Xcode 打开 `KugouConverterApp.xcodeproj`
