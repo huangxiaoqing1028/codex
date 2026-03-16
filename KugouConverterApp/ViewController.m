@@ -156,10 +156,24 @@
     return button;
 }
 
+
+- (NSArray<UTType *> *)supportedPickerTypes API_AVAILABLE(ios(14.0)) {
+    NSMutableArray<UTType *> *types = [NSMutableArray arrayWithArray:@[UTTypeAudio, UTTypeData, UTTypeContent]];
+
+    NSArray<NSString *> *exts = @[@"kgm", @"kmg", @"kgg", @"vpr", @"mp3", @"wav", @"m4a", @"flac", @"aac"];
+    for (NSString *ext in exts) {
+        UTType *customType = [UTType typeWithFilenameExtension:ext];
+        if (customType) {
+            [types addObject:customType];
+        }
+    }
+    return types;
+}
+
 - (void)pickFile {
     NSArray<UTType *> *types;
-    if (@available(iOS 15.0, *)) {
-        types = @[UTTypeAudio, UTTypeData];
+    if (@available(iOS 14.0, *)) {
+        types = [self supportedPickerTypes];
     } else {
         types = @[];
     }
