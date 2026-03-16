@@ -96,6 +96,19 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
     return payload;
 }
 
+
+- (BOOL)isShellScriptAtPath:(NSString *)path {
+    if (path.length == 0) {
+        return NO;
+    }
+    NSData *data = [NSData dataWithContentsOfFile:path options:0 error:nil];
+    if (data.length < 2) {
+        return NO;
+    }
+    const unsigned char *bytes = (const unsigned char *)data.bytes;
+    return bytes[0] == '#' && bytes[1] == '!';
+}
+
 - (int)runBundledFFmpegWithInput:(NSURL *)inputURL output:(NSURL *)outputURL {
     NSString *resolvedPath = [self resolveFFmpegPath];
     if (resolvedPath.length == 0) {
@@ -103,11 +116,16 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
     }
 
     NSString *ffmpegPath = [self prepareExecutableFFmpegPath:resolvedPath];
+    BOOL useShellWrapper = NO;
+    if (ffmpegPath.length == 0 && [self isShellScriptAtPath:resolvedPath]) {
+        ffmpegPath = resolvedPath;
+        useShellWrapper = YES;
+    }
     if (ffmpegPath.length == 0) {
         return -1004;
     }
 
-    const char *argv[] = {
+    const char *argvExec[] = {
         ffmpegPath.UTF8String,
         "-y",
         "-i",
@@ -121,8 +139,26 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
         NULL
     };
 
+    const char *argvShell[] = {
+        "/bin/sh",
+        ffmpegPath.UTF8String,
+        "-y",
+        "-i",
+        inputURL.path.UTF8String,
+        "-vn",
+        "-codec:a",
+        "libmp3lame",
+        "-b:a",
+        "320k",
+        outputURL.path.UTF8String,
+        NULL
+    };
+
+    const char *launchPath = useShellWrapper ? "/bin/sh" : ffmpegPath.UTF8String;
+    char *const *argv = (char *const *)(useShellWrapper ? argvShell : argvExec);
+
     pid_t pid;
-    int spawnStatus = posix_spawn(&pid, ffmpegPath.UTF8String, NULL, NULL, (char *const *)argv, environ);
+    int spawnStatus = posix_spawn(&pid, launchPath, NULL, NULL, argv, environ);
     if (spawnStatus != 0) {
         return spawnStatus;
     }
@@ -199,7 +235,7 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
             if (ffmpegCode == -1001) {
                 message = @"未找到 ffmpeg 文件：请放入 App Bundle(文件名ffmpeg) 或 Documents/ffmpeg";
             } else if (ffmpegCode == -1004) {
-                message = @"找到 ffmpeg 但不可执行：请检查二进制架构与签名，或放置可执行的 Documents/ffmpeg";
+                message = @"找到 ffmpeg 但不可执行：若为脚本请确保内容有效；若为二进制请检查架构与签名，或放置可执行的 Documents/ffmpeg";
             } else {
                 message = [NSString stringWithFormat:@"ffmpeg 转码失败，退出码: %d", ffmpegCode];
             }
