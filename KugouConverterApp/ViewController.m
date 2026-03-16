@@ -187,6 +187,12 @@
         return;
     }
 
+    NSURL *sourceURL = self.selectedFileURL;
+    BOOL didStartSecurityScope = NO;
+    if ([sourceURL respondsToSelector:@selector(startAccessingSecurityScopedResource)]) {
+        didStartSecurityScope = [sourceURL startAccessingSecurityScopedResource];
+    }
+
     NSURL *documents = [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] firstObject];
     NSURL *outputDir = [documents URLByAppendingPathComponent:@"ConvertedAudio" isDirectory:YES];
 
@@ -194,7 +200,11 @@
     [self.indicator startAnimating];
     self.statusLabel.text = @"转换中，请稍候...";
 
-    [self.converter convertFileAtURL:self.selectedFileURL outputDir:outputDir format:[self currentFormat] completion:^(NSURL * _Nullable outputURL, NSError * _Nullable error) {
+    [self.converter convertFileAtURL:sourceURL outputDir:outputDir format:[self currentFormat] completion:^(NSURL * _Nullable outputURL, NSError * _Nullable error) {
+        if (didStartSecurityScope) {
+            [sourceURL stopAccessingSecurityScopedResource];
+        }
+
         self.convertButton.enabled = YES;
         [self.indicator stopAnimating];
 
