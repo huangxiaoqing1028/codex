@@ -22,3 +22,11 @@
 3. 使用 `VNGeneratePersonSegmentationRequest` 进行人像分割。
 4. 使用 `CIBlendWithMask` 合成人像与纯色背景。
 5. 通过 `CIExposureAdjust` 实现轻量美白增强。
+
+## Xcode 直接运行
+
+1. 用 Xcode 打开 `PhotoIDApp.xcodeproj`。
+2. 选择 `PhotoIDApp` Scheme 与 iPhone 模拟器或真机。
+3. 首次运行允许相机权限（真机）。
+
+> 已包含可运行所需工程文件（target、build settings、shared scheme、Info.plist）。
