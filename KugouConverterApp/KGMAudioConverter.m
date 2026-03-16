@@ -422,11 +422,9 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
         }
 
         NSNumber *bestScore = [candidateScores valueForKeyPath:@"@max.self"];
-        if (isKugouEncrypted && (!bestScore || bestScore.integerValue < 25)) {
-            self.latestDecryptCandidateInfoInternal = [candidateDiagnostics copy];
-            NSError *e = [NSError errorWithDomain:@"KugouConverter" code:102 userInfo:@{NSLocalizedDescriptionKey:@"疑似解密失败：候选音频特征评分过低，请更换解密策略或确认源文件完整"}];
-            dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, e); });
-            return;
+        BOOL lowConfidenceDecrypt = isKugouEncrypted && (!bestScore || bestScore.integerValue < 25);
+        if (lowConfidenceDecrypt) {
+            [candidateDiagnostics appendString:@"warning: 候选评分较低，仍继续尝试 ffmpeg 全部回退策略\n"];
         }
 
         if (tempInputs.count == 0) {
@@ -481,7 +479,8 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
                 self.latestFFmpegSummaryInternal = summary;
                 [candidateDiagnostics appendFormat:@"\nffmpeg-summary:\n%@\n", summary ?: @"(empty)"];
                 self.latestDecryptCandidateInfoInternal = [candidateDiagnostics copy];
-                message = [NSString stringWithFormat:@"ffmpeg 转码失败：已尝试多头部解密 + 多编码器参数回退 + 原始PCM兜底，退出码: %d\n\n摘要：\n%@\n\n日志尾部：\n%@", ffmpegCode, summary ?: @"", logText];
+                NSString *confidenceText = lowConfidenceDecrypt ? @"\n\n提示：候选评分偏低（疑似解密质量不足），但已继续执行完整 ffmpeg 回退链路。" : @"";
+                message = [NSString stringWithFormat:@"ffmpeg 转码失败：已尝试多头部解密 + 多编码器参数回退 + 原始PCM兜底，退出码: %d\n\n摘要：\n%@\n\n日志尾部：\n%@%@", ffmpegCode, summary ?: @"", logText, confidenceText];
             }
             NSError *e = [NSError errorWithDomain:@"KugouConverter" code:101 userInfo:@{NSLocalizedDescriptionKey: message}];
             dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, e); });
