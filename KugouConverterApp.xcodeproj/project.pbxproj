@@ -11,6 +11,7 @@
 		A00000000000000000000002 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000012 /* AppDelegate.m */; };
 		A00000000000000000000003 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000014 /* ViewController.m */; };
 		A00000000000000000000004 /* KGMAudioConverter.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000016 /* KGMAudioConverter.m */; };
+		A00000000000000000000005 /* ffmpeg in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000019 /* ffmpeg */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,6 +24,7 @@
 		A00000000000000000000016 /* KGMAudioConverter.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KGMAudioConverter.m; sourceTree = "<group>"; };
 		A00000000000000000000017 /* KGMAudioConverter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KGMAudioConverter.h; sourceTree = "<group>"; };
 		A00000000000000000000018 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A00000000000000000000019 /* ffmpeg */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = ffmpeg; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -34,6 +36,17 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
+/* Begin PBXResourcesBuildPhase section */
+		A00000000000000000000032 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000000000000000000005 /* ffmpeg in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 
 /* Begin PBXGroup section */
 		A00000000000000000000020 = {
@@ -55,6 +68,7 @@
 				A00000000000000000000016 /* KGMAudioConverter.m */,
 				A00000000000000000000011 /* main.m */,
 				A00000000000000000000018 /* Info.plist */,
+				A00000000000000000000019 /* ffmpeg */,
 			);
 			path = KugouConverterApp;
 			sourceTree = "<group>";
@@ -76,6 +90,7 @@
 			buildPhases = (
 				A00000000000000000000031 /* Sources */,
 				A00000000000000000000030 /* Frameworks */,
+				A00000000000000000000032 /* Resources */,
 			);
 			buildRules = (
 			);

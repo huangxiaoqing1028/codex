@@ -20,6 +20,9 @@ OC 解密
 - 精美 UI：渐变背景、毛玻璃卡片、圆角按钮、状态反馈与加载动画
 
 ## ffmpeg 集成要求（不依赖 FFmpegKit）
+工程已内置 `KugouConverterApp/ffmpeg`（开发 wrapper，可在模拟器调用系统 ffmpeg）。
+正式发布建议替换为你自己的静态 ffmpeg 可执行文件（文件名仍为 `ffmpeg`）。
+
 App 会自动查找可执行 `ffmpeg`，按如下顺序：
 - App Bundle 内 `ffmpeg`（推荐）
 - App 沙盒 `Documents/ffmpeg`

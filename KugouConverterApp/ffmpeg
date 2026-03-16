@@ -1,0 +1,11 @@
+#!/bin/sh
+# Dev wrapper: allows simulator/debug runs without embedding a custom ffmpeg binary.
+# For production, replace this file with a real static ffmpeg executable named "ffmpeg".
+
+REAL_FFMPEG="$(command -v ffmpeg 2>/dev/null)"
+if [ -z "$REAL_FFMPEG" ]; then
+  echo "ffmpeg wrapper error: system ffmpeg not found in PATH" >&2
+  exit 127
+fi
+
+exec "$REAL_FFMPEG" "$@"
