@@ -1,12 +1,49 @@
 #import "KGMAudioConverter.h"
 #include <spawn.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <TargetConditionals.h>
 
 extern char **environ;
 
 static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE8,0x39,0x5D,0x7F,0x91,0xB2,0xD4,0x66};
 
 @implementation KGMAudioConverter
+
+
+- (NSString *)resolveFFmpegPath {
+    NSMutableArray<NSString *> *candidates = [NSMutableArray array];
+
+    NSString *bundleResource = [[NSBundle mainBundle] pathForResource:@"ffmpeg" ofType:nil];
+    if (bundleResource.length > 0) {
+        [candidates addObject:bundleResource];
+    }
+
+    NSString *bundleExecutableDir = [[[NSBundle mainBundle] executablePath] stringByDeletingLastPathComponent];
+    if (bundleExecutableDir.length > 0) {
+        [candidates addObject:[bundleExecutableDir stringByAppendingPathComponent:@"ffmpeg"]];
+    }
+
+    NSURL *documents = [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] firstObject];
+    if (documents) {
+        [candidates addObject:[[documents.path stringByAppendingPathComponent:@"ffmpeg"] copy]];
+    }
+
+#if TARGET_OS_SIMULATOR
+    [candidates addObject:@"/opt/homebrew/bin/ffmpeg"];
+    [candidates addObject:@"/usr/local/bin/ffmpeg"];
+    [candidates addObject:@"/usr/bin/ffmpeg"];
+#endif
+
+    NSFileManager *fm = [NSFileManager defaultManager];
+    for (NSString *path in candidates) {
+        BOOL isDir = NO;
+        if (path.length > 0 && [fm fileExistsAtPath:path isDirectory:&isDir] && !isDir && access(path.UTF8String, X_OK) == 0) {
+            return path;
+        }
+    }
+    return nil;
+}
 
 - (NSData *)decryptKugouData:(NSData *)data headerSize:(NSUInteger)headerSize {
     if (data.length <= headerSize) {
@@ -25,7 +62,7 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
 }
 
 - (int)runBundledFFmpegWithInput:(NSURL *)inputURL output:(NSURL *)outputURL {
-    NSString *ffmpegPath = [[NSBundle mainBundle] pathForResource:@"ffmpeg" ofType:nil];
+    NSString *ffmpegPath = [self resolveFFmpegPath];
     if (ffmpegPath.length == 0) {
         return -1001;
     }
@@ -119,7 +156,7 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
 
         if (ffmpegCode != 0) {
             NSString *message = ffmpegCode == -1001
-                ? @"未找到 ffmpeg 可执行文件，请将 ffmpeg 放入 App Bundle（文件名: ffmpeg）"
+                ? @"未找到可用 ffmpeg：请放入 App Bundle(文件名ffmpeg) 或 Documents/ffmpeg，并确保可执行权限"
                 : [NSString stringWithFormat:@"ffmpeg 转码失败，退出码: %d", ffmpegCode];
             NSError *e = [NSError errorWithDomain:@"KugouConverter" code:101 userInfo:@{NSLocalizedDescriptionKey: message}];
             dispatch_async(dispatch_get_main_queue(), ^{ completion(nil, e); });
