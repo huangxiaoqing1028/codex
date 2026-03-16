@@ -16,10 +16,60 @@
 
 @implementation EditorViewController
 
+- (UIImage *)normalizedImage:(UIImage *)image {
+    if (image.imageOrientation == UIImageOrientationUp) {
+        return image;
+    }
+
+    UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
+    format.scale = image.scale;
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:image.size format:format];
+    UIImage *normalized = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+        [image drawInRect:CGRectMake(0, 0, image.size.width, image.size.height)];
+    }];
+    return normalized;
+}
+
+- (CGRect)cropRectForImageSize:(CGSize)size aspectRatio:(CGFloat)ratio {
+    CGFloat sourceRatio = size.width / size.height;
+    if (sourceRatio > ratio) {
+        CGFloat width = size.height * ratio;
+        return CGRectMake((size.width - width) * 0.5, 0, width, size.height);
+    }
+
+    CGFloat height = size.width / ratio;
+    return CGRectMake(0, (size.height - height) * 0.5, size.width, height);
+}
+
+- (CIImage *)refinedMaskForSourceExtent:(CGRect)sourceExtent {
+    if (!self.personMask) {
+        return nil;
+    }
+
+    CGFloat scaleX = CGRectGetWidth(sourceExtent) / CGRectGetWidth(self.personMask.extent);
+    CGFloat scaleY = CGRectGetHeight(sourceExtent) / CGRectGetHeight(self.personMask.extent);
+    CGAffineTransform transform = CGAffineTransformMakeScale(scaleX, scaleY);
+    CIImage *mask = [self.personMask imageByApplyingTransform:transform];
+    mask = [mask imageByCroppingToRect:sourceExtent];
+
+    CIFilter *contrast = [CIFilter filterWithName:@"CIColorControls"];
+    [contrast setValue:mask forKey:kCIInputImageKey];
+    [contrast setValue:@0 forKey:kCIInputSaturationKey];
+    [contrast setValue:@1.12 forKey:kCIInputContrastKey];
+    [contrast setValue:@0 forKey:kCIInputBrightnessKey];
+    mask = [contrast outputImage];
+
+    CIFilter *softEdge = [CIFilter filterWithName:@"CIGaussianBlur"];
+    [softEdge setValue:mask forKey:kCIInputImageKey];
+    [softEdge setValue:@1.0 forKey:kCIInputRadiusKey];
+    mask = [[softEdge outputImage] imageByCroppingToRect:sourceExtent];
+    return mask;
+}
+
 - (instancetype)initWithImage:(UIImage *)image {
     self = [super init];
     if (self) {
-        _sourceImage = image;
+        _sourceImage = [self normalizedImage:image];
         _presets = [SizePreset commonPresets];
         _context = [CIContext contextWithOptions:nil];
     }
@@ -102,6 +152,7 @@
 
 - (void)renderComposite {
     CIImage *inputCI = [[CIImage alloc] initWithImage:self.sourceImage];
+    CGRect sourceExtent = inputCI.extent;
 
     CIFilter *exposure = [CIFilter filterWithName:@"CIExposureAdjust"];
     [exposure setValue:inputCI forKey:kCIInputImageKey];
@@ -109,21 +160,15 @@
     CIImage *whitened = exposure.outputImage;
 
     SizePreset *preset = self.presets[self.sizeSegment.selectedSegmentIndex];
-    UIImage *targetImage = [SizePreset cropImage:self.sourceImage toAspectRatio:preset.aspectRatio];
-    CIImage *targetCI = [[CIImage alloc] initWithImage:targetImage];
+    CGRect cropRect = [self cropRectForImageSize:sourceExtent.size aspectRatio:preset.aspectRatio];
+    CIImage *targetCI = [inputCI imageByCroppingToRect:cropRect];
 
     CIImage *bg = [CIImage imageWithColor:[[CIColor alloc] initWithColor:[self selectedBGColor]]];
     bg = [bg imageByCroppingToRect:targetCI.extent];
 
-    CIImage *mask = self.personMask;
-    if (mask) {
-        mask = [mask imageByApplyingFilter:@"CILanczosScaleTransform"
-                        withInputParameters:@{kCIInputScaleKey:@(targetCI.extent.size.width / mask.extent.size.width),
-                                              kCIInputAspectRatioKey:@1.0}];
-        mask = [mask imageByCroppingToRect:targetCI.extent];
-    }
+    CIImage *mask = [[self refinedMaskForSourceExtent:sourceExtent] imageByCroppingToRect:cropRect];
 
-    CIImage *foreground = [whitened imageByCroppingToRect:targetCI.extent];
+    CIImage *foreground = [whitened imageByCroppingToRect:cropRect];
     CIImage *composite = foreground;
     if (mask) {
         CIFilter *blend = [CIFilter filterWithName:@"CIBlendWithMask"
