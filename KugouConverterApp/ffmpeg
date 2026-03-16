@@ -1,11 +1,25 @@
 #!/bin/sh
-# Dev wrapper: allows simulator/debug runs without embedding a custom ffmpeg binary.
-# For production, replace this file with a real static ffmpeg executable named "ffmpeg".
+# Runtime wrapper for bundled ffmpeg resolution.
+# Priority:
+# 1) same directory binary: ffmpeg_real
+# 2) app sandbox Documents/ffmpeg
+# 3) PATH ffmpeg (simulator/dev fallback)
+
+SELF_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+CANDIDATES="${SELF_DIR}/ffmpeg_real /var/mobile/Containers/Data/Application/*/Documents/ffmpeg"
+
+for c in $CANDIDATES; do
+  for f in $c; do
+    if [ -f "$f" ] && [ -x "$f" ]; then
+      exec "$f" "$@"
+    fi
+  done
+done
 
 REAL_FFMPEG="$(command -v ffmpeg 2>/dev/null)"
-if [ -z "$REAL_FFMPEG" ]; then
-  echo "ffmpeg wrapper error: system ffmpeg not found in PATH" >&2
-  exit 127
+if [ -n "$REAL_FFMPEG" ]; then
+  exec "$REAL_FFMPEG" "$@"
 fi
 
-exec "$REAL_FFMPEG" "$@"
+echo "ffmpeg wrapper error: no runnable ffmpeg found (ffmpeg_real/Documents/ffmpeg/PATH)" >&2
+exit 127

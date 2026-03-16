@@ -133,17 +133,6 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
 }
 
 
-- (BOOL)isDevelopmentWrapperScriptAtPath:(NSString *)path {
-    if (![self isShellScriptAtPath:path]) {
-        return NO;
-    }
-    NSString *text = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
-    if (text.length == 0) {
-        return NO;
-    }
-    return [text containsString:@"command -v ffmpeg"];
-}
-
 - (NSInteger)qualityScoreForDecryptedData:(NSData *)data hint:(NSString *)hint header:(NSUInteger)header {
     if (data.length == 0) {
         return 0;
@@ -236,11 +225,6 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
     if (ffmpegPath.length == 0) {
         return -1004;
     }
-#if !TARGET_OS_SIMULATOR
-    if ([self isDevelopmentWrapperScriptAtPath:ffmpegPath]) {
-        return -1005;
-    }
-#endif
 
     NSURL *documents = [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] firstObject];
     NSString *stderrLogPath = documents ? [documents.path stringByAppendingPathComponent:@"ffmpeg_last_error.log"] : nil;
@@ -461,9 +445,6 @@ static const uint8_t kKeyStream[] = {0x7C,0x8E,0x9A,0xB3,0xD1,0x4F,0xA7,0xC6,0xE
                 message = @"未找到 ffmpeg 文件：请放入 App Bundle(文件名ffmpeg) 或 Documents/ffmpeg";
             } else if (ffmpegCode == -1004) {
                 message = @"找到 ffmpeg 但不可执行：若为脚本请确保内容有效；若为二进制请检查架构与签名，或放置可执行的 Documents/ffmpeg";
-            } else if (ffmpegCode == -1005) {
-                self.latestFFmpegSummaryInternal = @"检测到开发版 ffmpeg wrapper（command -v ffmpeg），该方式仅适用于模拟器开发环境";
-                message = @"当前使用的是开发版 ffmpeg wrapper（依赖系统 PATH），真机不可用：请替换为 iOS 可执行 ffmpeg 二进制";
             } else {
                 NSString *logText = @"";
                 if (ffmpegLogPath.length > 0) {

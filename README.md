@@ -25,8 +25,8 @@ OC 解密（多头部策略：16/1024/4096/0）
 - 新增“导出诊断”按钮：一键导出 `ffmpeg_last_error.log` + 本次解密候选信息
 
 ## ffmpeg 集成要求（不依赖 FFmpegKit）
-工程已内置 `KugouConverterApp/ffmpeg`（开发 wrapper，可在模拟器调用系统 ffmpeg）。
-正式发布建议替换为你自己的静态 ffmpeg 可执行文件（文件名仍为 `ffmpeg`）。
+工程内置 `KugouConverterApp/ffmpeg` 套壳脚本，会优先尝试同目录 `ffmpeg_real` 或 `Documents/ffmpeg`，最后才回退 PATH。
+正式发布建议在 App Bundle 中放置可执行 `ffmpeg_real`（iOS 对应架构）。
 
 App 会自动查找可执行 `ffmpeg`，按如下顺序：
 - App Bundle 内 `ffmpeg`（推荐）
@@ -36,7 +36,7 @@ App 会自动查找可执行 `ffmpeg`，按如下顺序：
 注意：
 - 代码会优先直接执行找到的 ffmpeg；若不可执行，会尝试复制到 `Documents/ffmpeg_runtime` 并自动 `chmod +x`
 - 若 `ffmpeg` 是脚本 wrapper（如仓库内置版本），会自动尝试通过 `/bin/sh ffmpeg ...` 方式执行
-- 真机上会拒绝开发 wrapper（依赖 `PATH`），请替换为 iOS 可执行 ffmpeg 二进制
+- wrapper 会优先转发到 `ffmpeg_real`/`Documents/ffmpeg`；若二者都不存在才回退 PATH（主要用于模拟器开发）
 - 如果仍失败，通常是 ffmpeg 架构/签名问题（尤其是真机）
 - 代码通过 `posix_spawn` 调用 ffmpeg，并自动执行多轮回退（编码器 + 参数）
 - 若未找到，会在 App 内提示：`未找到 ffmpeg 文件`
