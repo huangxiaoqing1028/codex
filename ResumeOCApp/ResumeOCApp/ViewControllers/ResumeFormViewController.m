@@ -66,6 +66,7 @@
 @property (nonatomic, strong) UIButton *previewPDFButton;
 @property (nonatomic, strong) NSMutableDictionary<NSString *, UIView *> *inputs;
 @property (nonatomic, strong) NSDictionary<NSString *, NSString *> *placeholders;
+@property (nonatomic, strong) UISegmentedControl *templateControl;
 @end
 
 @implementation ResumeFormViewController
@@ -164,11 +165,20 @@
     }
 
     UILabel *tip = [[UILabel alloc] init];
-    tip.text = @"填写完成后，点击下方按钮进入下一页预览简历 PDF。";
+    tip.text = @"选择模板后，点击下方按钮进入下一页预览简历 PDF。";
     tip.numberOfLines = 0;
     tip.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
     tip.textColor = [UIColor colorWithRed:0.33 green:0.35 blue:0.43 alpha:1.0];
     [container addArrangedSubview:tip];
+
+    self.templateControl = [[UISegmentedControl alloc] initWithItems:@[@"模板 A", @"模板 B"]];
+    self.templateControl.selectedSegmentIndex = 0;
+    self.templateControl.backgroundColor = [UIColor colorWithRed:0.94 green:0.95 blue:1 alpha:1];
+    self.templateControl.selectedSegmentTintColor = [UIColor colorWithRed:0.26 green:0.33 blue:1 alpha:1];
+    [self.templateControl setTitleTextAttributes:@{NSForegroundColorAttributeName: UIColor.whiteColor, NSFontAttributeName: [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold]} forState:UIControlStateSelected];
+    [self.templateControl setTitleTextAttributes:@{NSForegroundColorAttributeName: [UIColor colorWithRed:0.22 green:0.25 blue:0.38 alpha:1], NSFontAttributeName: [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold]} forState:UIControlStateNormal];
+    [[self.templateControl.heightAnchor constraintEqualToConstant:38] setActive:YES];
+    [container addArrangedSubview:self.templateControl];
 
     self.previewPDFButton = [self actionButtonWithTitle:@"预览简历 PDF" background:[UIColor colorWithRed:0.26 green:0.33 blue:1 alpha:1] titleColor:UIColor.whiteColor];
     [self.previewPDFButton addTarget:self action:@selector(previewPDFTapped) forControlEvents:UIControlEventTouchUpInside];
@@ -301,7 +311,8 @@
 
 - (void)previewPDFTapped {
     ResumeData *data = [self collectData];
-    NSURL *fileURL = [PDFResumeRenderer renderPDFForResume:data];
+    NSInteger selectedTemplate = self.templateControl ? self.templateControl.selectedSegmentIndex : 0;
+    NSURL *fileURL = [PDFResumeRenderer renderPDFForResume:data templateIndex:selectedTemplate];
     if (!fileURL) {
         [self showAlert:@"预览失败" message:@"PDF 生成失败，请稍后重试。"];
         return;
