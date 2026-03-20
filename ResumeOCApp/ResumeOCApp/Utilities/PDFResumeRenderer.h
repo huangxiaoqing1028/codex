@@ -5,7 +5,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 @interface PDFResumeRenderer : NSObject
-+ (NSURL *)renderPDFForResume:(ResumeData *)data;
++ (nullable NSURL *)renderPDFForResume:(ResumeData *)data;
 @end
 
 NS_ASSUME_NONNULL_END

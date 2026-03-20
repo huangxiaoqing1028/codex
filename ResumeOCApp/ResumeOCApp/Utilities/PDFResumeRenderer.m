@@ -3,7 +3,7 @@
 
 @implementation PDFResumeRenderer
 
-+ (NSURL *)renderPDFForResume:(ResumeData *)data {
++ (nullable NSURL *)renderPDFForResume:(ResumeData *)data {
     NSString *fileName = data.name.length > 0 ? [NSString stringWithFormat:@"%@_Resume.pdf", data.name] : @"Resume.pdf";
     NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:fileName];
     NSURL *url = [NSURL fileURLWithPath:path];
@@ -12,6 +12,7 @@
     UIGraphicsPDFRendererFormat *format = [[UIGraphicsPDFRendererFormat alloc] init];
     UIGraphicsPDFRenderer *renderer = [[UIGraphicsPDFRenderer alloc] initWithBounds:pageRect format:format];
 
+    NSError *renderError = nil;
     [renderer writePDFToURL:url withActions:^(UIGraphicsPDFRendererContext * _Nonnull context) {
         [context beginPage];
         CGContextRef cg = context.CGContext;
@@ -57,7 +58,11 @@
         y = [self drawSection:@"工作经历" content:data.experiences.count > 0 ? data.experiences : @[@"暂无"] x:x y:y width:width titleAttr:sectionTitle bodyAttr:bodyText];
         y = [self drawSection:@"教育背景" content:data.education.count > 0 ? data.education : @[@"暂无"] x:x y:y width:width titleAttr:sectionTitle bodyAttr:bodyText];
         [self drawSection:@"项目亮点" content:data.projects.count > 0 ? data.projects : @[@"暂无"] x:x y:y width:width titleAttr:sectionTitle bodyAttr:bodyText];
-    }];
+    } error:&renderError];
+
+    if (renderError) {
+        return nil;
+    }
 
     return url;
 }

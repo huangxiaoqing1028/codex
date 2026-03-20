@@ -197,6 +197,10 @@
 - (void)exportTapped {
     ResumeData *data = [self collectData];
     NSURL *fileURL = [PDFResumeRenderer renderPDFForResume:data];
+    if (!fileURL) {
+        [self showAlert:@"导出失败" message:@"PDF 生成失败，请稍后重试。"];
+        return;
+    }
 
     UIPrintInteractionController *printController = [UIPrintInteractionController sharedPrintController];
     if (!printController || ![UIPrintInteractionController canPrintURL:fileURL]) {
