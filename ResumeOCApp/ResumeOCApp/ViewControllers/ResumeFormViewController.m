@@ -43,7 +43,12 @@
         [self.webView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
     ]];
 
-    [self.webView loadFileURL:self.htmlURL allowingReadAccessToURL:self.htmlURL.URLByDeletingLastPathComponent];
+    NSString *html = [NSString stringWithContentsOfURL:self.htmlURL encoding:NSUTF8StringEncoding error:nil];
+    if (html.length == 0) {
+        NSData *raw = [NSData dataWithContentsOfURL:self.htmlURL];
+        html = [[NSString alloc] initWithData:raw encoding:CFStringConvertEncodingToNSStringEncoding(kCFStringEncodingGB_18030_2000)];
+    }
+    [self.webView loadHTMLString:html ?: @"<html><body></body></html>" baseURL:self.htmlURL.URLByDeletingLastPathComponent];
 
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"导出PDF"
                                                                                style:UIBarButtonItemStyleDone
