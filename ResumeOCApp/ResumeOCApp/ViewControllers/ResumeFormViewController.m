@@ -2,12 +2,13 @@
 #import "../Models/ResumeData.h"
 #import "../Utilities/PDFResumeRenderer.h"
 
-@interface ResumeFormViewController () <UITextFieldDelegate, UITextViewDelegate>
-@property (nonatomic, strong) UIScrollView *scrollView;
-@property (nonatomic, strong) UIStackView *stack;
-@property (nonatomic, strong) UIButton *exportButton;
+@interface ResumeFormViewController () <UITextViewDelegate, UIScrollViewDelegate>
+@property (nonatomic, strong) UIScrollView *pagesScrollView;
+@property (nonatomic, strong) UIPageControl *pageControl;
 @property (nonatomic, strong) UITextView *previewView;
+@property (nonatomic, strong) UIButton *exportButton;
 @property (nonatomic, strong) NSMutableDictionary<NSString *, UIView *> *inputs;
+@property (nonatomic, strong) NSDictionary<NSString *, NSString *> *placeholders;
 @end
 
 @implementation ResumeFormViewController
@@ -17,66 +18,101 @@
     self.title = @"简历生成器 Pro";
     self.view.backgroundColor = [UIColor colorWithRed:0.95 green:0.97 blue:1 alpha:1.0];
     self.inputs = [NSMutableDictionary dictionary];
+    self.placeholders = @{
+        @"summary": @"一句话介绍你的优势、经验与价值主张",
+        @"education": @"每行一条，例如：2016-2020 XXX大学 本科",
+        @"experiences": @"每段空行分隔，描述成果时尽量量化",
+        @"projects": @"每行一个项目亮点"
+    };
     [self buildUI];
 }
 
 - (void)buildUI {
-    self.scrollView = [[UIScrollView alloc] init];
-    self.scrollView.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.view addSubview:self.scrollView];
+    self.pagesScrollView = [[UIScrollView alloc] init];
+    self.pagesScrollView.translatesAutoresizingMaskIntoConstraints = NO;
+    self.pagesScrollView.pagingEnabled = YES;
+    self.pagesScrollView.showsHorizontalScrollIndicator = NO;
+    self.pagesScrollView.delegate = self;
+    [self.view addSubview:self.pagesScrollView];
 
-    self.stack = [[UIStackView alloc] init];
-    self.stack.axis = UILayoutConstraintAxisVertical;
-    self.stack.spacing = 14;
-    self.stack.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.scrollView addSubview:self.stack];
+    self.pageControl = [[UIPageControl alloc] init];
+    self.pageControl.translatesAutoresizingMaskIntoConstraints = NO;
+    self.pageControl.numberOfPages = 6;
+    self.pageControl.currentPage = 0;
+    self.pageControl.currentPageIndicatorTintColor = [UIColor colorWithRed:0.26 green:0.33 blue:1 alpha:1];
+    self.pageControl.pageIndicatorTintColor = [UIColor colorWithRed:0.76 green:0.80 blue:0.95 alpha:1];
+    [self.view addSubview:self.pageControl];
 
     [NSLayoutConstraint activateConstraints:@[
-        [self.scrollView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
-        [self.scrollView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-        [self.scrollView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-        [self.scrollView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
+        [self.pagesScrollView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:12],
+        [self.pagesScrollView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+        [self.pagesScrollView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+        [self.pagesScrollView.bottomAnchor constraintEqualToAnchor:self.pageControl.topAnchor constant:-12],
 
-        [self.stack.topAnchor constraintEqualToAnchor:self.scrollView.topAnchor constant:16],
-        [self.stack.leadingAnchor constraintEqualToAnchor:self.scrollView.leadingAnchor constant:16],
-        [self.stack.trailingAnchor constraintEqualToAnchor:self.scrollView.trailingAnchor constant:-16],
-        [self.stack.bottomAnchor constraintEqualToAnchor:self.scrollView.bottomAnchor constant:-20],
-        [self.stack.widthAnchor constraintEqualToAnchor:self.scrollView.widthAnchor constant:-32]
+        [self.pageControl.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+        [self.pageControl.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+        [self.pageControl.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-8],
+        [self.pageControl.heightAnchor constraintEqualToConstant:24]
     ]];
 
-    [self.stack addArrangedSubview:[self cardWithTitle:@"基本信息" fields:@[
+    UIStackView *pagesStack = [[UIStackView alloc] init];
+    pagesStack.axis = UILayoutConstraintAxisHorizontal;
+    pagesStack.spacing = 0;
+    pagesStack.distribution = UIStackViewDistributionFillEqually;
+    pagesStack.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.pagesScrollView addSubview:pagesStack];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [pagesStack.topAnchor constraintEqualToAnchor:self.pagesScrollView.contentLayoutGuide.topAnchor],
+        [pagesStack.leadingAnchor constraintEqualToAnchor:self.pagesScrollView.contentLayoutGuide.leadingAnchor],
+        [pagesStack.trailingAnchor constraintEqualToAnchor:self.pagesScrollView.contentLayoutGuide.trailingAnchor],
+        [pagesStack.bottomAnchor constraintEqualToAnchor:self.pagesScrollView.contentLayoutGuide.bottomAnchor],
+        [pagesStack.heightAnchor constraintEqualToAnchor:self.pagesScrollView.frameLayoutGuide.heightAnchor]
+    ]];
+
+    NSArray<UIView *> *pages = @[
+        [self pageForBasicInfo],
+        [self pageWithTitle:@"简介" fields:@[[self textView:@"summary" placeholder:self.placeholders[@"summary"]]]],
+        [self pageWithTitle:@"教育" fields:@[[self textView:@"education" placeholder:self.placeholders[@"education"]]]],
+        [self pageWithTitle:@"工作经历" fields:@[[self textView:@"experiences" placeholder:self.placeholders[@"experiences"]]]],
+        [self pageWithTitle:@"技能" fields:@[[self textField:@"skills" placeholder:@"核心技能，逗号分隔"]]],
+        [self pageForProjectsAndActions]
+    ];
+
+    for (UIView *page in pages) {
+        [pagesStack addArrangedSubview:page];
+        [[page.widthAnchor constraintEqualToAnchor:self.pagesScrollView.frameLayoutGuide.widthAnchor] setActive:YES];
+    }
+}
+
+- (UIView *)pageForBasicInfo {
+    return [self pageWithTitle:@"基本信息" fields:@[
         [self textField:@"name" placeholder:@"姓名"],
         [self textField:@"targetRole" placeholder:@"应聘岗位"],
         [self textField:@"phone" placeholder:@"手机号"],
         [self textField:@"email" placeholder:@"邮箱"],
         [self textField:@"city" placeholder:@"所在城市"],
         [self textField:@"portfolio" placeholder:@"作品集链接"]
-    ]]];
+    ]];
+}
 
-    [self.stack addArrangedSubview:[self cardWithTitle:@"职业概述" fields:@[
-        [self textView:@"summary" placeholder:@"一句话介绍你的优势、经验与价值主张"]
-    ]]];
+- (UIView *)pageForProjectsAndActions {
+    UIView *page = [self pageWithTitle:@"项目亮点" fields:@[
+        [self textView:@"projects" placeholder:self.placeholders[@"projects"]]
+    ]];
 
-    [self.stack addArrangedSubview:[self cardWithTitle:@"教育背景" fields:@[
-        [self textView:@"education" placeholder:@"每行一条，例如：2016-2020 XXX大学 本科"]
-    ]]];
+    UIStackView *container = [self findContainerStackInPage:page];
+    if (!container) {
+        return page;
+    }
 
-    [self.stack addArrangedSubview:[self cardWithTitle:@"工作经历" fields:@[
-        [self textView:@"experiences" placeholder:@"每段空行分隔，描述成果时尽量量化"]
-    ]]];
+    UIButton *previewButton = [self actionButtonWithTitle:@"预览简历内容" background:[UIColor colorWithRed:0.90 green:0.93 blue:1 alpha:1] titleColor:[UIColor colorWithRed:0.2 green:0.24 blue:0.43 alpha:1]];
+    [previewButton addTarget:self action:@selector(previewTapped) forControlEvents:UIControlEventTouchUpInside];
+    [container addArrangedSubview:previewButton];
 
-    [self.stack addArrangedSubview:[self cardWithTitle:@"技能与项目" fields:@[
-        [self textField:@"skills" placeholder:@"核心技能，逗号分隔"],
-        [self textView:@"projects" placeholder:@"每行一个项目亮点"]
-    ]]];
-
-    UIButton *previewBtn = [self actionButtonWithTitle:@"预览简历内容" background:[UIColor colorWithRed:0.90 green:0.93 blue:1 alpha:1] titleColor:[UIColor colorWithRed:0.2 green:0.24 blue:0.43 alpha:1]];
-    [previewBtn addTarget:self action:@selector(previewTapped) forControlEvents:UIControlEventTouchUpInside];
-    [self.stack addArrangedSubview:previewBtn];
-
-    self.exportButton = [self actionButtonWithTitle:@"生成 PDF 并调起打印" background:[UIColor colorWithRed:0.26 green:0.33 blue:1 alpha:1] titleColor:UIColor.whiteColor];
+    self.exportButton = [self actionButtonWithTitle:@"生成并分享 PDF" background:[UIColor colorWithRed:0.26 green:0.33 blue:1 alpha:1] titleColor:UIColor.whiteColor];
     [self.exportButton addTarget:self action:@selector(exportTapped) forControlEvents:UIControlEventTouchUpInside];
-    [self.stack addArrangedSubview:self.exportButton];
+    [container addArrangedSubview:self.exportButton];
 
     self.previewView = [[UITextView alloc] init];
     self.previewView.editable = NO;
@@ -85,58 +121,99 @@
     self.previewView.font = [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular];
     self.previewView.layer.cornerRadius = 14;
     self.previewView.text = @"点击“预览简历内容”查看结构化内容。";
-    self.previewView.translatesAutoresizingMaskIntoConstraints = NO;
+    self.previewView.scrollEnabled = YES;
     [[self.previewView.heightAnchor constraintEqualToConstant:220] setActive:YES];
-    [self.stack addArrangedSubview:self.previewView];
+    [container addArrangedSubview:self.previewView];
+
+    return page;
 }
 
-- (UIView *)cardWithTitle:(NSString *)title fields:(NSArray<UIView *> *)fields {
+- (UIView *)pageWithTitle:(NSString *)title fields:(NSArray<UIView *> *)fields {
+    UIView *page = [[UIView alloc] init];
+
+    UIScrollView *innerScroll = [[UIScrollView alloc] init];
+    innerScroll.translatesAutoresizingMaskIntoConstraints = NO;
+    innerScroll.alwaysBounceVertical = YES;
+    [page addSubview:innerScroll];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [innerScroll.topAnchor constraintEqualToAnchor:page.topAnchor],
+        [innerScroll.leadingAnchor constraintEqualToAnchor:page.leadingAnchor],
+        [innerScroll.trailingAnchor constraintEqualToAnchor:page.trailingAnchor],
+        [innerScroll.bottomAnchor constraintEqualToAnchor:page.bottomAnchor]
+    ]];
+
     UIView *card = [[UIView alloc] init];
+    card.translatesAutoresizingMaskIntoConstraints = NO;
     card.backgroundColor = UIColor.whiteColor;
     card.layer.cornerRadius = 16;
     card.layer.shadowColor = [UIColor colorWithWhite:0 alpha:0.08].CGColor;
     card.layer.shadowOpacity = 1;
     card.layer.shadowOffset = CGSizeMake(0, 6);
     card.layer.shadowRadius = 16;
+    [innerScroll addSubview:card];
 
     UIStackView *stack = [[UIStackView alloc] init];
     stack.axis = UILayoutConstraintAxisVertical;
-    stack.spacing = 10;
+    stack.spacing = 12;
     stack.translatesAutoresizingMaskIntoConstraints = NO;
     [card addSubview:stack];
 
     UILabel *label = [[UILabel alloc] init];
     label.text = title;
-    label.font = [UIFont boldSystemFontOfSize:18];
+    label.font = [UIFont boldSystemFontOfSize:22];
+    label.textColor = [UIColor colorWithRed:0.1 green:0.13 blue:0.24 alpha:1];
     [stack addArrangedSubview:label];
 
-    for (UIView *view in fields) {
-      [stack addArrangedSubview:view];
+    for (UIView *field in fields) {
+        [stack addArrangedSubview:field];
     }
 
     [NSLayoutConstraint activateConstraints:@[
-        [stack.topAnchor constraintEqualToAnchor:card.topAnchor constant:14],
-        [stack.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:14],
-        [stack.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-14],
-        [stack.bottomAnchor constraintEqualToAnchor:card.bottomAnchor constant:-14]
+        [card.topAnchor constraintEqualToAnchor:innerScroll.contentLayoutGuide.topAnchor constant:16],
+        [card.leadingAnchor constraintEqualToAnchor:innerScroll.frameLayoutGuide.leadingAnchor constant:16],
+        [card.trailingAnchor constraintEqualToAnchor:innerScroll.frameLayoutGuide.trailingAnchor constant:-16],
+        [card.bottomAnchor constraintEqualToAnchor:innerScroll.contentLayoutGuide.bottomAnchor constant:-16],
+
+        [stack.topAnchor constraintEqualToAnchor:card.topAnchor constant:16],
+        [stack.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:16],
+        [stack.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-16],
+        [stack.bottomAnchor constraintEqualToAnchor:card.bottomAnchor constant:-16]
     ]];
 
-    return card;
+    return page;
+}
+
+- (nullable UIStackView *)findContainerStackInPage:(UIView *)page {
+    for (UIView *subview in page.subviews) {
+        if (![subview isKindOfClass:[UIScrollView class]]) {
+            continue;
+        }
+        UIScrollView *innerScroll = (UIScrollView *)subview;
+        for (UIView *card in innerScroll.subviews) {
+            for (UIView *nested in card.subviews) {
+                if ([nested isKindOfClass:[UIStackView class]]) {
+                    return (UIStackView *)nested;
+                }
+            }
+        }
+    }
+    return nil;
 }
 
 - (UITextField *)textField:(NSString *)key placeholder:(NSString *)placeholder {
     UITextField *field = [[UITextField alloc] init];
     field.placeholder = placeholder;
     field.borderStyle = UITextBorderStyleRoundedRect;
+    field.font = [UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
+    field.translatesAutoresizingMaskIntoConstraints = NO;
     [[field.heightAnchor constraintEqualToConstant:42] setActive:YES];
-    field.delegate = self;
     self.inputs[key] = field;
     return field;
 }
 
 - (UIView *)textView:(NSString *)key placeholder:(NSString *)placeholder {
     UIView *wrapper = [[UIView alloc] init];
-    wrapper.translatesAutoresizingMaskIntoConstraints = NO;
 
     UITextView *textView = [[UITextView alloc] init];
     textView.font = [UIFont systemFontOfSize:15];
@@ -155,7 +232,7 @@
         [textView.leadingAnchor constraintEqualToAnchor:wrapper.leadingAnchor],
         [textView.trailingAnchor constraintEqualToAnchor:wrapper.trailingAnchor],
         [textView.bottomAnchor constraintEqualToAnchor:wrapper.bottomAnchor],
-        [textView.heightAnchor constraintEqualToConstant:112]
+        [textView.heightAnchor constraintEqualToConstant:220]
     ]];
 
     self.inputs[key] = textView;
@@ -201,26 +278,12 @@
         return;
     }
 
-    UIPrintInteractionController *printController = [UIPrintInteractionController sharedPrintController];
-    if (!printController || ![UIPrintInteractionController canPrintURL:fileURL]) {
-        [self showAlert:@"导出失败" message:@"当前设备不支持打印该文件。"];
-        return;
+    UIActivityViewController *activity = [[UIActivityViewController alloc] initWithActivityItems:@[fileURL] applicationActivities:nil];
+    if (activity.popoverPresentationController) {
+        activity.popoverPresentationController.sourceView = self.exportButton;
+        activity.popoverPresentationController.sourceRect = self.exportButton.bounds;
     }
-
-    UIPrintInfo *printInfo = [UIPrintInfo printInfo];
-    printInfo.outputType = UIPrintInfoOutputGeneral;
-    printInfo.jobName = @"Resume PDF";
-    printController.printInfo = printInfo;
-    printController.printingItem = fileURL;
-
-    __weak typeof(self) weakSelf = self;
-    [printController presentAnimated:YES completionHandler:^(UIPrintInteractionController * _Nonnull controller, BOOL completed, NSError * _Nullable error) {
-        if (error) {
-            [weakSelf showAlert:@"打印失败" message:error.localizedDescription ?: @"未知错误"];
-        } else if (completed) {
-            [weakSelf showAlert:@"完成" message:[NSString stringWithFormat:@"PDF 已生成：%@", fileURL.path]];
-        }
-    }];
+    [self presentViewController:activity animated:YES completion:nil];
 }
 
 - (ResumeData *)collectData {
@@ -247,7 +310,8 @@
 
     if ([view isKindOfClass:[UITextView class]]) {
         UITextView *textView = (UITextView *)view;
-        if ([textView.textColor isEqual:[UIColor colorWithRed:0.65 green:0.67 blue:0.74 alpha:1]]) {
+        UIColor *placeholderColor = [UIColor colorWithRed:0.65 green:0.67 blue:0.74 alpha:1];
+        if ([textView.textColor isEqual:placeholderColor]) {
             return @"";
         }
         return textView.text ?: @"";
@@ -278,7 +342,8 @@
 #pragma mark - UITextViewDelegate
 
 - (void)textViewDidBeginEditing:(UITextView *)textView {
-    if ([textView.textColor isEqual:[UIColor colorWithRed:0.65 green:0.67 blue:0.74 alpha:1]]) {
+    UIColor *placeholderColor = [UIColor colorWithRed:0.65 green:0.67 blue:0.74 alpha:1];
+    if ([textView.textColor isEqual:placeholderColor]) {
         textView.text = @"";
         textView.textColor = [UIColor colorWithRed:0.17 green:0.19 blue:0.22 alpha:1];
     }
@@ -287,15 +352,20 @@
 - (void)textViewDidEndEditing:(UITextView *)textView {
     if (textView.text.length == 0) {
         NSString *key = textView.accessibilityIdentifier;
-        NSDictionary *placeholders = @{
-            @"summary": @"一句话介绍你的优势、经验与价值主张",
-            @"education": @"每行一条，例如：2016-2020 XXX大学 本科",
-            @"experiences": @"每段空行分隔，描述成果时尽量量化",
-            @"projects": @"每行一个项目亮点"
-        };
-        textView.text = placeholders[key] ?: @"";
+        textView.text = self.placeholders[key] ?: @"";
         textView.textColor = [UIColor colorWithRed:0.65 green:0.67 blue:0.74 alpha:1];
     }
+}
+
+#pragma mark - UIScrollViewDelegate
+
+- (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
+    if (scrollView != self.pagesScrollView || scrollView.bounds.size.width <= 0) {
+        return;
+    }
+
+    NSInteger page = (NSInteger)llround(scrollView.contentOffset.x / scrollView.bounds.size.width);
+    self.pageControl.currentPage = MAX(0, MIN(page, self.pageControl.numberOfPages - 1));
 }
 
 @end
