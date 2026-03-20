@@ -1,15 +1,71 @@
 #import "ResumeFormViewController.h"
 #import "../Models/ResumeData.h"
 #import "../Utilities/PDFResumeRenderer.h"
+#import <PDFKit/PDFKit.h>
 
-@interface ResumeFormViewController () <UITextViewDelegate, UIScrollViewDelegate, UIDocumentInteractionControllerDelegate>
+@interface ResumePDFPreviewController : UIViewController
+- (instancetype)initWithFileURL:(NSURL *)fileURL;
+@end
+
+@interface ResumePDFPreviewController ()
+@property (nonatomic, strong) NSURL *fileURL;
+@property (nonatomic, strong) PDFView *pdfView;
+@end
+
+@implementation ResumePDFPreviewController
+
+- (instancetype)initWithFileURL:(NSURL *)fileURL {
+    self = [super init];
+    if (self) {
+        _fileURL = fileURL;
+    }
+    return self;
+}
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"简历预览";
+    self.view.backgroundColor = UIColor.whiteColor;
+
+    self.pdfView = [[PDFView alloc] init];
+    self.pdfView.translatesAutoresizingMaskIntoConstraints = NO;
+    self.pdfView.autoScales = YES;
+    self.pdfView.displayMode = kPDFDisplaySinglePageContinuous;
+    self.pdfView.displayDirection = kPDFDisplayDirectionVertical;
+    [self.view addSubview:self.pdfView];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [self.pdfView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
+        [self.pdfView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+        [self.pdfView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+        [self.pdfView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
+    ]];
+
+    PDFDocument *document = [[PDFDocument alloc] initWithURL:self.fileURL];
+    self.pdfView.document = document;
+
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"导出"
+                                                                               style:UIBarButtonItemStyleDone
+                                                                              target:self
+                                                                              action:@selector(exportTapped)];
+}
+
+- (void)exportTapped {
+    UIActivityViewController *activity = [[UIActivityViewController alloc] initWithActivityItems:@[self.fileURL] applicationActivities:nil];
+    if (activity.popoverPresentationController) {
+        activity.popoverPresentationController.barButtonItem = self.navigationItem.rightBarButtonItem;
+    }
+    [self presentViewController:activity animated:YES completion:nil];
+}
+
+@end
+
+@interface ResumeFormViewController () <UITextViewDelegate, UIScrollViewDelegate>
 @property (nonatomic, strong) UIScrollView *pagesScrollView;
 @property (nonatomic, strong) UIPageControl *pageControl;
-@property (nonatomic, strong) UITextView *previewView;
-@property (nonatomic, strong) UIButton *exportButton;
+@property (nonatomic, strong) UIButton *previewPDFButton;
 @property (nonatomic, strong) NSMutableDictionary<NSString *, UIView *> *inputs;
 @property (nonatomic, strong) NSDictionary<NSString *, NSString *> *placeholders;
-@property (nonatomic, strong, nullable) UIDocumentInteractionController *documentController;
 @end
 
 @implementation ResumeFormViewController
@@ -107,24 +163,16 @@
         return page;
     }
 
-    UIButton *previewButton = [self actionButtonWithTitle:@"预览简历内容" background:[UIColor colorWithRed:0.90 green:0.93 blue:1 alpha:1] titleColor:[UIColor colorWithRed:0.2 green:0.24 blue:0.43 alpha:1]];
-    [previewButton addTarget:self action:@selector(previewTapped) forControlEvents:UIControlEventTouchUpInside];
-    [container addArrangedSubview:previewButton];
+    UILabel *tip = [[UILabel alloc] init];
+    tip.text = @"填写完成后，点击下方按钮进入下一页预览简历 PDF。";
+    tip.numberOfLines = 0;
+    tip.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    tip.textColor = [UIColor colorWithRed:0.33 green:0.35 blue:0.43 alpha:1.0];
+    [container addArrangedSubview:tip];
 
-    self.exportButton = [self actionButtonWithTitle:@"预览 PDF（右上角导出）" background:[UIColor colorWithRed:0.26 green:0.33 blue:1 alpha:1] titleColor:UIColor.whiteColor];
-    [self.exportButton addTarget:self action:@selector(exportTapped) forControlEvents:UIControlEventTouchUpInside];
-    [container addArrangedSubview:self.exportButton];
-
-    self.previewView = [[UITextView alloc] init];
-    self.previewView.editable = NO;
-    self.previewView.backgroundColor = [UIColor colorWithRed:0.08 green:0.11 blue:0.20 alpha:1.0];
-    self.previewView.textColor = [UIColor colorWithRed:0.88 green:0.92 blue:1 alpha:1.0];
-    self.previewView.font = [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular];
-    self.previewView.layer.cornerRadius = 14;
-    self.previewView.text = @"点击“预览简历内容”查看结构化内容。";
-    self.previewView.scrollEnabled = YES;
-    [[self.previewView.heightAnchor constraintEqualToConstant:220] setActive:YES];
-    [container addArrangedSubview:self.previewView];
+    self.previewPDFButton = [self actionButtonWithTitle:@"预览简历 PDF" background:[UIColor colorWithRed:0.26 green:0.33 blue:1 alpha:1] titleColor:UIColor.whiteColor];
+    [self.previewPDFButton addTarget:self action:@selector(previewPDFTapped) forControlEvents:UIControlEventTouchUpInside];
+    [container addArrangedSubview:self.previewPDFButton];
 
     return page;
 }
@@ -251,41 +299,16 @@
     return button;
 }
 
-- (void)previewTapped {
-    ResumeData *data = [self collectData];
-    NSDictionary *json = @{
-        @"name": data.name,
-        @"targetRole": data.targetRole,
-        @"phone": data.phone,
-        @"email": data.email,
-        @"city": data.city,
-        @"portfolio": data.portfolio,
-        @"summary": data.summary,
-        @"education": data.education,
-        @"experiences": data.experiences,
-        @"skills": data.skills,
-        @"projects": data.projects
-    };
-
-    NSData *raw = [NSJSONSerialization dataWithJSONObject:json options:NSJSONWritingPrettyPrinted error:nil];
-    self.previewView.text = [[NSString alloc] initWithData:raw encoding:NSUTF8StringEncoding];
-}
-
-- (void)exportTapped {
+- (void)previewPDFTapped {
     ResumeData *data = [self collectData];
     NSURL *fileURL = [PDFResumeRenderer renderPDFForResume:data];
     if (!fileURL) {
-        [self showAlert:@"导出失败" message:@"PDF 生成失败，请稍后重试。"];
+        [self showAlert:@"预览失败" message:@"PDF 生成失败，请稍后重试。"];
         return;
     }
 
-    self.documentController = [UIDocumentInteractionController interactionControllerWithURL:fileURL];
-    self.documentController.delegate = self;
-    self.documentController.UTI = @"com.adobe.pdf";
-
-    if (![self.documentController presentPreviewAnimated:YES]) {
-        [self showAlert:@"预览失败" message:@"当前设备不支持 PDF 预览。"];
-    }
+    ResumePDFPreviewController *previewVC = [[ResumePDFPreviewController alloc] initWithFileURL:fileURL];
+    [self.navigationController pushViewController:previewVC animated:YES];
 }
 
 - (ResumeData *)collectData {
@@ -357,13 +380,6 @@
         textView.text = self.placeholders[key] ?: @"";
         textView.textColor = [UIColor colorWithRed:0.65 green:0.67 blue:0.74 alpha:1];
     }
-}
-
-
-#pragma mark - UIDocumentInteractionControllerDelegate
-
-- (UIViewController *)documentInteractionControllerViewControllerForPreview:(UIDocumentInteractionController *)controller {
-    return self;
 }
 
 #pragma mark - UIScrollViewDelegate
