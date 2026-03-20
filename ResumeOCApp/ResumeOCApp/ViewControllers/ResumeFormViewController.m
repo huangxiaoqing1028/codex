@@ -86,7 +86,7 @@
     self.previewView.layer.cornerRadius = 14;
     self.previewView.text = @"点击“预览简历内容”查看结构化内容。";
     self.previewView.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.previewView.heightAnchor constraintEqualToConstant:220].active = YES;
+    [[self.previewView.heightAnchor constraintEqualToConstant:220] setActive:YES];
     [self.stack addArrangedSubview:self.previewView];
 }
 
@@ -128,8 +128,7 @@
     UITextField *field = [[UITextField alloc] init];
     field.placeholder = placeholder;
     field.borderStyle = UITextBorderStyleRoundedRect;
-    field.heightAnchor.active = YES;
-    [field.heightAnchor constraintEqualToConstant:42].active = YES;
+    [[field.heightAnchor constraintEqualToConstant:42] setActive:YES];
     field.delegate = self;
     self.inputs[key] = field;
     return field;
@@ -170,7 +169,7 @@
     button.backgroundColor = bg;
     button.titleLabel.font = [UIFont boldSystemFontOfSize:16];
     button.layer.cornerRadius = 12;
-    [button.heightAnchor constraintEqualToConstant:48].active = YES;
+    [[button.heightAnchor constraintEqualToConstant:48] setActive:YES];
     return button;
 }
 
