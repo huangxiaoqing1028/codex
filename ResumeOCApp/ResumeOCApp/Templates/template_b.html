@@ -4,33 +4,61 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    *{box-sizing:border-box;}body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue',sans-serif;margin:0;background:#f5f7fb;color:#101828;}
-    .sheet{padding:24px 26px;}header{display:flex;justify-content:space-between;align-items:flex-start;padding:18px 20px;border-radius:16px;background:linear-gradient(135deg,#0f172a,#2563eb);color:#fff;}
-    h1{margin:0;font-size:32px;}h2{margin:8px 0 0;font-size:16px;font-weight:500;color:#dbeafe;}
-    .pill{font-size:11px;background:rgba(255,255,255,.16);padding:8px 10px;border-radius:999px;}
-    .info-grid{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-    .info-grid div{background:#fff;border:1px solid #d7e3ff;border-radius:12px;padding:10px 12px;}label{font-size:11px;color:#637087;text-transform:uppercase;letter-spacing:.4px;}
-    .info-grid p{margin:4px 0 0;font-size:13px;font-weight:600;color:#0f172a;}section{margin-top:12px;background:#fff;border:1px solid #d7e3ff;border-radius:14px;padding:12px 14px;}
-    h3{margin:0 0 8px;color:#1d4ed8;font-size:15px;}p,li{font-size:12px;line-height:1.6;margin:0;}ul{margin:0;padding-left:18px;}
-    .double{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    *{box-sizing:border-box}body{margin:0;font-family:'PingFang SC','Helvetica Neue',Arial,sans-serif;background:#f0f2f4;color:#121212}
+    .sheet{max-width:1120px;margin:0 auto;background:#eceff2}
+    .top{background:#2f435a;color:#fff;padding:34px 70px;display:flex;justify-content:space-between;gap:20px}
+    .name{font-size:68px;line-height:1;font-weight:300;letter-spacing:2px}
+    .intent{font-size:54px;margin-top:24px;font-weight:500}
+    .contact{font-size:46px;line-height:1.6;text-align:left}
+    .body{padding:20px 0 28px}
+    .row{display:grid;grid-template-columns:320px 1fr;align-items:center;margin:14px 0 0}
+    .tag{margin-left:4px;background:#2f435a;color:#fff;font-size:56px;padding:14px 0 16px 92px;clip-path:polygon(0 0, 100% 0, 92% 100%, 0 100%)}
+    .bar{height:96px;background:#d3d6d9;margin-left:24px;clip-path:polygon(2% 0, 100% 0, 98% 100%, 0 100%)}
+    .content{padding:10px 70px 0;font-size:46px;line-height:1.7}
+    .content ul{margin:0;padding-left:44px}.content li{margin:8px 0}
+    @media (max-width:1300px){
+      .name{font-size:42px}.intent{font-size:34px}.contact{font-size:28px}
+      .tag{font-size:32px;padding:10px 0 12px 42px}.bar{height:62px}
+      .content{font-size:28px;padding:8px 26px 0}
+      .row{grid-template-columns:220px 1fr}
+    }
   </style>
 </head>
 <body>
-  <div class="sheet modern">
-    <header><div><h1>{{name}}</h1><h2>{{role}}</h2></div><div class="pill">Resume Template B</div></header>
-    <section class="info-grid">
-      <div><label>电话</label><p>{{phone}}</p></div>
-      <div><label>邮箱</label><p>{{email}}</p></div>
-      <div><label>城市</label><p>{{city}}</p></div>
-      <div><label>作品集</label><p>{{portfolio}}</p></div>
-    </section>
-    <section><h3>个人简介</h3><p>{{summary}}</p></section>
-    <section><h3>工作经历</h3><ul>{{experiences_list}}</ul></section>
-    <section class="double">
-      <div><h3>教育背景</h3><ul>{{education_list}}</ul></div>
-      <div><h3>核心技能</h3><ul>{{skills_list}}</ul></div>
-    </section>
-    <section><h3>项目亮点</h3><ul>{{projects_list}}</ul></section>
+  <div class="sheet">
+    <header class="top">
+      <div>
+        <div class="name">{{name}}</div>
+        <div class="intent">求职意向：{{role}}</div>
+      </div>
+      <div class="contact">
+        <div>☎ {{phone}}</div>
+        <div>✉ {{email}}</div>
+        <div>📍 {{city}}</div>
+      </div>
+    </header>
+
+    <div class="body">
+      <div class="row"><div class="tag">基本信息</div><div class="bar"></div></div>
+      <div class="content">
+        <ul>
+          <li>作品集：{{portfolio}}</li>
+          <li>个人简介：{{summary}}</li>
+        </ul>
+      </div>
+
+      <div class="row"><div class="tag">教育背景</div><div class="bar"></div></div>
+      <div class="content"><ul>{{education_list}}</ul></div>
+
+      <div class="row"><div class="tag">实习经历</div><div class="bar"></div></div>
+      <div class="content"><ul>{{experiences_list}}</ul></div>
+
+      <div class="row"><div class="tag">技能证书</div><div class="bar"></div></div>
+      <div class="content"><ul>{{skills_list}}</ul></div>
+
+      <div class="row"><div class="tag">个人荣誉 / 项目</div><div class="bar"></div></div>
+      <div class="content"><ul>{{projects_list}}</ul></div>
+    </div>
   </div>
 </body>
 </html>
