@@ -93,46 +93,45 @@
     NSString *skillsList = [self listHTMLFromArray:data.skills fallback:@"暂无"];
     NSString *projectList = [self listHTMLFromArray:data.projects fallback:@"暂无"];
 
-    if (templateIndex == 1) {
-        return [NSString stringWithFormat:@"<!doctype html><html><head><meta charset='UTF-8'><style>%@</style></head><body>"
-                "<div class='sheet modern'>"
-                "<header><div><h1>%@</h1><h2>%@</h2></div><div class='pill'>Resume Template B</div></header>"
-                "<section class='info-grid'><div><label>电话</label><p>%@</p></div><div><label>邮箱</label><p>%@</p></div><div><label>城市</label><p>%@</p></div><div><label>作品集</label><p>%@</p></div></section>"
-                "<section><h3>个人简介</h3><p>%@</p></section>"
-                "<section><h3>工作经历</h3><ul>%@</ul></section>"
-                "<section class='double'><div><h3>教育背景</h3><ul>%@</ul></div><div><h3>核心技能</h3><ul>%@</ul></div></section>"
-                "<section><h3>项目亮点</h3><ul>%@</ul></section>"
-                "</div></body></html>",
-                [self templateStyleB], name, role, phone, email, city, portfolio, summary, expList, eduList, skillsList, projectList];
+    NSString *templateName = templateIndex == 1 ? @"template_b" : @"template_a";
+    NSString *templatePath = [[NSBundle mainBundle] pathForResource:templateName ofType:@"html" inDirectory:@"Templates"];
+
+    NSString *templateHTML = nil;
+    if (templatePath.length > 0) {
+        templateHTML = [NSString stringWithContentsOfFile:templatePath encoding:NSUTF8StringEncoding error:nil];
     }
 
-    return [NSString stringWithFormat:@"<!doctype html><html><head><meta charset='UTF-8'><style>%@</style></head><body>"
-            "<div class='sheet classic'><aside><h1>%@</h1><p class='role'>%@</p><div class='meta'><h4>联系方式</h4><p>电话 %@</p><p>邮箱 %@</p><p>城市 %@</p><p>作品集 %@</p></div><div class='meta'><h4>核心技能</h4><ul>%@</ul></div></aside>"
-            "<main><section><h3>个人简介</h3><p>%@</p></section><section><h3>工作经历</h3><ul>%@</ul></section><section><h3>教育背景</h3><ul>%@</ul></section><section><h3>项目亮点</h3><ul>%@</ul></section></main></div>"
-            "</body></html>",
-            [self templateStyleA], name, role, phone, email, city, portfolio, skillsList, summary, expList, eduList, projectList];
+    if (templateHTML.length == 0) {
+        templateHTML = templateIndex == 1 ? [self fallbackTemplateB] : [self fallbackTemplateA];
+    }
+
+    NSDictionary<NSString *, NSString *> *map = @{
+        @"{{name}}": name,
+        @"{{role}}": role,
+        @"{{phone}}": phone,
+        @"{{email}}": email,
+        @"{{city}}": city,
+        @"{{portfolio}}": portfolio,
+        @"{{summary}}": summary,
+        @"{{education_list}}": eduList,
+        @"{{experiences_list}}": expList,
+        @"{{skills_list}}": skillsList,
+        @"{{projects_list}}": projectList
+    };
+
+    NSString *result = templateHTML;
+    for (NSString *token in map) {
+        result = [result stringByReplacingOccurrencesOfString:token withString:map[token]];
+    }
+    return result;
 }
 
-+ (NSString *)templateStyleA {
-    return @"*{box-sizing:border-box;}body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue',sans-serif;margin:0;background:#eef2ff;color:#111827;}"
-    ".sheet{width:100%;min-height:100vh;display:flex;background:#fff;}"
-    ".classic aside{width:34%;background:linear-gradient(180deg,#243b8f,#1f2a5f);color:#fff;padding:26px 20px;}"
-    ".classic main{width:66%;padding:24px;}h1{margin:0;font-size:30px;}h2,.role{margin:8px 0 0;font-size:15px;opacity:.95;}"
-    ".meta{margin-top:20px;}h4{margin:0 0 8px;font-size:12px;letter-spacing:.4px;text-transform:uppercase;color:#c7d2fe;}"
-    ".meta p{margin:4px 0;font-size:12px;line-height:1.5;}section{margin-bottom:16px;background:#f8faff;border:1px solid #dbe6ff;border-radius:12px;padding:12px 14px;}"
-    "h3{margin:0 0 8px;color:#1f3a8a;font-size:15px;}p,li{font-size:12px;line-height:1.6;margin:0;}ul{margin:0;padding-left:18px;}li{margin-bottom:4px;}";
++ (NSString *)fallbackTemplateA {
+    return @"<!doctype html><html><body><h1>{{name}}</h1><p>{{role}}</p><p>{{summary}}</p></body></html>";
 }
 
-+ (NSString *)templateStyleB {
-    return @"*{box-sizing:border-box;}body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue',sans-serif;margin:0;background:#f5f7fb;color:#101828;}"
-    ".sheet{padding:24px 26px;}header{display:flex;justify-content:space-between;align-items:flex-start;padding:18px 20px;border-radius:16px;background:linear-gradient(135deg,#0f172a,#2563eb);color:#fff;}"
-    "h1{margin:0;font-size:32px;}h2{margin:8px 0 0;font-size:16px;font-weight:500;color:#dbeafe;}"
-    ".pill{font-size:11px;background:rgba(255,255,255,.16);padding:8px 10px;border-radius:999px;}"
-    ".info-grid{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}"
-    ".info-grid div{background:#fff;border:1px solid #d7e3ff;border-radius:12px;padding:10px 12px;}label{font-size:11px;color:#637087;text-transform:uppercase;letter-spacing:.4px;}"
-    ".info-grid p{margin:4px 0 0;font-size:13px;font-weight:600;color:#0f172a;}section{margin-top:12px;background:#fff;border:1px solid #d7e3ff;border-radius:14px;padding:12px 14px;}"
-    "h3{margin:0 0 8px;color:#1d4ed8;font-size:15px;}p,li{font-size:12px;line-height:1.6;margin:0;}ul{margin:0;padding-left:18px;}"
-    ".double{display:grid;grid-template-columns:1fr 1fr;gap:12px;}";
++ (NSString *)fallbackTemplateB {
+    return @"<!doctype html><html><body><h1>{{name}}</h1><p>{{role}}</p><ul>{{projects_list}}</ul></body></html>";
 }
 
 + (NSString *)listHTMLFromArray:(NSArray<NSString *> *)items fallback:(NSString *)fallback {

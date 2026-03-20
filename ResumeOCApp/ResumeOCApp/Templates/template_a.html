@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    *{box-sizing:border-box;}body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue',sans-serif;margin:0;background:#eef2ff;color:#111827;}
+    .sheet{width:100%;min-height:100vh;display:flex;background:#fff;}
+    .sidebar{width:34%;background:linear-gradient(180deg,#243b8f,#1f2a5f);color:#fff;padding:26px 20px;}
+    .main{width:66%;padding:24px;}
+    h1{margin:0;font-size:30px;} .role{margin:8px 0 0;font-size:15px;opacity:.95;}
+    .meta{margin-top:20px;} .meta h4{margin:0 0 8px;font-size:12px;letter-spacing:.4px;text-transform:uppercase;color:#c7d2fe;}
+    .meta p{margin:4px 0;font-size:12px;line-height:1.5;} section{margin-bottom:16px;background:#f8faff;border:1px solid #dbe6ff;border-radius:12px;padding:12px 14px;}
+    h3{margin:0 0 8px;color:#1f3a8a;font-size:15px;} p,li{font-size:12px;line-height:1.6;margin:0;} ul{margin:0;padding-left:18px;} li{margin-bottom:4px;}
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <aside class="sidebar">
+      <h1>{{name}}</h1>
+      <p class="role">{{role}}</p>
+      <div class="meta">
+        <h4>联系方式</h4>
+        <p>电话 {{phone}}</p>
+        <p>邮箱 {{email}}</p>
+        <p>城市 {{city}}</p>
+        <p>作品集 {{portfolio}}</p>
+      </div>
+      <div class="meta">
+        <h4>核心技能</h4>
+        <ul>{{skills_list}}</ul>
+      </div>
+    </aside>
+    <main class="main">
+      <section><h3>个人简介</h3><p>{{summary}}</p></section>
+      <section><h3>工作经历</h3><ul>{{experiences_list}}</ul></section>
+      <section><h3>教育背景</h3><ul>{{education_list}}</ul></section>
+      <section><h3>项目亮点</h3><ul>{{projects_list}}</ul></section>
+    </main>
+  </div>
+</body>
+</html>

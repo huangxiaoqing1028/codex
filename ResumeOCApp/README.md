@@ -21,3 +21,6 @@
 - `ResumeOCApp/Utilities/PDFResumeRenderer.m`：PDF 生成核心逻辑
 
 > 首次真机运行需在 Xcode 的 Signing 中配置你的 Team（模拟器一般可直接运行）。
+
+- `ResumeOCApp/Templates/template_a.html`：模板 A（可直接替换）
+- `ResumeOCApp/Templates/template_b.html`：模板 B（可直接替换）

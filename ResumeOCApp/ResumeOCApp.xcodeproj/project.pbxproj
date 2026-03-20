@@ -14,6 +14,8 @@
 		A10000010000000000000005 /* PDFResumeRenderer.m in Sources */ = {isa = PBXBuildFile; fileRef = A2000001000000000000000A /* PDFResumeRenderer.m */; };
 		A10000010000000000000006 /* ResumeFormViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A2000001000000000000000C /* ResumeFormViewController.m */; };
 		A10000010000000000000007 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000001000000000000000E /* Assets.xcassets */; };
+		A10000010000000000000008 /* template_a.html in Resources */ = {isa = PBXBuildFile; fileRef = A2000001000000000000000F /* template_a.html */; };
+		A10000010000000000000009 /* template_b.html in Resources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000010 /* template_b.html */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,6 +33,8 @@
 		A2000001000000000000000C /* ResumeFormViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ResumeFormViewController.m; sourceTree = "<group>"; };
 		A2000001000000000000000D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A2000001000000000000000E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A2000001000000000000000F /* template_a.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = template_a.html; sourceTree = "<group>"; };
+		A20000010000000000000010 /* template_b.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = template_b.html; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -63,6 +67,7 @@
 				A40000010000000000000004 /* Models */,
 				A40000010000000000000005 /* Utilities */,
 				A40000010000000000000006 /* ViewControllers */,
+				A40000010000000000000007 /* Templates */,
 				A2000001000000000000000E /* Assets.xcassets */,
 				A2000001000000000000000D /* Info.plist */,
 			);
@@ -102,6 +107,16 @@
 				A2000001000000000000000C /* ResumeFormViewController.m */,
 			);
 			path = ViewControllers;
+			sourceTree = "<group>";
+		};
+
+		A40000010000000000000007 /* Templates */ = {
+			isa = PBXGroup;
+			children = (
+				A2000001000000000000000F /* template_a.html */,
+				A20000010000000000000010 /* template_b.html */,
+			);
+			path = Templates;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -162,6 +177,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000010000000000000007 /* Assets.xcassets in Resources */,
+				A10000010000000000000008 /* template_a.html in Resources */,
+				A10000010000000000000009 /* template_b.html in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
