@@ -1,0 +1,184 @@
+:root {
+  --bg: #f4f7ff;
+  --surface: #ffffff;
+  --text: #172033;
+  --muted: #68738a;
+  --primary: #4254ff;
+  --primary-2: #6a7aff;
+  --ring: rgba(66, 84, 255, 0.2);
+  --border: #e7ebf5;
+  --shadow: 0 15px 40px rgba(25, 37, 64, 0.08);
+  --radius: 18px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, "Noto Sans SC", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: radial-gradient(circle at top right, #e8edff 0%, var(--bg) 45%);
+  color: var(--text);
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 360px 1fr;
+}
+
+.brand-panel {
+  padding: 48px 36px;
+  color: #fff;
+  background: linear-gradient(155deg, #2737c7, #4254ff 55%, #7280ff);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+.brand-panel .badge {
+  display: inline-block;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 12px;
+  margin-bottom: 18px;
+}
+
+.brand-panel h1 {
+  margin: 0 0 8px;
+  font-size: 32px;
+}
+
+.brand-panel p {
+  margin: 0 0 26px;
+  opacity: 0.95;
+  line-height: 1.6;
+}
+
+.brand-panel ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.main-content {
+  padding: 40px 42px;
+}
+
+.main-content header h2 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.main-content header p {
+  color: var(--muted);
+}
+
+.resume-form {
+  display: grid;
+  gap: 18px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+
+.card h3 {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.grid.two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  color: var(--text);
+  background: #fff;
+  outline: none;
+  transition: 0.2s ease;
+}
+
+input:focus,
+textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--ring);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.btn {
+  border: 0;
+  border-radius: 12px;
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn.primary {
+  color: #fff;
+  background: linear-gradient(120deg, var(--primary), var(--primary-2));
+}
+
+.btn.ghost {
+  color: var(--text);
+  background: #eef2ff;
+}
+
+.preview pre {
+  margin: 0;
+  background: #0e1730;
+  color: #ebf0ff;
+  padding: 14px;
+  border-radius: 12px;
+  overflow: auto;
+}
+
+@media (max-width: 1024px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .brand-panel {
+    padding: 32px;
+  }
+}
+
+@media (max-width: 640px) {
+  .main-content {
+    padding: 18px;
+  }
+
+  .grid.two {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+}
