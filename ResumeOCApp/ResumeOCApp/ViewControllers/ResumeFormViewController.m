@@ -2,13 +2,14 @@
 #import "../Models/ResumeData.h"
 #import "../Utilities/PDFResumeRenderer.h"
 
-@interface ResumeFormViewController () <UITextViewDelegate, UIScrollViewDelegate>
+@interface ResumeFormViewController () <UITextViewDelegate, UIScrollViewDelegate, UIDocumentInteractionControllerDelegate>
 @property (nonatomic, strong) UIScrollView *pagesScrollView;
 @property (nonatomic, strong) UIPageControl *pageControl;
 @property (nonatomic, strong) UITextView *previewView;
 @property (nonatomic, strong) UIButton *exportButton;
 @property (nonatomic, strong) NSMutableDictionary<NSString *, UIView *> *inputs;
 @property (nonatomic, strong) NSDictionary<NSString *, NSString *> *placeholders;
+@property (nonatomic, strong, nullable) UIDocumentInteractionController *documentController;
 @end
 
 @implementation ResumeFormViewController
@@ -110,7 +111,7 @@
     [previewButton addTarget:self action:@selector(previewTapped) forControlEvents:UIControlEventTouchUpInside];
     [container addArrangedSubview:previewButton];
 
-    self.exportButton = [self actionButtonWithTitle:@"生成并分享 PDF" background:[UIColor colorWithRed:0.26 green:0.33 blue:1 alpha:1] titleColor:UIColor.whiteColor];
+    self.exportButton = [self actionButtonWithTitle:@"预览 PDF（右上角导出）" background:[UIColor colorWithRed:0.26 green:0.33 blue:1 alpha:1] titleColor:UIColor.whiteColor];
     [self.exportButton addTarget:self action:@selector(exportTapped) forControlEvents:UIControlEventTouchUpInside];
     [container addArrangedSubview:self.exportButton];
 
@@ -278,12 +279,13 @@
         return;
     }
 
-    UIActivityViewController *activity = [[UIActivityViewController alloc] initWithActivityItems:@[fileURL] applicationActivities:nil];
-    if (activity.popoverPresentationController) {
-        activity.popoverPresentationController.sourceView = self.exportButton;
-        activity.popoverPresentationController.sourceRect = self.exportButton.bounds;
+    self.documentController = [UIDocumentInteractionController interactionControllerWithURL:fileURL];
+    self.documentController.delegate = self;
+    self.documentController.UTI = @"com.adobe.pdf";
+
+    if (![self.documentController presentPreviewAnimated:YES]) {
+        [self showAlert:@"预览失败" message:@"当前设备不支持 PDF 预览。"];
     }
-    [self presentViewController:activity animated:YES completion:nil];
 }
 
 - (ResumeData *)collectData {
@@ -355,6 +357,13 @@
         textView.text = self.placeholders[key] ?: @"";
         textView.textColor = [UIColor colorWithRed:0.65 green:0.67 blue:0.74 alpha:1];
     }
+}
+
+
+#pragma mark - UIDocumentInteractionControllerDelegate
+
+- (UIViewController *)documentInteractionControllerViewControllerForPreview:(UIDocumentInteractionController *)controller {
+    return self;
 }
 
 #pragma mark - UIScrollViewDelegate
