@@ -1,57 +1,66 @@
 #import "ResumeFormViewController.h"
 #import "../Models/ResumeData.h"
 #import "../Utilities/PDFResumeRenderer.h"
-#import <PDFKit/PDFKit.h>
+#import <WebKit/WebKit.h>
 
-@interface ResumePDFPreviewController : UIViewController
-- (instancetype)initWithFileURL:(NSURL *)fileURL;
+@interface ResumeHTMLPreviewController : UIViewController
+- (instancetype)initWithHTMLURL:(NSURL *)htmlURL fileName:(NSString *)fileName;
 @end
 
-@interface ResumePDFPreviewController ()
-@property (nonatomic, strong) NSURL *fileURL;
-@property (nonatomic, strong) PDFView *pdfView;
+@interface ResumeHTMLPreviewController ()
+@property (nonatomic, strong) NSURL *htmlURL;
+@property (nonatomic, strong) NSString *fileName;
+@property (nonatomic, strong) WKWebView *webView;
 @end
 
-@implementation ResumePDFPreviewController
+@implementation ResumeHTMLPreviewController
 
-- (instancetype)initWithFileURL:(NSURL *)fileURL {
+- (instancetype)initWithHTMLURL:(NSURL *)htmlURL fileName:(NSString *)fileName {
     self = [super init];
     if (self) {
-        _fileURL = fileURL;
+        _htmlURL = htmlURL;
+        _fileName = fileName;
     }
     return self;
 }
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.title = @"简历预览";
-    self.view.backgroundColor = UIColor.whiteColor;
+    self.title = @"简历 HTML 预览";
+    self.view.backgroundColor = [UIColor colorWithRed:0.95 green:0.97 blue:1 alpha:1.0];
 
-    self.pdfView = [[PDFView alloc] init];
-    self.pdfView.translatesAutoresizingMaskIntoConstraints = NO;
-    self.pdfView.autoScales = YES;
-    self.pdfView.displayMode = kPDFDisplaySinglePageContinuous;
-    self.pdfView.displayDirection = kPDFDisplayDirectionVertical;
-    [self.view addSubview:self.pdfView];
+    WKWebViewConfiguration *config = [[WKWebViewConfiguration alloc] init];
+    self.webView = [[WKWebView alloc] initWithFrame:CGRectZero configuration:config];
+    self.webView.translatesAutoresizingMaskIntoConstraints = NO;
+    self.webView.backgroundColor = UIColor.clearColor;
+    self.webView.scrollView.contentInset = UIEdgeInsetsMake(12, 12, 16, 12);
+    [self.view addSubview:self.webView];
 
     [NSLayoutConstraint activateConstraints:@[
-        [self.pdfView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
-        [self.pdfView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-        [self.pdfView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-        [self.pdfView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
+        [self.webView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
+        [self.webView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+        [self.webView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+        [self.webView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
     ]];
 
-    PDFDocument *document = [[PDFDocument alloc] initWithURL:self.fileURL];
-    self.pdfView.document = document;
+    [self.webView loadFileURL:self.htmlURL allowingReadAccessToURL:self.htmlURL.URLByDeletingLastPathComponent];
 
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"导出"
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"导出PDF"
                                                                                style:UIBarButtonItemStyleDone
                                                                               target:self
-                                                                              action:@selector(exportTapped)];
+                                                                              action:@selector(exportPDFTapped)];
 }
 
-- (void)exportTapped {
-    UIActivityViewController *activity = [[UIActivityViewController alloc] initWithActivityItems:@[self.fileURL] applicationActivities:nil];
+- (void)exportPDFTapped {
+    NSURL *pdfURL = [PDFResumeRenderer renderPDFFromHTMLAtURL:self.htmlURL outputFileName:self.fileName];
+    if (!pdfURL) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"导出失败" message:@"HTML 转 PDF 失败，请稍后重试。" preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDefault handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];
+        return;
+    }
+
+    UIActivityViewController *activity = [[UIActivityViewController alloc] initWithActivityItems:@[pdfURL] applicationActivities:nil];
     if (activity.popoverPresentationController) {
         activity.popoverPresentationController.barButtonItem = self.navigationItem.rightBarButtonItem;
     }
@@ -165,7 +174,7 @@
     }
 
     UILabel *tip = [[UILabel alloc] init];
-    tip.text = @"选择模板后，点击下方按钮进入下一页预览简历 PDF。";
+    tip.text = @"选择模板后，先预览 HTML 版简历；确认后可在右上角导出 PDF。";
     tip.numberOfLines = 0;
     tip.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
     tip.textColor = [UIColor colorWithRed:0.33 green:0.35 blue:0.43 alpha:1.0];
@@ -180,8 +189,8 @@
     [[self.templateControl.heightAnchor constraintEqualToConstant:38] setActive:YES];
     [container addArrangedSubview:self.templateControl];
 
-    self.previewPDFButton = [self actionButtonWithTitle:@"预览简历 PDF" background:[UIColor colorWithRed:0.26 green:0.33 blue:1 alpha:1] titleColor:UIColor.whiteColor];
-    [self.previewPDFButton addTarget:self action:@selector(previewPDFTapped) forControlEvents:UIControlEventTouchUpInside];
+    self.previewPDFButton = [self actionButtonWithTitle:@"预览 HTML 简历" background:[UIColor colorWithRed:0.26 green:0.33 blue:1 alpha:1] titleColor:UIColor.whiteColor];
+    [self.previewPDFButton addTarget:self action:@selector(previewHTMLTapped) forControlEvents:UIControlEventTouchUpInside];
     [container addArrangedSubview:self.previewPDFButton];
 
     return page;
@@ -309,16 +318,18 @@
     return button;
 }
 
-- (void)previewPDFTapped {
+- (void)previewHTMLTapped {
     ResumeData *data = [self collectData];
     NSInteger selectedTemplate = self.templateControl ? self.templateControl.selectedSegmentIndex : 0;
-    NSURL *fileURL = [PDFResumeRenderer renderPDFForResume:data templateIndex:selectedTemplate];
-    if (!fileURL) {
-        [self showAlert:@"预览失败" message:@"PDF 生成失败，请稍后重试。"];
+    NSURL *htmlURL = [PDFResumeRenderer writeHTMLForResume:data templateIndex:selectedTemplate];
+    if (!htmlURL) {
+        [self showAlert:@"预览失败" message:@"HTML 生成失败，请稍后重试。"];
         return;
     }
 
-    ResumePDFPreviewController *previewVC = [[ResumePDFPreviewController alloc] initWithFileURL:fileURL];
+    NSString *safeName = data.name.length > 0 ? data.name : @"Resume";
+    NSString *pdfName = [NSString stringWithFormat:@"%@_Template%ld.pdf", safeName, (long)(selectedTemplate + 1)];
+    ResumeHTMLPreviewController *previewVC = [[ResumeHTMLPreviewController alloc] initWithHTMLURL:htmlURL fileName:pdfName];
     [self.navigationController pushViewController:previewVC animated:YES];
 }
 

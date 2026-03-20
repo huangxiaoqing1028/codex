@@ -26,12 +26,37 @@
 }
 
 + (nullable NSURL *)renderPDFForResume:(ResumeData *)data templateIndex:(NSInteger)templateIndex {
-    NSString *safeName = data.name.length > 0 ? data.name : @"Resume";
-    NSString *fileName = [NSString stringWithFormat:@"%@_Template%ld.pdf", safeName, (long)(templateIndex + 1)];
-    NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:fileName];
-    NSURL *url = [NSURL fileURLWithPath:path];
+    NSURL *htmlURL = [self writeHTMLForResume:data templateIndex:templateIndex];
+    if (!htmlURL) {
+        return nil;
+    }
 
+    NSString *safeName = data.name.length > 0 ? data.name : @"Resume";
+    return [self renderPDFFromHTMLAtURL:htmlURL outputFileName:[NSString stringWithFormat:@"%@_Template%ld.pdf", safeName, (long)(templateIndex + 1)]];
+}
+
++ (nullable NSURL *)writeHTMLForResume:(ResumeData *)data templateIndex:(NSInteger)templateIndex {
     NSString *html = [self htmlForResume:data templateIndex:templateIndex];
+    NSString *safeName = data.name.length > 0 ? data.name : @"Resume";
+    NSString *fileName = [NSString stringWithFormat:@"%@_Template%ld.html", safeName, (long)(templateIndex + 1)];
+    NSURL *url = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:fileName]];
+
+    NSError *error = nil;
+    BOOL ok = [html writeToURL:url atomically:YES encoding:NSUTF8StringEncoding error:&error];
+    if (!ok || error) {
+        return nil;
+    }
+    return url;
+}
+
++ (nullable NSURL *)renderPDFFromHTMLAtURL:(NSURL *)htmlURL outputFileName:(NSString *)fileName {
+    NSError *readError = nil;
+    NSString *html = [NSString stringWithContentsOfURL:htmlURL encoding:NSUTF8StringEncoding error:&readError];
+    if (readError || html.length == 0) {
+        return nil;
+    }
+
+    NSURL *pdfURL = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:fileName]];
     UIMarkupTextPrintFormatter *formatter = [[UIMarkupTextPrintFormatter alloc] initWithMarkupText:html];
 
     ResumeHTMLPageRenderer *renderer = [[ResumeHTMLPageRenderer alloc] init];
@@ -48,10 +73,10 @@
     UIGraphicsEndPDFContext();
 
     NSError *writeError = nil;
-    if (![pdfData writeToURL:url options:NSDataWritingAtomic error:&writeError] || writeError) {
+    if (![pdfData writeToURL:pdfURL options:NSDataWritingAtomic error:&writeError] || writeError) {
         return nil;
     }
-    return url;
+    return pdfURL;
 }
 
 + (NSString *)htmlForResume:(ResumeData *)data templateIndex:(NSInteger)templateIndex {
