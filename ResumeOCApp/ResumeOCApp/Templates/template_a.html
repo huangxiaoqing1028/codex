@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    *{box-sizing:border-box}body{margin:0;font-family:'PingFang SC','Helvetica Neue',Arial,sans-serif;background:#e9edf2;color:#1d2630}
+    .resume{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+    .left{background:#0f2747;color:#fff;position:relative;padding:24px 18px}
+    .left:after{content:'';position:absolute;right:0;top:240px;border-left:250px solid transparent;border-top:70px solid #163f73}
+    .avatar{width:118px;height:118px;border-radius:50%;background:linear-gradient(145deg,#d8e6f7,#aec4e5);margin:0 auto;border:6px solid rgba(255,255,255,.75)}
+    .name{text-align:center;font-size:28px;font-weight:700;margin-top:14px;letter-spacing:2px}
+    .role{text-align:center;opacity:.9;margin-top:8px;font-size:14px}
+    .block{margin-top:70px;padding-top:18px;border-top:1px solid rgba(255,255,255,.2)}
+    .block h3{margin:0 0 12px;font-size:20px;display:flex;gap:8px;align-items:center}
+    .block h3:before{content:'◉';font-size:12px;opacity:.9}
+    .block ul{margin:0;padding-left:18px}.block li{margin:8px 0;line-height:1.5;font-size:13px}
+    .contact p{margin:8px 0;font-size:14px}
+    .right{padding:28px 30px;background:#efefef}
+    .section{margin-bottom:22px}
+    .section h2{margin:0 0 10px;font-size:32px;color:#1f2a36;font-weight:700}
+    .lineTitle{display:flex;align-items:center;gap:10px;font-size:32px;font-weight:700;color:#1f2a36;margin:0}
+    .lineTitle:before{content:'◉';font-size:18px;color:#2b4364}
+    .divider{height:1px;background:#aeb5be;margin:8px 0 12px}
+    .section ul{margin:0;padding-left:22px}.section li{margin:8px 0;line-height:1.65;font-size:16px}
+    .eduHeader,.expHeader{display:flex;justify-content:space-between;color:#3a4552;font-size:16px;margin-bottom:4px}
+    @media (max-width:900px){.resume{grid-template-columns:1fr}.left:after{display:none}.block{margin-top:24px}.right{padding:20px}}
+  </style>
+</head>
+<body>
+  <div class="resume">
+    <aside class="left">
+      <div class="avatar"></div>
+      <div class="name">{{name}}</div>
+      <div class="role">求职意向：{{role}}</div>
+
+      <div class="block">
+        <h3>要点总结</h3>
+        <ul>
+          <li>{{summary}}</li>
+        </ul>
+      </div>
+
+      <div class="block">
+        <h3>联系信息</h3>
+        <div class="contact">
+          <p>☎ {{phone}}</p>
+          <p>✉ {{email}}</p>
+          <p>⌂ {{city}}</p>
+          <p>🔗 {{portfolio}}</p>
+        </div>
+      </div>
+
+      <div class="block">
+        <h3>技能证书</h3>
+        <ul>{{skills_list}}</ul>
+      </div>
+    </aside>
+
+    <main class="right">
+      <section class="section">
+        <h2 class="lineTitle">教育背景</h2>
+        <div class="divider"></div>
+        <ul>{{education_list}}</ul>
+      </section>
+
+      <section class="section">
+        <h2 class="lineTitle">校园活动</h2>
+        <div class="divider"></div>
+        <ul>{{projects_list}}</ul>
+      </section>
+
+      <section class="section">
+        <h2 class="lineTitle">获奖情况</h2>
+        <div class="divider"></div>
+        <ul>{{skills_list}}</ul>
+      </section>
+
+      <section class="section">
+        <h2 class="lineTitle">实习经历</h2>
+        <div class="divider"></div>
+        <ul>{{experiences_list}}</ul>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
