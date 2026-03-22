@@ -10,9 +10,10 @@
 	A00000000000000000000001 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000011 /* AppDelegate.m */; };
 	A00000000000000000000002 /* SceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000013 /* SceneDelegate.m */; };
 	A00000000000000000000003 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000015 /* ViewController.m */; };
-	A00000000000000000000004 /* NameGenerator.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000017 /* NameGenerator.m */; };
-	A00000000000000000000005 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000018 /* main.m */; };
-	A00000000000000000000006 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000019 /* LaunchScreen.storyboard */; };
+		A00000000000000000000004 /* NameGenerator.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000017 /* NameGenerator.m */; };
+		A00000000000000000000005 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000018 /* main.m */; };
+		A00000000000000000000006 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000019 /* LaunchScreen.storyboard */; };
+		A00000000000000000000007 /* ResultViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001C /* ResultViewController.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,10 +25,12 @@
 	A00000000000000000000015 /* ViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewController.m; sourceTree = "<group>"; };
 	A00000000000000000000016 /* ViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
 	A00000000000000000000017 /* NameGenerator.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = NameGenerator.m; sourceTree = "<group>"; };
-	A0000000000000000000001A /* NameGenerator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NameGenerator.h; sourceTree = "<group>"; };
-	A00000000000000000000018 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
-	A00000000000000000000019 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
-	A00000000000000000000020 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A0000000000000000000001A /* NameGenerator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NameGenerator.h; sourceTree = "<group>"; };
+		A00000000000000000000018 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		A00000000000000000000019 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		A00000000000000000000020 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A0000000000000000000001B /* ResultViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ResultViewController.h; sourceTree = "<group>"; };
+		A0000000000000000000001C /* ResultViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ResultViewController.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -62,6 +65,8 @@
 			A00000000000000000000015 /* ViewController.m */,
 			A0000000000000000000001A /* NameGenerator.h */,
 			A00000000000000000000017 /* NameGenerator.m */,
+			A0000000000000000000001B /* ResultViewController.h */,
+			A0000000000000000000001C /* ResultViewController.m */,
 			A00000000000000000000018 /* main.m */,
 			A00000000000000000000019 /* LaunchScreen.storyboard */,
 			A00000000000000000000020 /* Info.plist */,
@@ -145,6 +150,7 @@
 			A00000000000000000000002 /* SceneDelegate.m in Sources */,
 			A00000000000000000000003 /* ViewController.m in Sources */,
 			A00000000000000000000004 /* NameGenerator.m in Sources */,
+			A00000000000000000000007 /* ResultViewController.m in Sources */,
 			A00000000000000000000005 /* main.m in Sources */,
 		);
 		runOnlyForDeploymentPostprocessing = 0;

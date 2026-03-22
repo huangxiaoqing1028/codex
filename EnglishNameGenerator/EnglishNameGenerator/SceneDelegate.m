@@ -5,15 +5,18 @@
 
 - (void)scene:(UIScene *)scene
 willConnectToSession:(UISceneSession *)session
-     options:(UISceneConnectionOptions *)connectionOptions {
+         options:(UISceneConnectionOptions *)connectionOptions {
     if (![scene isKindOfClass:[UIWindowScene class]]) {
         return;
     }
 
-    self.window = [[UIWindow alloc] initWithWindowScene:(UIWindowScene *)scene];
-    UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:[ViewController new]];
-    nav.navigationBarHidden = YES;
-    self.window.rootViewController = nav;
+    UIWindowScene *windowScene = (UIWindowScene *)scene;
+    self.window = [[UIWindow alloc] initWithWindowScene:windowScene];
+
+    ViewController *rootVC = [ViewController new];
+    UINavigationController *navigation = [[UINavigationController alloc] initWithRootViewController:rootVC];
+    navigation.navigationBar.prefersLargeTitles = NO;
+    self.window.rootViewController = navigation;
     [self.window makeKeyAndVisible];
 }
 
