@@ -13,6 +13,7 @@
 @property (nonatomic, strong) UIButton *generateButton;
 @property (nonatomic, strong) UISwitch *numberSwitch;
 @property (nonatomic, strong) UILabel *numberSwitchLabel;
+@property (nonatomic, strong) UIView *feedAdContainerView;
 @property (nonatomic, strong) NSArray<NGStyleChipButton *> *styleButtons;
 @property (nonatomic, copy) NSString *currentStyle;
 @property (nonatomic, strong) NGNicknameGenerator *generator;
@@ -118,6 +119,31 @@
     self.generateButton = [self makeActionButton:@"生成新网名" icon:@"sparkles" selector:@selector(generateNicknameTapped)];
     [self.cardView addSubview:self.generateButton];
 
+    self.feedAdContainerView = [[UIView alloc] init];
+    self.feedAdContainerView.translatesAutoresizingMaskIntoConstraints = NO;
+    self.feedAdContainerView.backgroundColor = [UIColor colorWithRed:0.95 green:0.96 blue:1 alpha:1.0];
+    self.feedAdContainerView.layer.cornerRadius = 14;
+    self.feedAdContainerView.layer.borderWidth = 1;
+    self.feedAdContainerView.layer.borderColor = [UIColor colorWithRed:0.80 green:0.84 blue:1 alpha:1.0].CGColor;
+
+    UILabel *feedAdTitleLabel = [[UILabel alloc] init];
+    feedAdTitleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    feedAdTitleLabel.text = @"首页信息流广告位";
+    feedAdTitleLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
+    feedAdTitleLabel.textAlignment = NSTextAlignmentCenter;
+
+    UILabel *feedAdDetailLabel = [[UILabel alloc] init];
+    feedAdDetailLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    feedAdDetailLabel.text = @"可替换为信息流广告 UIView（AdMob / 穿山甲 / 优量汇）";
+    feedAdDetailLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightRegular];
+    feedAdDetailLabel.textColor = UIColor.secondaryLabelColor;
+    feedAdDetailLabel.numberOfLines = 0;
+    feedAdDetailLabel.textAlignment = NSTextAlignmentCenter;
+
+    [self.feedAdContainerView addSubview:feedAdTitleLabel];
+    [self.feedAdContainerView addSubview:feedAdDetailLabel];
+    [self.view addSubview:self.feedAdContainerView];
+
     [NSLayoutConstraint activateConstraints:@[
         [blurView.topAnchor constraintEqualToAnchor:self.cardView.topAnchor],
         [blurView.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor],
@@ -157,7 +183,21 @@
         [self.generateButton.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:20],
         [self.generateButton.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-20],
         [self.generateButton.heightAnchor constraintEqualToConstant:50],
-        [self.generateButton.bottomAnchor constraintEqualToAnchor:self.cardView.bottomAnchor constant:-24]
+        [self.generateButton.bottomAnchor constraintEqualToAnchor:self.cardView.bottomAnchor constant:-24],
+
+        [self.feedAdContainerView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
+        [self.feedAdContainerView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
+        [self.feedAdContainerView.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-12],
+        [self.feedAdContainerView.heightAnchor constraintEqualToConstant:86],
+
+        [feedAdTitleLabel.topAnchor constraintEqualToAnchor:self.feedAdContainerView.topAnchor constant:12],
+        [feedAdTitleLabel.leadingAnchor constraintEqualToAnchor:self.feedAdContainerView.leadingAnchor constant:10],
+        [feedAdTitleLabel.trailingAnchor constraintEqualToAnchor:self.feedAdContainerView.trailingAnchor constant:-10],
+
+        [feedAdDetailLabel.topAnchor constraintEqualToAnchor:feedAdTitleLabel.bottomAnchor constant:6],
+        [feedAdDetailLabel.leadingAnchor constraintEqualToAnchor:self.feedAdContainerView.leadingAnchor constant:12],
+        [feedAdDetailLabel.trailingAnchor constraintEqualToAnchor:self.feedAdContainerView.trailingAnchor constant:-12],
+        [feedAdDetailLabel.bottomAnchor constraintLessThanOrEqualToAnchor:self.feedAdContainerView.bottomAnchor constant:-10]
     ]];
 }
 
