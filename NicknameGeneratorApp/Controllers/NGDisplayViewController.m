@@ -3,6 +3,9 @@
 
 @interface NGDisplayViewController ()
 @property (nonatomic, copy) NSString *nickname;
+@property (nonatomic, strong) NGNicknameGenerator *generator;
+@property (nonatomic, strong) UIButton *copyButton;
+@property (nonatomic, strong) UIButton *favoriteButton;
 @end
 
 @implementation NGDisplayViewController
@@ -17,6 +20,7 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+    self.generator = [NGNicknameGenerator shared];
     self.title = @"结果";
     self.view.backgroundColor = [UIColor systemBackgroundColor];
 
@@ -31,7 +35,16 @@
     nicknameLabel.font = [UIFont monospacedSystemFontOfSize:36 weight:UIFontWeightBold];
     nicknameLabel.textAlignment = NSTextAlignmentCenter;
     nicknameLabel.numberOfLines = 0;
-    nicknameLabel.text = self.nickname.length > 0 ? self.nickname : [NGNicknameGenerator shared].latestNickname;
+    self.nickname = self.nickname.length > 0 ? self.nickname : self.generator.latestNickname;
+    nicknameLabel.text = self.nickname;
+
+    self.copyButton = [self makeActionButton:@"复制" icon:@"doc.on.doc" selector:@selector(copyTapped)];
+    self.favoriteButton = [self makeActionButton:@"收藏" icon:@"heart" selector:@selector(favoriteTapped)];
+    UIStackView *actionsStack = [[UIStackView alloc] initWithArrangedSubviews:@[self.copyButton, self.favoriteButton]];
+    actionsStack.translatesAutoresizingMaskIntoConstraints = NO;
+    actionsStack.axis = UILayoutConstraintAxisHorizontal;
+    actionsStack.spacing = 12;
+    actionsStack.distribution = UIStackViewDistributionFillEqually;
 
     UIView *adContainer = [[UIView alloc] init];
     adContainer.translatesAutoresizingMaskIntoConstraints = NO;
@@ -59,6 +72,7 @@
 
     [self.view addSubview:hintLabel];
     [self.view addSubview:nicknameLabel];
+    [self.view addSubview:actionsStack];
     [self.view addSubview:adContainer];
 
     [NSLayoutConstraint activateConstraints:@[
@@ -69,7 +83,12 @@
         [nicknameLabel.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
         [nicknameLabel.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
 
-        [adContainer.topAnchor constraintEqualToAnchor:nicknameLabel.bottomAnchor constant:34],
+        [actionsStack.topAnchor constraintEqualToAnchor:nicknameLabel.bottomAnchor constant:20],
+        [actionsStack.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
+        [actionsStack.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
+        [actionsStack.heightAnchor constraintEqualToConstant:44],
+
+        [adContainer.topAnchor constraintEqualToAnchor:actionsStack.bottomAnchor constant:24],
         [adContainer.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
         [adContainer.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
         [adContainer.heightAnchor constraintEqualToConstant:140],
@@ -83,6 +102,84 @@
         [adDetail.trailingAnchor constraintEqualToAnchor:adContainer.trailingAnchor constant:-16],
         [adDetail.bottomAnchor constraintLessThanOrEqualToAnchor:adContainer.bottomAnchor constant:-16]
     ]];
+
+    [self syncFavoriteButton];
+}
+
+- (UIButton *)makeActionButton:(NSString *)title icon:(NSString *)icon selector:(SEL)selector {
+    UIButtonConfiguration *configuration = [UIButtonConfiguration filledButtonConfiguration];
+    configuration.title = title;
+    configuration.baseForegroundColor = UIColor.whiteColor;
+    configuration.baseBackgroundColor = [UIColor colorWithRed:0.39 green:0.34 blue:0.95 alpha:1.0];
+    configuration.cornerStyle = UIButtonConfigurationCornerStyleMedium;
+    configuration.imagePadding = 8;
+    configuration.contentInsets = NSDirectionalEdgeInsetsMake(10, 12, 10, 12);
+    if ([UIImage respondsToSelector:@selector(systemImageNamed:)]) {
+        configuration.image = [UIImage systemImageNamed:icon];
+    }
+
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
+    button.translatesAutoresizingMaskIntoConstraints = NO;
+    button.configuration = configuration;
+    [button addTarget:self action:selector forControlEvents:UIControlEventTouchUpInside];
+    return button;
+}
+
+- (void)copyTapped {
+    if (self.nickname.length == 0) {
+        return;
+    }
+    [UIPasteboard generalPasteboard].string = self.nickname;
+    [self showToast:@"已复制到剪贴板"];
+}
+
+- (void)favoriteTapped {
+    if (self.nickname.length == 0) {
+        return;
+    }
+    [self.generator toggleFavorite:self.nickname];
+    [self syncFavoriteButton];
+    BOOL isFavorite = [self.generator isFavorite:self.nickname];
+    [self showToast:(isFavorite ? @"已加入收藏" : @"已取消收藏")];
+}
+
+- (void)syncFavoriteButton {
+    BOOL isFavorite = [self.generator isFavorite:self.nickname ?: @""];
+    self.favoriteButton.configuration.title = isFavorite ? @"取消收藏" : @"收藏";
+    if ([UIImage respondsToSelector:@selector(systemImageNamed:)]) {
+        self.favoriteButton.configuration.image = [UIImage systemImageNamed:(isFavorite ? @"heart.fill" : @"heart")];
+    }
+}
+
+- (void)showToast:(NSString *)message {
+    UILabel *toast = [[UILabel alloc] init];
+    toast.translatesAutoresizingMaskIntoConstraints = NO;
+    toast.text = message;
+    toast.textColor = UIColor.whiteColor;
+    toast.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
+    toast.backgroundColor = [UIColor colorWithWhite:0 alpha:0.75];
+    toast.textAlignment = NSTextAlignmentCenter;
+    toast.layer.cornerRadius = 10;
+    toast.clipsToBounds = YES;
+
+    [self.view addSubview:toast];
+    [NSLayoutConstraint activateConstraints:@[
+        [toast.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
+        [toast.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-20],
+        [toast.heightAnchor constraintEqualToConstant:36],
+        [toast.widthAnchor constraintLessThanOrEqualToConstant:240]
+    ]];
+
+    toast.alpha = 0;
+    [UIView animateWithDuration:0.2 animations:^{
+        toast.alpha = 1;
+    } completion:^(BOOL finished) {
+        [UIView animateWithDuration:0.2 delay:1.0 options:UIViewAnimationOptionCurveEaseOut animations:^{
+            toast.alpha = 0;
+        } completion:^(BOOL finished2) {
+            [toast removeFromSuperview];
+        }];
+    }];
 }
 
 @end

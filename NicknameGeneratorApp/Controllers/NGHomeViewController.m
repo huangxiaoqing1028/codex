@@ -11,8 +11,6 @@
 @property (nonatomic, strong) UILabel *nicknameLabel;
 @property (nonatomic, strong) UILabel *subtitleLabel;
 @property (nonatomic, strong) UIButton *generateButton;
-@property (nonatomic, strong) UIButton *copyButton;
-@property (nonatomic, strong) UIButton *favoriteButton;
 @property (nonatomic, strong) UISwitch *numberSwitch;
 @property (nonatomic, strong) UILabel *numberSwitchLabel;
 @property (nonatomic, strong) NSArray<NGStyleChipButton *> *styleButtons;
@@ -118,17 +116,7 @@
     [self.cardView addSubview:switchContainer];
 
     self.generateButton = [self makeActionButton:@"生成新网名" icon:@"sparkles" selector:@selector(generateNicknameTapped)];
-    self.copyButton = [self makeActionButton:@"复制" icon:@"doc.on.doc" selector:@selector(copyTapped)];
-    self.favoriteButton = [self makeActionButton:@"收藏" icon:@"heart" selector:@selector(favoriteTapped)];
-
-    UIStackView *actionStack = [[UIStackView alloc] initWithArrangedSubviews:@[self.copyButton, self.favoriteButton]];
-    actionStack.translatesAutoresizingMaskIntoConstraints = NO;
-    actionStack.axis = UILayoutConstraintAxisHorizontal;
-    actionStack.distribution = UIStackViewDistributionFillEqually;
-    actionStack.spacing = 12;
-
     [self.cardView addSubview:self.generateButton];
-    [self.cardView addSubview:actionStack];
 
     [NSLayoutConstraint activateConstraints:@[
         [blurView.topAnchor constraintEqualToAnchor:self.cardView.topAnchor],
@@ -169,12 +157,7 @@
         [self.generateButton.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:20],
         [self.generateButton.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-20],
         [self.generateButton.heightAnchor constraintEqualToConstant:50],
-
-        [actionStack.topAnchor constraintEqualToAnchor:self.generateButton.bottomAnchor constant:12],
-        [actionStack.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:20],
-        [actionStack.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-20],
-        [actionStack.heightAnchor constraintEqualToConstant:44],
-        [actionStack.bottomAnchor constraintEqualToAnchor:self.cardView.bottomAnchor constant:-24]
+        [self.generateButton.bottomAnchor constraintEqualToAnchor:self.cardView.bottomAnchor constant:-24]
     ]];
 }
 
@@ -227,7 +210,6 @@
     NSString *latestNickname = self.generator.latestNickname;
     if (latestNickname.length > 0) {
         self.nicknameLabel.text = latestNickname;
-        [self syncFavoriteButton];
     } else {
         [self refreshNicknameWithoutNavigation];
     }
@@ -236,12 +218,12 @@
 - (NSString *)refreshNicknameWithoutNavigation {
     NSString *nickname = [self.generator generateNicknameWithStyle:self.currentStyle includeNumber:self.numberSwitch.isOn];
     self.nicknameLabel.text = nickname;
-    [self syncFavoriteButton];
     return nickname;
 }
 
 - (void)openDisplayPageWithNickname:(NSString *)nickname {
     NGDisplayViewController *displayVC = [[NGDisplayViewController alloc] initWithNickname:nickname];
+    displayVC.hidesBottomBarWhenPushed = YES;
     if (self.navigationController) {
         [self.navigationController pushViewController:displayVC animated:YES];
     } else {
@@ -265,66 +247,6 @@
             [SKStoreReviewController requestReview];
         }
     }
-}
-
-- (void)copyTapped {
-    if (self.nicknameLabel.text.length == 0) {
-        return;
-    }
-
-    [UIPasteboard generalPasteboard].string = self.nicknameLabel.text;
-    [self showToast:@"已复制到剪贴板"];
-}
-
-- (void)favoriteTapped {
-    if (self.nicknameLabel.text.length == 0) {
-        return;
-    }
-
-    [self.generator toggleFavorite:self.nicknameLabel.text];
-    [self syncFavoriteButton];
-    [self showToast:[self.generator isFavorite:self.nicknameLabel.text] ? @"已加入收藏" : @"已取消收藏"];
-}
-
-- (void)syncFavoriteButton {
-    BOOL isFavorite = [self.generator isFavorite:self.nicknameLabel.text ?: @""];
-    NSString *title = isFavorite ? @"取消收藏" : @"收藏";
-    NSString *icon = isFavorite ? @"heart.fill" : @"heart";
-    self.favoriteButton.configuration.title = title;
-    if ([UIImage respondsToSelector:@selector(systemImageNamed:)]) {
-        self.favoriteButton.configuration.image = [UIImage systemImageNamed:icon];
-    }
-}
-
-- (void)showToast:(NSString *)message {
-    UILabel *toast = [[UILabel alloc] init];
-    toast.translatesAutoresizingMaskIntoConstraints = NO;
-    toast.text = message;
-    toast.textColor = UIColor.whiteColor;
-    toast.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
-    toast.backgroundColor = [UIColor colorWithWhite:0 alpha:0.7];
-    toast.layer.cornerRadius = 10;
-    toast.clipsToBounds = YES;
-    toast.textAlignment = NSTextAlignmentCenter;
-
-    [self.view addSubview:toast];
-    [NSLayoutConstraint activateConstraints:@[
-        [toast.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
-        [toast.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-30],
-        [toast.widthAnchor constraintLessThanOrEqualToConstant:220],
-        [toast.heightAnchor constraintEqualToConstant:36]
-    ]];
-
-    toast.alpha = 0;
-    [UIView animateWithDuration:0.22 animations:^{
-        toast.alpha = 1;
-    } completion:^(BOOL finished) {
-        [UIView animateWithDuration:0.22 delay:1.0 options:UIViewAnimationOptionCurveEaseOut animations:^{
-            toast.alpha = 0;
-        } completion:^(BOOL finished2) {
-            [toast removeFromSuperview];
-        }];
-    }];
 }
 
 @end
