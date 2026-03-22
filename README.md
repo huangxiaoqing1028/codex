@@ -16,6 +16,7 @@
 ## 上架准备清单（已考虑）
 
 - 最低系统版本 iOS 15+
+- 已在 `Info.plist` 中声明 `CFBundleIdentifier=$(PRODUCT_BUNDLE_IDENTIFIER)`，并在工程中默认设置为 `com.codex.EnglishNameGenerator`（请改为你的正式包名）
 - 仅竖屏，交互逻辑简洁
 - 无第三方 SDK，无隐私采集
 - 可在 App Store Connect 补充：
