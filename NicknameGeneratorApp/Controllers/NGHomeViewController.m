@@ -13,8 +13,6 @@
 @property (nonatomic, strong) UIButton *favoriteButton;
 @property (nonatomic, strong) UISwitch *numberSwitch;
 @property (nonatomic, strong) UILabel *numberSwitchLabel;
-@property (nonatomic, strong) UILabel *historyTitle;
-@property (nonatomic, strong) UITextView *historyView;
 @property (nonatomic, strong) NSArray<NGStyleChipButton *> *styleButtons;
 @property (nonatomic, copy) NSString *currentStyle;
 @property (nonatomic, strong) NGNicknameGenerator *generator;
@@ -25,16 +23,27 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.currentStyle = @"唯美";
-    self.generator = [[NGNicknameGenerator alloc] init];
+    self.generator = [NGNicknameGenerator shared];
 
     [self configureBackground];
     [self configureUI];
+
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleSettingsChanged) name:NGNicknameSettingDidChangeNotification object:nil];
+    [self handleSettingsChanged];
     [self generateNicknameTapped];
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
     self.gradientLayer.frame = self.view.bounds;
+}
+
+- (void)handleSettingsChanged {
+    self.numberSwitch.on = self.generator.defaultIncludeNumber;
 }
 
 - (void)configureBackground {
@@ -67,7 +76,7 @@
     [self.cardView addSubview:blurView];
 
     self.titleLabel = [self makeLabel:@"网名生成器" font:[UIFont systemFontOfSize:30 weight:UIFontWeightHeavy] alpha:1.0];
-    self.subtitleLabel = [self makeLabel:@"一键生成可爱/古风/赛博风昵称" font:[UIFont systemFontOfSize:14 weight:UIFontWeightRegular] alpha:0.85];
+    self.subtitleLabel = [self makeLabel:[NSString stringWithFormat:@"词库 %lu+，点击生成即可出结果", (unsigned long)self.generator.libraryCount] font:[UIFont systemFontOfSize:14 weight:UIFontWeightRegular] alpha:0.85];
     self.nicknameLabel = [self makeLabel:@"点击按钮开始" font:[UIFont monospacedSystemFontOfSize:34 weight:UIFontWeightBold] alpha:1.0];
     self.nicknameLabel.numberOfLines = 0;
     self.nicknameLabel.textAlignment = NSTextAlignmentCenter;
@@ -114,19 +123,8 @@
     actionStack.distribution = UIStackViewDistributionFillEqually;
     actionStack.spacing = 12;
 
-    self.historyTitle = [self makeLabel:@"最近生成" font:[UIFont systemFontOfSize:16 weight:UIFontWeightSemibold] alpha:0.95];
-    self.historyView = [[UITextView alloc] init];
-    self.historyView.translatesAutoresizingMaskIntoConstraints = NO;
-    self.historyView.backgroundColor = [UIColor colorWithWhite:1 alpha:0.06];
-    self.historyView.layer.cornerRadius = 14;
-    self.historyView.textColor = [UIColor colorWithWhite:1 alpha:0.9];
-    self.historyView.font = [UIFont monospacedSystemFontOfSize:13 weight:UIFontWeightRegular];
-    self.historyView.editable = NO;
-
     [self.cardView addSubview:self.generateButton];
     [self.cardView addSubview:actionStack];
-    [self.cardView addSubview:self.historyTitle];
-    [self.cardView addSubview:self.historyView];
 
     [NSLayoutConstraint activateConstraints:@[
         [blurView.topAnchor constraintEqualToAnchor:self.cardView.topAnchor],
@@ -136,8 +134,7 @@
 
         [self.cardView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
         [self.cardView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
-        [self.cardView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:16],
-        [self.cardView.bottomAnchor constraintLessThanOrEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-20],
+        [self.cardView.centerYAnchor constraintEqualToAnchor:self.view.centerYAnchor],
 
         [self.titleLabel.topAnchor constraintEqualToAnchor:self.cardView.topAnchor constant:28],
         [self.titleLabel.centerXAnchor constraintEqualToAnchor:self.cardView.centerXAnchor],
@@ -173,15 +170,7 @@
         [actionStack.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:20],
         [actionStack.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-20],
         [actionStack.heightAnchor constraintEqualToConstant:44],
-
-        [self.historyTitle.topAnchor constraintEqualToAnchor:actionStack.bottomAnchor constant:18],
-        [self.historyTitle.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:20],
-
-        [self.historyView.topAnchor constraintEqualToAnchor:self.historyTitle.bottomAnchor constant:8],
-        [self.historyView.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:20],
-        [self.historyView.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-20],
-        [self.historyView.bottomAnchor constraintEqualToAnchor:self.cardView.bottomAnchor constant:-20],
-        [self.historyView.heightAnchor constraintGreaterThanOrEqualToConstant:140]
+        [actionStack.bottomAnchor constraintEqualToAnchor:self.cardView.bottomAnchor constant:-24]
     ]];
 }
 
@@ -228,7 +217,6 @@
     NSString *nickname = [self.generator generateNicknameWithStyle:self.currentStyle includeNumber:self.numberSwitch.isOn];
     self.nicknameLabel.text = nickname;
     [self syncFavoriteButton];
-    [self renderHistory];
 }
 
 - (void)copyTapped {
@@ -237,7 +225,7 @@
     }
 
     [UIPasteboard generalPasteboard].string = self.nicknameLabel.text;
-    [self showToast:@"已复制到剪贴板"]; 
+    [self showToast:@"已复制到剪贴板"];
 }
 
 - (void)favoriteTapped {
@@ -260,25 +248,6 @@
     }
 }
 
-- (void)renderHistory {
-    NSMutableArray<NSString *> *lines = [NSMutableArray array];
-
-    if (self.generator.favoriteNicknames.count > 0) {
-        [lines addObject:@"★ 收藏"]; 
-        for (NSString *nickname in self.generator.favoriteNicknames) {
-            [lines addObject:[NSString stringWithFormat:@"- %@", nickname]];
-        }
-        [lines addObject:@""];
-    }
-
-    [lines addObject:@"⌛ 最近"]; 
-    for (NSString *nickname in self.generator.recentNicknames) {
-        [lines addObject:[NSString stringWithFormat:@"- %@", nickname]];
-    }
-
-    self.historyView.text = [lines componentsJoinedByString:@"\n"];
-}
-
 - (void)showToast:(NSString *)message {
     UILabel *toast = [[UILabel alloc] init];
     toast.translatesAutoresizingMaskIntoConstraints = NO;
@@ -293,7 +262,7 @@
     [self.view addSubview:toast];
     [NSLayoutConstraint activateConstraints:@[
         [toast.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
-        [toast.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-20],
+        [toast.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-30],
         [toast.widthAnchor constraintLessThanOrEqualToConstant:220],
         [toast.heightAnchor constraintEqualToConstant:36]
     ]];

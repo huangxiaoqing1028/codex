@@ -1,5 +1,5 @@
 #import "SceneDelegate.h"
-#import "NGHomeViewController.h"
+#import "NGMainTabBarController.h"
 
 @implementation SceneDelegate
 
@@ -13,11 +13,8 @@ willConnectToSession:(UISceneSession *)session
     UIWindowScene *windowScene = (UIWindowScene *)scene;
     self.window = [[UIWindow alloc] initWithWindowScene:windowScene];
 
-    NGHomeViewController *homeVC = [[NGHomeViewController alloc] init];
-    UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:homeVC];
-    navigationController.navigationBarHidden = YES;
-
-    self.window.rootViewController = navigationController;
+    NGMainTabBarController *tabBarController = [[NGMainTabBarController alloc] init];
+    self.window.rootViewController = tabBarController;
     [self.window makeKeyAndVisible];
 }
 
