@@ -9,6 +9,7 @@ extern NSString * const NGNicknameSettingDidChangeNotification;
 
 @property (nonatomic, readonly) NSArray<NSString *> *recentNicknames;
 @property (nonatomic, readonly) NSArray<NSString *> *favoriteNicknames;
+@property (nonatomic, copy, readonly) NSString *latestNickname;
 @property (nonatomic, readonly) NSUInteger libraryCount;
 @property (nonatomic, assign) BOOL defaultIncludeNumber;
 

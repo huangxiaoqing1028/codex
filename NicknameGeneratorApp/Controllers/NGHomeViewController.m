@@ -1,6 +1,8 @@
 #import "NGHomeViewController.h"
 #import "NGNicknameGenerator.h"
 #import "NGStyleChipButton.h"
+#import "NGDisplayViewController.h"
+#import <StoreKit/StoreKit.h>
 
 @interface NGHomeViewController ()
 @property (nonatomic, strong) CAGradientLayer *gradientLayer;
@@ -16,6 +18,7 @@
 @property (nonatomic, strong) NSArray<NGStyleChipButton *> *styleButtons;
 @property (nonatomic, copy) NSString *currentStyle;
 @property (nonatomic, strong) NGNicknameGenerator *generator;
+@property (nonatomic, assign) NSUInteger generationCount;
 @end
 
 @implementation NGHomeViewController
@@ -24,13 +27,14 @@
     [super viewDidLoad];
     self.currentStyle = @"唯美";
     self.generator = [NGNicknameGenerator shared];
+    self.generationCount = [[NSUserDefaults standardUserDefaults] integerForKey:@"ng_generation_count"];
 
     [self configureBackground];
     [self configureUI];
 
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleSettingsChanged) name:NGNicknameSettingDidChangeNotification object:nil];
     [self handleSettingsChanged];
-    [self generateNicknameTapped];
+    [self restoreLastNicknamePreview];
 }
 
 - (void)dealloc {
@@ -210,13 +214,57 @@
         BOOL selected = [[button titleForState:UIControlStateNormal] isEqualToString:newStyle];
         [button updateSelectedState:selected];
     }
-    [self generateNicknameTapped];
+    [self refreshNicknameWithoutNavigation];
 }
 
 - (void)generateNicknameTapped {
+    NSString *nickname = [self refreshNicknameWithoutNavigation];
+    [self openDisplayPageWithNickname:nickname];
+    [self maybeRequestReview];
+}
+
+- (void)restoreLastNicknamePreview {
+    NSString *latestNickname = self.generator.latestNickname;
+    if (latestNickname.length > 0) {
+        self.nicknameLabel.text = latestNickname;
+        [self syncFavoriteButton];
+    } else {
+        [self refreshNicknameWithoutNavigation];
+    }
+}
+
+- (NSString *)refreshNicknameWithoutNavigation {
     NSString *nickname = [self.generator generateNicknameWithStyle:self.currentStyle includeNumber:self.numberSwitch.isOn];
     self.nicknameLabel.text = nickname;
     [self syncFavoriteButton];
+    return nickname;
+}
+
+- (void)openDisplayPageWithNickname:(NSString *)nickname {
+    NGDisplayViewController *displayVC = [[NGDisplayViewController alloc] initWithNickname:nickname];
+    if (self.navigationController) {
+        [self.navigationController pushViewController:displayVC animated:YES];
+    } else {
+        UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:displayVC];
+        [self presentViewController:navigationController animated:YES completion:nil];
+    }
+}
+
+- (void)maybeRequestReview {
+    self.generationCount += 1;
+    [[NSUserDefaults standardUserDefaults] setInteger:self.generationCount forKey:@"ng_generation_count"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+
+    if (self.generationCount == 3 || self.generationCount % 8 == 0) {
+        if (@available(iOS 14.0, *)) {
+            UIWindowScene *windowScene = self.view.window.windowScene;
+            if (windowScene) {
+                [SKStoreReviewController requestReviewInScene:windowScene];
+            }
+        } else {
+            [SKStoreReviewController requestReview];
+        }
+    }
 }
 
 - (void)copyTapped {

@@ -6,6 +6,7 @@ NSString * const NGNicknameSettingDidChangeNotification = @"ng_nickname_setting_
 static NSString * const kNGRecentNicknamesKey = @"ng_recent_nicknames";
 static NSString * const kNGFavoriteNicknamesKey = @"ng_favorite_nicknames";
 static NSString * const kNGDefaultNumberKey = @"ng_default_number_enabled";
+static NSString * const kNGLatestNicknameKey = @"ng_latest_nickname";
 
 @interface NGNicknameGenerator ()
 @property (nonatomic, strong) NSArray<NSString *> *prettyPool;
@@ -13,6 +14,7 @@ static NSString * const kNGDefaultNumberKey = @"ng_default_number_enabled";
 @property (nonatomic, strong) NSArray<NSString *> *cyberPool;
 @property (nonatomic, strong) NSMutableArray<NSString *> *mutableRecentNicknames;
 @property (nonatomic, strong) NSMutableArray<NSString *> *mutableFavoriteNicknames;
+@property (nonatomic, copy) NSString *latestNicknameStorage;
 @end
 
 @implementation NGNicknameGenerator
@@ -47,6 +49,7 @@ static NSString * const kNGDefaultNumberKey = @"ng_default_number_enabled";
 
         _mutableRecentNicknames = savedRecent ? [savedRecent mutableCopy] : [NSMutableArray array];
         _mutableFavoriteNicknames = savedFavorites ? [savedFavorites mutableCopy] : [NSMutableArray array];
+        _latestNicknameStorage = [[NSUserDefaults standardUserDefaults] objectForKey:kNGLatestNicknameKey] ?: @"";
         _defaultIncludeNumber = [[NSUserDefaults standardUserDefaults] boolForKey:kNGDefaultNumberKey];
     }
     return self;
@@ -72,6 +75,10 @@ static NSString * const kNGDefaultNumberKey = @"ng_default_number_enabled";
 
 - (NSUInteger)libraryCount {
     return self.prettyPool.count;
+}
+
+- (NSString *)latestNickname {
+    return self.latestNicknameStorage;
 }
 
 - (void)setDefaultIncludeNumber:(BOOL)defaultIncludeNumber {
@@ -101,6 +108,7 @@ static NSString * const kNGDefaultNumberKey = @"ng_default_number_enabled";
         nickname = [nickname stringByAppendingFormat:@"%lu", (unsigned long)number];
     }
 
+    self.latestNicknameStorage = nickname;
     [self pushRecent:nickname];
     return nickname;
 }
@@ -147,6 +155,7 @@ static NSString * const kNGDefaultNumberKey = @"ng_default_number_enabled";
 - (void)persist {
     [[NSUserDefaults standardUserDefaults] setObject:self.mutableRecentNicknames forKey:kNGRecentNicknamesKey];
     [[NSUserDefaults standardUserDefaults] setObject:self.mutableFavoriteNicknames forKey:kNGFavoriteNicknamesKey];
+    [[NSUserDefaults standardUserDefaults] setObject:self.latestNicknameStorage forKey:kNGLatestNicknameKey];
     [[NSUserDefaults standardUserDefaults] synchronize];
     [[NSNotificationCenter defaultCenter] postNotificationName:NGNicknameDataDidChangeNotification object:nil];
 }

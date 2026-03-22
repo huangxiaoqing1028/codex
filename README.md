@@ -8,6 +8,8 @@
 - ✅ **四栏 TabBar 架构**：`生成` / `收藏` / `历史` / `设置`。
 - ✅ **精美 UI**：渐变背景、毛玻璃卡片、风格切换 Chip。
 - ✅ **实用交互**：一键生成、复制、收藏、历史同步。
+- ✅ **结果承接页**：生成后自动跳转“结果页”，便于接入广告组件。
+- ✅ **评分弹窗**：按使用次数触发系统评分弹窗，提升商店口碑转化。
 - ✅ **本地持久化**：`NSUserDefaults` 保存收藏、历史和设置项。
 
 ## 目录结构
@@ -17,6 +19,7 @@ NicknameGeneratorApp/
 ├── Controllers/
 │   ├── NGMainTabBarController.{h,m}
 │   ├── NGHomeViewController.{h,m}
+│   ├── NGDisplayViewController.{h,m}
 │   ├── NGFavoritesViewController.{h,m}
 │   ├── NGHistoryViewController.{h,m}
 │   └── NGSettingsViewController.{h,m}
@@ -33,9 +36,10 @@ NicknameGeneratorApp/
 ## 页面说明
 
 1. **生成页**：风格切换、数字后缀开关、生成/复制/收藏。
-2. **收藏页**：展示所有已收藏昵称。
-3. **历史页**：展示最近生成记录。
-4. **设置页**：默认数字后缀开关、词库规模展示、清空数据。
+2. **结果页**：展示本次生成昵称，并预留广告展示区。
+3. **收藏页**：展示所有已收藏昵称。
+4. **历史页**：展示最近生成记录。
+5. **设置页**：默认数字后缀开关、词库规模展示、清空数据。
 
 ## 快速接入到 Xcode
 
