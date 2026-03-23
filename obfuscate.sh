@@ -13,9 +13,9 @@ CLANG_BIN="$OLLVM_BIN_DIR/clang"
 CLANGXX_BIN="$OLLVM_BIN_DIR/clang++"
 
 # 可根据你自己的 OLLVM 仓库切换（需兼容 LLVM 工程目录结构）
-OLLVM_REPO="https://github.com/obfuscator-llvm/obfuscator.git"
+OLLVM_REPO="https://github.com/wwh1004/ollvm-16.git"
 # 某些 OLLVM 仓库没有 main（可能是 master / llvm-xx），留空表示使用远端默认分支
-OLLVM_BRANCH="master"
+OLLVM_BRANCH=""
 # 如果你已经知道 LLVM 根目录，可直接填写（例如: "$ROOT_DIR/ollvm-src/llvm"）
 OLLVM_LLVM_DIR=""
 BUILD_CLANG_ONLY=0
@@ -60,6 +60,15 @@ require_command() {
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "[ERROR] 缺少命令: $cmd"
     exit 1
+  fi
+}
+
+recreate_ollvm_src_dir() {
+  if [[ -d "$OLLVM_SRC_DIR" ]]; then
+    python3 - <<PY
+import shutil
+shutil.rmtree(r"""$OLLVM_SRC_DIR""", ignore_errors=True)
+PY
   fi
 }
 
@@ -131,6 +140,21 @@ build_ollvm_clang() {
       git clone --depth=1 "$OLLVM_REPO" "$OLLVM_SRC_DIR"
     fi
   else
+    local current_remote
+    current_remote="$(git -C "$OLLVM_SRC_DIR" remote get-url origin 2>/dev/null || true)"
+    if [[ -n "$current_remote" && "$current_remote" != "$OLLVM_REPO" ]]; then
+      echo "[WARN] 检测到现有 ollvm-src 的远端与配置不一致:"
+      echo "       current: $current_remote"
+      echo "       expect : $OLLVM_REPO"
+      echo "[INFO] 将重建 ollvm-src 并重新拉取配置仓库..."
+      recreate_ollvm_src_dir
+      if [[ -n "$OLLVM_BRANCH" ]]; then
+        git clone --depth=1 --branch "$OLLVM_BRANCH" "$OLLVM_REPO" "$OLLVM_SRC_DIR"
+      else
+        git clone --depth=1 "$OLLVM_REPO" "$OLLVM_SRC_DIR"
+      fi
+    fi
+
     if [[ "$UPDATE_OLLVM_SRC" -eq 0 ]]; then
       echo "[INFO] 跳过 OLLVM 源码更新（--no-update）"
     elif [[ "$UPDATE_OLLVM_SRC" -eq 1 ]]; then
@@ -158,6 +182,7 @@ build_ollvm_clang() {
     echo "  1) 切换 OLLVM_REPO 到标准 llvm-project 结构的仓库"
     echo "  2) 手动设置 OLLVM_BRANCH 到正确分支"
     echo "  3) 确认仓库内存在 llvm/CMakeLists.txt（或等价 LLVM 根目录）"
+    echo "  4) 删除旧目录后重拉：rm -rf ollvm-src && bash obfuscate.sh --build-clang-only"
     exit 1
   fi
   echo "[INFO] LLVM 根目录: $llvm_dir"
