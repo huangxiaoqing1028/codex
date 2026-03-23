@@ -86,6 +86,19 @@ clone_ollvm_repo() {
   fi
 }
 
+checkout_origin_default_branch() {
+  local default_ref default_branch
+  default_ref="$(git -C "$OLLVM_SRC_DIR" symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null || true)"
+  default_branch="${default_ref#refs/remotes/origin/}"
+
+  if [[ -n "$default_branch" && "$default_branch" != "$default_ref" ]]; then
+    git -C "$OLLVM_SRC_DIR" checkout -B "$default_branch" "origin/$default_branch"
+    return 0
+  fi
+
+  return 1
+}
+
 find_workspace_or_project() {
   local workspace project
   workspace="$(find "$PROJECT_DIR" -maxdepth 2 -name '*.xcworkspace' | head -n 1 || true)"
@@ -164,15 +177,15 @@ build_ollvm_clang() {
     echo "[INFO] 更新 OLLVM 源码..."
     if [[ -n "$OLLVM_BRANCH" ]]; then
       if git -C "$OLLVM_SRC_DIR" fetch --depth=1 origin "$OLLVM_BRANCH"; then
-        git -C "$OLLVM_SRC_DIR" checkout -f FETCH_HEAD
+        git -C "$OLLVM_SRC_DIR" checkout -B "$OLLVM_BRANCH" "origin/$OLLVM_BRANCH"
       else
         echo "[WARN] 指定分支 '$OLLVM_BRANCH' 拉取失败，回退到默认远端 HEAD"
         git -C "$OLLVM_SRC_DIR" fetch --depth=1 origin
-        git -C "$OLLVM_SRC_DIR" checkout -f origin/HEAD
+        checkout_origin_default_branch || git -C "$OLLVM_SRC_DIR" checkout -f FETCH_HEAD
       fi
     else
       git -C "$OLLVM_SRC_DIR" fetch --depth=1 origin
-      git -C "$OLLVM_SRC_DIR" checkout -f origin/HEAD
+      checkout_origin_default_branch || git -C "$OLLVM_SRC_DIR" checkout -f FETCH_HEAD
     fi
     fi
   fi
