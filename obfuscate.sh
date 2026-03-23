@@ -15,6 +15,36 @@ CLANGXX_BIN="$OLLVM_BIN_DIR/clang++"
 # 可根据你自己的 OLLVM 仓库切换（需兼容 LLVM 工程目录结构）
 OLLVM_REPO="https://github.com/wwh1004/ollvm-16.git"
 OLLVM_BRANCH="main"
+BUILD_CLANG_ONLY=0
+
+usage() {
+  cat <<'USAGE'
+用法:
+  bash obfuscate.sh                # 完整流程：字符串加密 + 编译 OLLVM clang + iOS 混淆构建
+  bash obfuscate.sh --build-clang-only
+                                  # 仅编译 ollvm-bin/clang 和 ollvm-bin/clang++
+USAGE
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --build-clang-only)
+        BUILD_CLANG_ONLY=1
+        shift
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        echo "[ERROR] 未知参数: $1"
+        usage
+        exit 1
+        ;;
+    esac
+  done
+}
 
 require_command() {
   local cmd="$1"
@@ -84,6 +114,10 @@ build_ollvm_clang() {
   if [[ ! -d "$OLLVM_SRC_DIR/.git" ]]; then
     echo "[INFO] 拉取 OLLVM 源码..."
     git clone --depth=1 --branch "$OLLVM_BRANCH" "$OLLVM_REPO" "$OLLVM_SRC_DIR"
+  else
+    echo "[INFO] 更新 OLLVM 源码..."
+    git -C "$OLLVM_SRC_DIR" fetch --depth=1 origin "$OLLVM_BRANCH"
+    git -C "$OLLVM_SRC_DIR" checkout -f FETCH_HEAD
   fi
 
   local llvm_dir build_dir
@@ -188,19 +222,26 @@ build_ios() {
 }
 
 main() {
-  echo "[STEP] 1/4 检查工程"
+  parse_args "$@"
+
+  echo "[STEP] 1/3 编译 OLLVM clang"
+  build_ollvm_clang
+
+  if [[ "$BUILD_CLANG_ONLY" -eq 1 ]]; then
+    echo "[OK] clang 已生成:"
+    echo "  - $CLANG_BIN"
+    echo "  - $CLANGXX_BIN"
+    return
+  fi
+
+  echo "[STEP] 2/3 检查工程"
   find_workspace_or_project
   pick_scheme
   echo "[INFO] Build target: $BUILD_TARGET_TYPE -> $BUILD_TARGET_PATH"
   echo "[INFO] Scheme: $BUILD_SCHEME"
 
-  echo "[STEP] 2/4 自动字符串加密"
+  echo "[STEP] 3/3 自动字符串加密并执行 iOS 混淆构建"
   run_string_encrypt
-
-  echo "[STEP] 3/4 编译 OLLVM clang"
-  build_ollvm_clang
-
-  echo "[STEP] 4/4 执行 iOS 混淆构建"
   build_ios
 }
 
