@@ -139,12 +139,13 @@ build_ollvm_clang() {
   fi
 
   local llvm_dir build_dir
-  if [[ -d "$OLLVM_SRC_DIR/llvm" ]]; then
-    llvm_dir="$OLLVM_SRC_DIR/llvm"
-  elif [[ -d "$OLLVM_SRC_DIR/llvm-project/llvm" ]]; then
-    llvm_dir="$OLLVM_SRC_DIR/llvm-project/llvm"
-  else
+  llvm_dir="$(detect_llvm_dir)"
+  if [[ -z "$llvm_dir" ]]; then
     echo "[ERROR] 无法识别 OLLVM 目录结构，请检查仓库: $OLLVM_REPO"
+    echo "[HINT] 可尝试："
+    echo "  1) 切换 OLLVM_REPO 到标准 llvm-project 结构的仓库"
+    echo "  2) 手动设置 OLLVM_BRANCH 到正确分支"
+    echo "  3) 确认仓库内存在 llvm/CMakeLists.txt（或等价 LLVM 根目录）"
     exit 1
   fi
 
@@ -169,6 +170,42 @@ build_ollvm_clang() {
   chmod +x "$CLANG_BIN" "$CLANGXX_BIN"
 
   echo "[OK] 编译完成: $CLANG_BIN"
+}
+
+detect_llvm_dir() {
+  local candidates=(
+    "$OLLVM_SRC_DIR/llvm"
+    "$OLLVM_SRC_DIR/llvm-project/llvm"
+    "$OLLVM_SRC_DIR"
+  )
+
+  local d
+  for d in "${candidates[@]}"; do
+    if [[ -f "$d/CMakeLists.txt" ]] \
+      && [[ -d "$d/tools/clang" || -d "$d/projects/clang" ]] \
+      && [[ -d "$d/include/llvm" ]]; then
+      echo "$d"
+      return 0
+    fi
+  done
+
+  # 兜底：自动搜索 4 层以内可能的 LLVM 根目录
+  local found
+  found="$(find "$OLLVM_SRC_DIR" -maxdepth 4 -type f -name CMakeLists.txt \
+    | sed 's#/CMakeLists.txt$##' \
+    | while read -r p; do
+        if [[ -d "$p/include/llvm" && ( -d "$p/tools/clang" || -d "$p/projects/clang" ) ]]; then
+          echo "$p"
+          break
+        fi
+      done)"
+
+  if [[ -n "$found" ]]; then
+    echo "$found"
+    return 0
+  fi
+
+  return 1
 }
 
 random_ollvm_flags() {
