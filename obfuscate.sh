@@ -191,7 +191,7 @@ build_ollvm_clang() {
   fi
 
   local llvm_dir build_dir
-  llvm_dir="$(detect_llvm_dir)"
+  llvm_dir="$(detect_llvm_dir || true)"
   if [[ -z "$llvm_dir" && "$AUTO_FALLBACK_REPO" -eq 1 ]]; then
     echo "[WARN] 当前仓库不包含可识别的 LLVM 源码结构，尝试备用仓库..."
     local fallback_repos=(
@@ -205,7 +205,7 @@ build_ollvm_clang() {
       echo "[INFO] 尝试备用仓库: $repo"
       recreate_ollvm_src_dir
       clone_ollvm_repo "$repo" ""
-      llvm_dir="$(detect_llvm_dir)"
+      llvm_dir="$(detect_llvm_dir || true)"
       if [[ -n "$llvm_dir" ]]; then
         echo "[INFO] 已切换到可用仓库: $repo"
         OLLVM_REPO="$repo"
