@@ -18,6 +18,11 @@ OLLVM_REPO="https://github.com/heroims/obfuscator.git"
 OLLVM_BRANCH="llvm-16"
 # 如果你已经知道 LLVM 根目录，可直接填写（例如: "$ROOT_DIR/ollvm-src/llvm"）
 OLLVM_LLVM_DIR=""
+# 本地源码模式（二选一，优先 OLLVM_LOCAL_SRC）：
+# 1) 直接使用本地源码目录
+OLLVM_LOCAL_SRC=""
+# 2) 使用本地源码压缩包（.tar/.tar.gz/.tgz/.tar.xz/.zip）
+OLLVM_TARBALL=""
 BUILD_CLANG_ONLY=0
 UPDATE_OLLVM_SRC=1
 AUTO_FALLBACK_REPO=1
@@ -29,6 +34,10 @@ usage() {
   bash obfuscate.sh --build-clang-only
                                   # 仅编译 ollvm-bin/clang 和 ollvm-bin/clang++
   bash obfuscate.sh --no-update   # 使用本地 ollvm-src，不执行 git fetch/checkout
+  bash obfuscate.sh --local-src /path/to/ollvm-src
+                                  # 使用本地源码目录，完全跳过 git 拉取
+  bash obfuscate.sh --tarball /path/to/ollvm-src.tar.gz
+                                  # 使用本地源码包，完全跳过 git 拉取
 USAGE
 }
 
@@ -42,6 +51,16 @@ parse_args() {
       --no-update)
         UPDATE_OLLVM_SRC=0
         shift
+        ;;
+      --local-src)
+        [[ $# -lt 2 ]] && { echo "[ERROR] --local-src 需要传入目录路径"; exit 1; }
+        OLLVM_LOCAL_SRC="$2"
+        shift 2
+        ;;
+      --tarball)
+        [[ $# -lt 2 ]] && { echo "[ERROR] --tarball 需要传入压缩包路径"; exit 1; }
+        OLLVM_TARBALL="$2"
+        shift 2
         ;;
       -h|--help)
         usage
@@ -61,6 +80,103 @@ require_command() {
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "[ERROR] 缺少命令: $cmd"
     exit 1
+  fi
+}
+
+extract_tarball_to_src() {
+  local tarball="$1"
+  local tmp_dir
+
+  if [[ ! -f "$tarball" ]]; then
+    echo "[ERROR] 本地源码包不存在: $tarball"
+    exit 1
+  fi
+
+  require_command tar
+  tmp_dir="$(mktemp -d)"
+  recreate_ollvm_src_dir
+  mkdir -p "$OLLVM_SRC_DIR"
+
+  if [[ "$tarball" == *.zip ]]; then
+    require_command unzip
+    unzip -q "$tarball" -d "$tmp_dir"
+  else
+    tar -xf "$tarball" -C "$tmp_dir"
+  fi
+
+  local entries=()
+  while IFS= read -r line; do
+    entries+=("$line")
+  done < <(find "$tmp_dir" -mindepth 1 -maxdepth 1 -type d | sort)
+
+  if [[ ${#entries[@]} -eq 1 ]]; then
+    cp -R "${entries[0]}/." "$OLLVM_SRC_DIR/"
+  else
+    cp -R "$tmp_dir/." "$OLLVM_SRC_DIR/"
+  fi
+
+  rm -rf "$tmp_dir"
+}
+
+prepare_ollvm_source() {
+  if [[ -n "$OLLVM_LOCAL_SRC" ]]; then
+    if [[ ! -d "$OLLVM_LOCAL_SRC" ]]; then
+      echo "[ERROR] 本地源码目录不存在: $OLLVM_LOCAL_SRC"
+      exit 1
+    fi
+    echo "[INFO] 使用本地源码目录: $OLLVM_LOCAL_SRC"
+    recreate_ollvm_src_dir
+    mkdir -p "$OLLVM_SRC_DIR"
+    cp -R "$OLLVM_LOCAL_SRC/." "$OLLVM_SRC_DIR/"
+    return
+  fi
+
+  if [[ -n "$OLLVM_TARBALL" ]]; then
+    echo "[INFO] 使用本地源码包: $OLLVM_TARBALL"
+    extract_tarball_to_src "$OLLVM_TARBALL"
+    return
+  fi
+
+  if [[ ! -d "$OLLVM_SRC_DIR/.git" ]]; then
+    echo "[INFO] 拉取 OLLVM 源码..."
+    clone_ollvm_repo "$OLLVM_REPO" "$OLLVM_BRANCH"
+    return
+  fi
+
+  local current_remote
+  current_remote="$(git -C "$OLLVM_SRC_DIR" remote get-url origin 2>/dev/null || true)"
+  if [[ -n "$current_remote" && "$current_remote" != "$OLLVM_REPO" ]]; then
+    echo "[WARN] 检测到现有 ollvm-src 的远端与配置不一致:"
+    echo "       current: $current_remote"
+    echo "       expect : $OLLVM_REPO"
+    echo "[INFO] 将重建 ollvm-src 并重新拉取配置仓库..."
+    recreate_ollvm_src_dir
+    clone_ollvm_repo "$OLLVM_REPO" "$OLLVM_BRANCH"
+    return
+  fi
+
+  if [[ "$UPDATE_OLLVM_SRC" -eq 0 ]]; then
+    echo "[INFO] 跳过 OLLVM 源码更新（--no-update）"
+    return
+  fi
+
+  echo "[INFO] 更新 OLLVM 源码..."
+  if [[ -n "$OLLVM_BRANCH" ]]; then
+    if git -C "$OLLVM_SRC_DIR" fetch --depth=1 origin "$OLLVM_BRANCH"; then
+      git -C "$OLLVM_SRC_DIR" checkout -B "$OLLVM_BRANCH" "origin/$OLLVM_BRANCH"
+    else
+      echo "[WARN] 指定分支 '$OLLVM_BRANCH' 拉取失败，回退到默认远端 HEAD"
+      git -C "$OLLVM_SRC_DIR" fetch --depth=1 origin
+      checkout_origin_default_branch || git -C "$OLLVM_SRC_DIR" checkout -f FETCH_HEAD
+    fi
+  else
+    git -C "$OLLVM_SRC_DIR" fetch --depth=1 origin
+    checkout_origin_default_branch || git -C "$OLLVM_SRC_DIR" checkout -f FETCH_HEAD
+  fi
+
+  if [[ -f "$OLLVM_SRC_DIR/.gitmodules" ]]; then
+    echo "[INFO] 更新 git submodule..."
+    git -C "$OLLVM_SRC_DIR" submodule update --init --recursive
   fi
 }
 
@@ -162,48 +278,11 @@ build_ollvm_clang() {
 
   mkdir -p "$OLLVM_BIN_DIR"
 
-  if [[ ! -d "$OLLVM_SRC_DIR/.git" ]]; then
-    echo "[INFO] 拉取 OLLVM 源码..."
-    clone_ollvm_repo "$OLLVM_REPO" "$OLLVM_BRANCH"
-  else
-    local current_remote
-    current_remote="$(git -C "$OLLVM_SRC_DIR" remote get-url origin 2>/dev/null || true)"
-    if [[ -n "$current_remote" && "$current_remote" != "$OLLVM_REPO" ]]; then
-      echo "[WARN] 检测到现有 ollvm-src 的远端与配置不一致:"
-      echo "       current: $current_remote"
-      echo "       expect : $OLLVM_REPO"
-      echo "[INFO] 将重建 ollvm-src 并重新拉取配置仓库..."
-      recreate_ollvm_src_dir
-      clone_ollvm_repo "$OLLVM_REPO" "$OLLVM_BRANCH"
-    fi
-
-    if [[ "$UPDATE_OLLVM_SRC" -eq 0 ]]; then
-      echo "[INFO] 跳过 OLLVM 源码更新（--no-update）"
-    elif [[ "$UPDATE_OLLVM_SRC" -eq 1 ]]; then
-    echo "[INFO] 更新 OLLVM 源码..."
-    if [[ -n "$OLLVM_BRANCH" ]]; then
-      if git -C "$OLLVM_SRC_DIR" fetch --depth=1 origin "$OLLVM_BRANCH"; then
-        git -C "$OLLVM_SRC_DIR" checkout -B "$OLLVM_BRANCH" "origin/$OLLVM_BRANCH"
-      else
-        echo "[WARN] 指定分支 '$OLLVM_BRANCH' 拉取失败，回退到默认远端 HEAD"
-        git -C "$OLLVM_SRC_DIR" fetch --depth=1 origin
-        checkout_origin_default_branch || git -C "$OLLVM_SRC_DIR" checkout -f FETCH_HEAD
-      fi
-    else
-      git -C "$OLLVM_SRC_DIR" fetch --depth=1 origin
-      checkout_origin_default_branch || git -C "$OLLVM_SRC_DIR" checkout -f FETCH_HEAD
-    fi
-
-    if [[ -f "$OLLVM_SRC_DIR/.gitmodules" ]]; then
-      echo "[INFO] 更新 git submodule..."
-      git -C "$OLLVM_SRC_DIR" submodule update --init --recursive
-    fi
-    fi
-  fi
+  prepare_ollvm_source
 
   local llvm_dir build_dir
   llvm_dir="$(detect_llvm_dir || true)"
-  if [[ -z "$llvm_dir" && "$AUTO_FALLBACK_REPO" -eq 1 ]]; then
+  if [[ -z "$llvm_dir" && "$AUTO_FALLBACK_REPO" -eq 1 && -z "$OLLVM_LOCAL_SRC" && -z "$OLLVM_TARBALL" ]]; then
     echo "[WARN] 当前仓库不包含可识别的 LLVM 源码结构，尝试备用仓库..."
     local fallback_specs=(
       "https://github.com/wwh1004/ollvm-16.git|llvm-16"
@@ -249,6 +328,7 @@ build_ollvm_clang() {
     -S "$llvm_dir" \
     -B "$build_dir" \
     -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     -DLLVM_ENABLE_PROJECTS=clang \
     -DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM" \
     -DLLVM_INCLUDE_TESTS=OFF \
