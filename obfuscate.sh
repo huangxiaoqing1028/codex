@@ -15,7 +15,7 @@ CLANGXX_BIN="$OLLVM_BIN_DIR/clang++"
 # 可根据你自己的 OLLVM 仓库切换（需兼容 LLVM 工程目录结构）
 OLLVM_REPO="https://github.com/heroims/obfuscator.git"
 # 某些 OLLVM 仓库没有 main（可能是 master / llvm-xx），留空表示使用远端默认分支
-OLLVM_BRANCH=""
+OLLVM_BRANCH="llvm-16"
 # 如果你已经知道 LLVM 根目录，可直接填写（例如: "$ROOT_DIR/ollvm-src/llvm"）
 OLLVM_LLVM_DIR=""
 BUILD_CLANG_ONLY=0
@@ -205,21 +205,26 @@ build_ollvm_clang() {
   llvm_dir="$(detect_llvm_dir || true)"
   if [[ -z "$llvm_dir" && "$AUTO_FALLBACK_REPO" -eq 1 ]]; then
     echo "[WARN] 当前仓库不包含可识别的 LLVM 源码结构，尝试备用仓库..."
-    local fallback_repos=(
-      "https://github.com/obfuscator-llvm/obfuscator.git"
-      "https://github.com/heroims/obfuscator.git"
-      "https://github.com/wwh1004/ollvm-16.git"
+    local fallback_specs=(
+      "https://github.com/wwh1004/ollvm-16.git|llvm-16"
+      "https://github.com/wwh1004/ollvm-16.git|main"
+      "https://github.com/obfuscator-llvm/obfuscator.git|master"
+      "https://github.com/heroims/obfuscator.git|llvm-4.0"
+      "https://github.com/heroims/obfuscator.git|master"
     )
-    local repo
-    for repo in "${fallback_repos[@]}"; do
-      [[ "$repo" == "$OLLVM_REPO" ]] && continue
-      echo "[INFO] 尝试备用仓库: $repo"
+    local spec repo branch
+    for spec in "${fallback_specs[@]}"; do
+      repo="${spec%%|*}"
+      branch="${spec##*|}"
+      [[ "$repo" == "$OLLVM_REPO" && "$branch" == "$OLLVM_BRANCH" ]] && continue
+      echo "[INFO] 尝试备用仓库: $repo (branch=$branch)"
       recreate_ollvm_src_dir
-      clone_ollvm_repo "$repo" ""
+      clone_ollvm_repo "$repo" "$branch"
       llvm_dir="$(detect_llvm_dir || true)"
       if [[ -n "$llvm_dir" ]]; then
-        echo "[INFO] 已切换到可用仓库: $repo"
+        echo "[INFO] 已切换到可用仓库: $repo (branch=$branch)"
         OLLVM_REPO="$repo"
+        OLLVM_BRANCH="$branch"
         break
       fi
     done
