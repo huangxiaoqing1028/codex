@@ -13,10 +13,13 @@ CLANG_BIN="$OLLVM_BIN_DIR/clang"
 CLANGXX_BIN="$OLLVM_BIN_DIR/clang++"
 
 # 可根据你自己的 OLLVM 仓库切换（需兼容 LLVM 工程目录结构）
-OLLVM_REPO="https://github.com/wwh1004/ollvm-16.git"
+OLLVM_REPO="https://github.com/obfuscator-llvm/obfuscator.git"
 # 某些 OLLVM 仓库没有 main（可能是 master / llvm-xx），留空表示使用远端默认分支
-OLLVM_BRANCH=""
+OLLVM_BRANCH="master"
+# 如果你已经知道 LLVM 根目录，可直接填写（例如: "$ROOT_DIR/ollvm-src/llvm"）
+OLLVM_LLVM_DIR=""
 BUILD_CLANG_ONLY=0
+UPDATE_OLLVM_SRC=1
 
 usage() {
   cat <<'USAGE'
@@ -24,6 +27,7 @@ usage() {
   bash obfuscate.sh                # 完整流程：字符串加密 + 编译 OLLVM clang + iOS 混淆构建
   bash obfuscate.sh --build-clang-only
                                   # 仅编译 ollvm-bin/clang 和 ollvm-bin/clang++
+  bash obfuscate.sh --no-update   # 使用本地 ollvm-src，不执行 git fetch/checkout
 USAGE
 }
 
@@ -32,6 +36,10 @@ parse_args() {
     case "$1" in
       --build-clang-only)
         BUILD_CLANG_ONLY=1
+        shift
+        ;;
+      --no-update)
+        UPDATE_OLLVM_SRC=0
         shift
         ;;
       -h|--help)
@@ -123,6 +131,9 @@ build_ollvm_clang() {
       git clone --depth=1 "$OLLVM_REPO" "$OLLVM_SRC_DIR"
     fi
   else
+    if [[ "$UPDATE_OLLVM_SRC" -eq 0 ]]; then
+      echo "[INFO] 跳过 OLLVM 源码更新（--no-update）"
+    elif [[ "$UPDATE_OLLVM_SRC" -eq 1 ]]; then
     echo "[INFO] 更新 OLLVM 源码..."
     if [[ -n "$OLLVM_BRANCH" ]]; then
       if git -C "$OLLVM_SRC_DIR" fetch --depth=1 origin "$OLLVM_BRANCH"; then
@@ -136,6 +147,7 @@ build_ollvm_clang() {
       git -C "$OLLVM_SRC_DIR" fetch --depth=1 origin
       git -C "$OLLVM_SRC_DIR" checkout -f origin/HEAD
     fi
+    fi
   fi
 
   local llvm_dir build_dir
@@ -148,6 +160,7 @@ build_ollvm_clang() {
     echo "  3) 确认仓库内存在 llvm/CMakeLists.txt（或等价 LLVM 根目录）"
     exit 1
   fi
+  echo "[INFO] LLVM 根目录: $llvm_dir"
 
   build_dir="$OLLVM_SRC_DIR/build"
   mkdir -p "$build_dir"
@@ -173,6 +186,16 @@ build_ollvm_clang() {
 }
 
 detect_llvm_dir() {
+  if [[ -n "$OLLVM_LLVM_DIR" ]]; then
+    if [[ -f "$OLLVM_LLVM_DIR/CMakeLists.txt" ]] \
+      && [[ -d "$OLLVM_LLVM_DIR/include/llvm" ]] \
+      && [[ -d "$OLLVM_LLVM_DIR/tools/clang" || -d "$OLLVM_LLVM_DIR/projects/clang" ]]; then
+      echo "$OLLVM_LLVM_DIR"
+      return 0
+    fi
+    echo "[WARN] OLLVM_LLVM_DIR 无效，自动探测: $OLLVM_LLVM_DIR"
+  fi
+
   local candidates=(
     "$OLLVM_SRC_DIR/llvm"
     "$OLLVM_SRC_DIR/llvm-project/llvm"
