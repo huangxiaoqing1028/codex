@@ -84,6 +84,12 @@ clone_ollvm_repo() {
   else
     git clone --depth=1 "$repo" "$OLLVM_SRC_DIR"
   fi
+
+  # 很多 OLLVM 仓库只包含子模块指针（主仓库对象很少），必须拉取子模块才有 LLVM 源码
+  if [[ -f "$OLLVM_SRC_DIR/.gitmodules" ]]; then
+    echo "[INFO] 检测到 git submodule，正在初始化..."
+    git -C "$OLLVM_SRC_DIR" submodule update --init --recursive
+  fi
 }
 
 checkout_origin_default_branch() {
@@ -186,6 +192,11 @@ build_ollvm_clang() {
     else
       git -C "$OLLVM_SRC_DIR" fetch --depth=1 origin
       checkout_origin_default_branch || git -C "$OLLVM_SRC_DIR" checkout -f FETCH_HEAD
+    fi
+
+    if [[ -f "$OLLVM_SRC_DIR/.gitmodules" ]]; then
+      echo "[INFO] 更新 git submodule..."
+      git -C "$OLLVM_SRC_DIR" submodule update --init --recursive
     fi
     fi
   fi
