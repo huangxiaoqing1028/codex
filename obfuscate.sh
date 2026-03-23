@@ -14,7 +14,8 @@ CLANGXX_BIN="$OLLVM_BIN_DIR/clang++"
 
 # 可根据你自己的 OLLVM 仓库切换（需兼容 LLVM 工程目录结构）
 OLLVM_REPO="https://github.com/wwh1004/ollvm-16.git"
-OLLVM_BRANCH="main"
+# 某些 OLLVM 仓库没有 main（可能是 master / llvm-xx），留空表示使用远端默认分支
+OLLVM_BRANCH=""
 BUILD_CLANG_ONLY=0
 
 usage() {
@@ -113,11 +114,28 @@ build_ollvm_clang() {
 
   if [[ ! -d "$OLLVM_SRC_DIR/.git" ]]; then
     echo "[INFO] 拉取 OLLVM 源码..."
-    git clone --depth=1 --branch "$OLLVM_BRANCH" "$OLLVM_REPO" "$OLLVM_SRC_DIR"
+    if [[ -n "$OLLVM_BRANCH" ]]; then
+      if ! git clone --depth=1 --branch "$OLLVM_BRANCH" "$OLLVM_REPO" "$OLLVM_SRC_DIR"; then
+        echo "[WARN] 指定分支 '$OLLVM_BRANCH' 不存在，回退到远端默认分支"
+        git clone --depth=1 "$OLLVM_REPO" "$OLLVM_SRC_DIR"
+      fi
+    else
+      git clone --depth=1 "$OLLVM_REPO" "$OLLVM_SRC_DIR"
+    fi
   else
     echo "[INFO] 更新 OLLVM 源码..."
-    git -C "$OLLVM_SRC_DIR" fetch --depth=1 origin "$OLLVM_BRANCH"
-    git -C "$OLLVM_SRC_DIR" checkout -f FETCH_HEAD
+    if [[ -n "$OLLVM_BRANCH" ]]; then
+      if git -C "$OLLVM_SRC_DIR" fetch --depth=1 origin "$OLLVM_BRANCH"; then
+        git -C "$OLLVM_SRC_DIR" checkout -f FETCH_HEAD
+      else
+        echo "[WARN] 指定分支 '$OLLVM_BRANCH' 拉取失败，回退到默认远端 HEAD"
+        git -C "$OLLVM_SRC_DIR" fetch --depth=1 origin
+        git -C "$OLLVM_SRC_DIR" checkout -f origin/HEAD
+      fi
+    else
+      git -C "$OLLVM_SRC_DIR" fetch --depth=1 origin
+      git -C "$OLLVM_SRC_DIR" checkout -f origin/HEAD
+    fi
   fi
 
   local llvm_dir build_dir
