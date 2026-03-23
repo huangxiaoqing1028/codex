@@ -13,13 +13,14 @@ CLANG_BIN="$OLLVM_BIN_DIR/clang"
 CLANGXX_BIN="$OLLVM_BIN_DIR/clang++"
 
 # 可根据你自己的 OLLVM 仓库切换（需兼容 LLVM 工程目录结构）
-OLLVM_REPO="https://github.com/wwh1004/ollvm-16.git"
+OLLVM_REPO="https://github.com/heroims/obfuscator.git"
 # 某些 OLLVM 仓库没有 main（可能是 master / llvm-xx），留空表示使用远端默认分支
 OLLVM_BRANCH=""
 # 如果你已经知道 LLVM 根目录，可直接填写（例如: "$ROOT_DIR/ollvm-src/llvm"）
 OLLVM_LLVM_DIR=""
 BUILD_CLANG_ONLY=0
 UPDATE_OLLVM_SRC=1
+AUTO_FALLBACK_REPO=1
 
 usage() {
   cat <<'USAGE'
@@ -69,6 +70,19 @@ recreate_ollvm_src_dir() {
 import shutil
 shutil.rmtree(r"""$OLLVM_SRC_DIR""", ignore_errors=True)
 PY
+  fi
+}
+
+clone_ollvm_repo() {
+  local repo="$1"
+  local branch="${2:-}"
+  if [[ -n "$branch" ]]; then
+    if ! git clone --depth=1 --branch "$branch" "$repo" "$OLLVM_SRC_DIR"; then
+      echo "[WARN] 仓库分支拉取失败，回退默认分支: $repo ($branch)"
+      git clone --depth=1 "$repo" "$OLLVM_SRC_DIR"
+    fi
+  else
+    git clone --depth=1 "$repo" "$OLLVM_SRC_DIR"
   fi
 }
 
@@ -131,14 +145,7 @@ build_ollvm_clang() {
 
   if [[ ! -d "$OLLVM_SRC_DIR/.git" ]]; then
     echo "[INFO] 拉取 OLLVM 源码..."
-    if [[ -n "$OLLVM_BRANCH" ]]; then
-      if ! git clone --depth=1 --branch "$OLLVM_BRANCH" "$OLLVM_REPO" "$OLLVM_SRC_DIR"; then
-        echo "[WARN] 指定分支 '$OLLVM_BRANCH' 不存在，回退到远端默认分支"
-        git clone --depth=1 "$OLLVM_REPO" "$OLLVM_SRC_DIR"
-      fi
-    else
-      git clone --depth=1 "$OLLVM_REPO" "$OLLVM_SRC_DIR"
-    fi
+    clone_ollvm_repo "$OLLVM_REPO" "$OLLVM_BRANCH"
   else
     local current_remote
     current_remote="$(git -C "$OLLVM_SRC_DIR" remote get-url origin 2>/dev/null || true)"
@@ -148,11 +155,7 @@ build_ollvm_clang() {
       echo "       expect : $OLLVM_REPO"
       echo "[INFO] 将重建 ollvm-src 并重新拉取配置仓库..."
       recreate_ollvm_src_dir
-      if [[ -n "$OLLVM_BRANCH" ]]; then
-        git clone --depth=1 --branch "$OLLVM_BRANCH" "$OLLVM_REPO" "$OLLVM_SRC_DIR"
-      else
-        git clone --depth=1 "$OLLVM_REPO" "$OLLVM_SRC_DIR"
-      fi
+      clone_ollvm_repo "$OLLVM_REPO" "$OLLVM_BRANCH"
     fi
 
     if [[ "$UPDATE_OLLVM_SRC" -eq 0 ]]; then
@@ -176,6 +179,28 @@ build_ollvm_clang() {
 
   local llvm_dir build_dir
   llvm_dir="$(detect_llvm_dir)"
+  if [[ -z "$llvm_dir" && "$AUTO_FALLBACK_REPO" -eq 1 ]]; then
+    echo "[WARN] 当前仓库不包含可识别的 LLVM 源码结构，尝试备用仓库..."
+    local fallback_repos=(
+      "https://github.com/obfuscator-llvm/obfuscator.git"
+      "https://github.com/heroims/obfuscator.git"
+      "https://github.com/wwh1004/ollvm-16.git"
+    )
+    local repo
+    for repo in "${fallback_repos[@]}"; do
+      [[ "$repo" == "$OLLVM_REPO" ]] && continue
+      echo "[INFO] 尝试备用仓库: $repo"
+      recreate_ollvm_src_dir
+      clone_ollvm_repo "$repo" ""
+      llvm_dir="$(detect_llvm_dir)"
+      if [[ -n "$llvm_dir" ]]; then
+        echo "[INFO] 已切换到可用仓库: $repo"
+        OLLVM_REPO="$repo"
+        break
+      fi
+    done
+  fi
+
   if [[ -z "$llvm_dir" ]]; then
     echo "[ERROR] 无法识别 OLLVM 目录结构，请检查仓库: $OLLVM_REPO"
     echo "[HINT] 可尝试："
