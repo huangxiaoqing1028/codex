@@ -351,6 +351,40 @@ def is_whitelisted(rel_path: Path, whitelist_rules: Sequence[str]) -> bool:
     return any(rule in p for rule in whitelist_rules)
 
 
+def _make_writable(path: Path) -> None:
+    """Best-effort: ensure an existing path is writable for overwrite/removal."""
+    try:
+        mode = path.stat().st_mode
+        path.chmod(mode | 0o200)
+    except OSError:
+        # Ignore permission tweaking failures; caller may still succeed via remove/rename.
+        pass
+
+
+def copy_file_force(src: Path, dst: Path) -> None:
+    """Copy file while handling stale read-only outputs from previous runs."""
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if dst.exists():
+        _make_writable(dst)
+        try:
+            dst.unlink()
+        except IsADirectoryError:
+            shutil.rmtree(dst, ignore_errors=True)
+        except OSError:
+            # Fall back to copy2 overwrite path for unusual files.
+            pass
+    shutil.copy2(src, dst)
+
+
+def write_text_force(dst: Path, text: str, encoding: str = "utf-8") -> None:
+    """Write text even if destination is read-only from earlier copy operations."""
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if dst.exists():
+        _make_writable(dst)
+    with open(dst, "w", encoding=encoding, errors="ignore", newline="") as f:
+        f.write(text)
+
+
 def obfuscate_ios_project_sources(
     project_dir: Path,
     out_dir: Path,
@@ -368,26 +402,28 @@ def obfuscate_ios_project_sources(
         if not src.is_file():
             continue
         rel = src.relative_to(project_dir)
+        if out_dir in src.parents:
+            # Skip output tree if user places project-out under input project directory.
+            continue
         dst = out_dir / rel
-        dst.parent.mkdir(parents=True, exist_ok=True)
 
         if should_obfuscate_source(rel):
             if is_whitelisted(rel, objc_runtime_whitelist):
-                shutil.copy2(src, dst)
+                copy_file_force(src, dst)
                 skipped_by_whitelist.append(str(rel))
                 continue
             scanned += 1
             if rel.suffix.lower() == ".swift":
                 # Swift mixed project support: preserve source, do not mutate Swift strings here.
                 swift_files += 1
-                shutil.copy2(src, dst)
+                copy_file_force(src, dst)
             else:
                 text = src.read_text(encoding="utf-8", errors="ignore")
                 transformed = obfuscate_strings(text, seed)
-                dst.write_text(transformed, encoding="utf-8")
+                write_text_force(dst, transformed, encoding="utf-8")
                 changed_files.append(str(rel))
         else:
-            shutil.copy2(src, dst)
+            copy_file_force(src, dst)
 
     return {
         "mode": "ios_project_sources",
