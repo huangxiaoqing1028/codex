@@ -523,12 +523,25 @@ def attach_p0_p1_p2_metrics(
         p2_mode = "target_local"
     else:
         p2_mode = "none"
+    if not selected_plugin:
+        p2_reason = "no_plugin_selected"
+    elif not can_build:
+        p2_reason = "build_target_none"
+    elif xcode_global_pass_plugin:
+        p2_reason = "global_injection_disabled_or_failed" if not p2_global_enabled else "ok"
+    elif xcode_target_pass_plugin and not target_plugin_patch_applied:
+        p2_reason = "target_patch_not_applied"
+    elif p2_target_enabled:
+        p2_reason = "ok"
+    else:
+        p2_reason = "plugin_not_injected"
 
     manifest["obfuscation_stages"] = {
         "p0_source_rewrite_count": p0,
         "p1_plugin_candidate_count": p1,
         "p2_build_injected_count": p2,
         "p2_injection_mode": p2_mode,
+        "p2_zero_reason": p2_reason if p2 == 0 else "ok",
         "p2_plugin_selected": bool(selected_plugin),
         "p3_verification_status": "estimated" if (p2_global_enabled or p2_target_enabled) else "unverified",
         "p3_verified_obfuscated_count": p2 if (p2_global_enabled or p2_target_enabled) else 0,
@@ -587,6 +600,7 @@ def build_ios_project(
     common = [
         xcrun,
         "xcodebuild",
+        "-verbose",
         container_flag,
         str(container_path),
         "-scheme",
@@ -644,6 +658,7 @@ def build_ios_project(
         "xcode_global_pass_plugin": bool(args.xcode_global_pass_plugin),
         "xcode_target_pass_plugin": effective_target_pass_plugin,
         "target_plugin_patch_applied": bool(patched_pbxproj),
+        "target_plugin_patch_error": "" if (not effective_target_pass_plugin or patched_pbxproj) else "target_not_found_or_pbxproj_missing",
         "ui_guard_define": bool(args.ui_guard_define),
         "macho_order_file": args.macho_order_file,
     }

@@ -254,5 +254,5 @@ bash scripts/ipa_obfuscator/build_obfuscated_ipa.sh \
 > manifest 新增 `obfuscation_stages`（P0/P1/P2/P3）用于分阶段验收：  
 > - P0 `p0_source_rewrite_count`：源码改写数量（仅 `--copy-project` 有意义）  
 > - P1 `p1_plugin_candidate_count`：可被 LLVM pass 插件覆盖的候选数量（已排除 Swift；Swift 见 `swift_passthrough_count`）  
-> - P2 `p2_build_injected_count`：本次构建实际注入插件参数后的覆盖估计；`p2_injection_mode` 会标记 `xcode_global` / `target_local` / `none`  
+> - P2 `p2_build_injected_count`：本次构建实际注入插件参数后的覆盖估计；`p2_injection_mode` 会标记 `xcode_global` / `target_local` / `none`，`p2_zero_reason` 会解释为什么为 0  
 > - P3 `p3_verification_status` + `p3_verified_obfuscated_count`：构建日志命中统计（匹配 `CompileC` + `-fpass-plugin=`，并过滤 `Pods/Carthage`）
