@@ -346,7 +346,7 @@ build_ollvm_clang() {
   fi
 
   echo "[INFO] 配置并编译 clang（首次可能较久）..."
-  cmake "${cmake_args[@]}"
+  configure_cmake_with_fallback "$build_dir" "${cmake_args[@]}"
 
   ninja -C "$build_dir" clang clang++
 
@@ -355,6 +355,44 @@ build_ollvm_clang() {
   chmod +x "$CLANG_BIN" "$CLANGXX_BIN"
 
   echo "[OK] 编译完成: $CLANG_BIN"
+}
+
+configure_cmake_with_fallback() {
+  local build_dir="$1"
+  shift
+  local cmake_args=("$@")
+  local log_file="$build_dir/cmake_configure.log"
+
+  set +e
+  cmake "${cmake_args[@]}" 2>&1 | tee "$log_file"
+  local rc=${PIPESTATUS[0]}
+  set -e
+  if [[ $rc -eq 0 ]]; then
+    return 0
+  fi
+
+  if grep -q "LLVM_ENABLE_PROJECTS requests clang but directory not found" "$log_file"; then
+    echo "[WARN] 检测到 legacy 目录报错，自动重试（移除 LLVM_ENABLE_PROJECTS）..."
+    rm -f "$build_dir/CMakeCache.txt"
+    rm -rf "$build_dir/CMakeFiles"
+
+    local retry_args=()
+    local i=0
+    while [[ $i -lt ${#cmake_args[@]} ]]; do
+      if [[ "${cmake_args[$i]}" == "-DLLVM_ENABLE_PROJECTS=clang" ]]; then
+        ((i+=1))
+        continue
+      fi
+      retry_args+=("${cmake_args[$i]}")
+      ((i+=1))
+    done
+
+    cmake "${retry_args[@]}"
+    return 0
+  fi
+
+  echo "[ERROR] cmake 配置失败，请查看日志: $log_file"
+  return "$rc"
 }
 
 patch_legacy_cmake_policies() {
