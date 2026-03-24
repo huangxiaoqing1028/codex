@@ -53,6 +53,8 @@ class Strategy:
     dispatcher_mode: bool
     state_perturb: bool
     indirect_dispatch: bool
+    pass_plugin: str | None
+    plugin_passes: List[str]
 
 
 def run(cmd: Sequence[str]) -> None:
@@ -266,7 +268,23 @@ def probe_llvm_obf_support(clang_cmd: Sequence[str], flatten: bool, bogus: bool)
 
 def build_with_opt(clang: str, opt: str, paths: BuildPaths, strategy: Strategy, cflags: Sequence[str]) -> None:
     run([clang, *cflags, "-S", "-emit-llvm", "-O0", str(paths.transformed_src), "-o", str(paths.ir_path)])
-    run([opt, *strategy.passes, str(paths.ir_path), "-S", "-o", str(paths.transformed_ir_path)])
+    if strategy.pass_plugin and strategy.plugin_passes:
+        plugin_pipeline = ",".join(strategy.plugin_passes)
+        run(
+            [
+                opt,
+                "-load-pass-plugin",
+                strategy.pass_plugin,
+                "-passes",
+                plugin_pipeline,
+                str(paths.ir_path),
+                "-S",
+                "-o",
+                str(paths.transformed_ir_path),
+            ]
+        )
+    else:
+        run([opt, *strategy.passes, str(paths.ir_path), "-S", "-o", str(paths.transformed_ir_path)])
     run([clang, *cflags, str(paths.transformed_ir_path), "-O2", "-o", str(paths.output)])
 
 
@@ -499,6 +517,8 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--platform", choices=["native", "ios"], default="native", help="Build platform")
     parser.add_argument("--target", help="Target triple, e.g. arm64-apple-ios13.0")
     parser.add_argument("--custom-opt-pass", action="append", default=[], help="Append custom opt pass flag(s), repeatable")
+    parser.add_argument("--pass-plugin", help="Path to new-PM LLVM pass plugin (.so/.dylib)")
+    parser.add_argument("--plugin-pass", action="append", default=[], help="Plugin pipeline pass name, repeatable (e.g. obf-flatten)")
     parser.add_argument("--split-count", type=int, default=0, help="Basic-block split count hint recorded in manifest")
     parser.add_argument("--dispatcher-mode", action="store_true", help="Enable dispatcher-driven flatten strategy hints")
     parser.add_argument("--state-perturb", action="store_true", help="Enable state-variable perturbation strategy hints")
@@ -540,6 +560,17 @@ def single_file_flow(args: argparse.Namespace, seed: int) -> dict:
         indirect_dispatch=bool(args.indirect_dispatch),
     )
 
+    plugin_passes = list(args.plugin_pass)
+    if args.pass_plugin and not plugin_passes:
+        if args.dispatcher_mode or args.flatten:
+            plugin_passes.append("obf-flatten")
+        if args.bogus:
+            plugin_passes.append("obf-bogus")
+        if args.indirect_dispatch:
+            plugin_passes.append("obf-indirect-dispatch")
+        if args.state_perturb:
+            plugin_passes.append("obf-call-indirect")
+
     strategy = Strategy(
         seed=seed,
         flatten=flatten,
@@ -556,6 +587,8 @@ def single_file_flow(args: argparse.Namespace, seed: int) -> dict:
         dispatcher_mode=bool(args.dispatcher_mode),
         state_perturb=bool(args.state_perturb),
         indirect_dispatch=bool(args.indirect_dispatch),
+        pass_plugin=args.pass_plugin,
+        plugin_passes=plugin_passes,
     )
 
     if args.llvm_auto and probe_llvm_obf_support(clang_cmd, flatten, bogus):

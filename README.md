@@ -1,29 +1,50 @@
 # 混淆脚本（LLVM Pass + 字符串 + 随机策略）
 
-已补充以下能力：
+已增加你要求的能力：
 
-- 自定义 IR pass（`--custom-opt-pass`）
-- 基本块切分/重组策略参数（`--split-count`）
-- dispatcher 驱动的平坦化策略（`--dispatcher-mode`）
-- 间接分发与状态变量扰动策略（`--indirect-dispatch` / `--state-perturb`）
-- Objective-C runtime 关键点白名单（`--objc-whitelist-file`）
-- Swift 混编工程处理（`.swift` 保留透传，不做字符串改写）
-- Anti-Frida / Anti-Debug 独立接入点（`--security-module`，外部模块注入）
+- 真正的自定义 Pass（新 LLVM PM 插件化接入）
+- flatten 状态机实现（插件 pass：`obf-flatten`）
+- bogus edge / opaque predicate（插件 pass：`obf-bogus`）
+- indirect branch / dispatcher（插件 pass：`obf-indirect-dispatch`）
+- call indirection（插件 pass：`obf-call-indirect`）
+- Objective-C runtime 关键点白名单
+- Swift 混编处理
+- Anti-Frida / Anti-Debug 独立接入点（外部模块）
 
-## 1) 单文件模式
+## 目录
+
+- `obfuscate.py`：自动化脚本
+- `llvm_passes/ObfPass.cpp`：自定义 LLVM Pass 插件实现
+- `llvm_passes/CMakeLists.txt`：插件构建脚本
+
+## 1) 构建自定义 Pass 插件（新 LLVM）
+
+```bash
+cd llvm_passes
+mkdir -p build && cd build
+cmake -DLLVM_DIR=/path/to/lib/cmake/llvm ..
+cmake --build . -j
+```
+
+产物示例：
+- macOS: `ObfPassPlugin.dylib`
+- Linux: `ObfPassPlugin.so`
+
+## 2) 单文件 + 插件 Pass
 
 ```bash
 ./obfuscate.py demo.c -o demo_obf \
-  --custom-opt-pass -constmerge \
-  --custom-opt-pass -instnamer \
-  --dispatcher-mode \
-  --indirect-dispatch \
-  --state-perturb \
-  --split-count 3 \
-  --flatten --bogus --llvm-auto
+  --pass-plugin /path/to/ObfPassPlugin.dylib \
+  --plugin-pass obf-flatten \
+  --plugin-pass obf-bogus \
+  --plugin-pass obf-indirect-dispatch \
+  --plugin-pass obf-call-indirect \
+  --custom-opt-pass -instcombine
 ```
 
-## 2) iOS 工程模式（复制 + 自动编译 APP/IPA）
+> 若你只传 `--pass-plugin`，脚本会按开关自动推导默认插件 pass 组合（flatten/bogus/indirect/state）。
+
+## 3) iOS 工程模式（APP / IPA）
 
 ### APP
 
@@ -56,21 +77,27 @@
   --export-options-plist /path/to/exportOptions.plist
 ```
 
-## 白名单文件格式（示例）
+## 4) 白名单与 Swift 混编
 
-`objc_whitelist.txt`：每行一个路径片段，命中则跳过该文件混淆。
+- `--objc-whitelist-file`：每行一个路径片段，命中则跳过该文件混淆。
+- `.swift` 文件默认透传复制（不改写字符串）。
+
+示例：
 
 ```txt
-# keep runtime-critical files
 AppDelegate.m
 RuntimeGuard/
 ```
 
-## Anti-Frida / Anti-Debug 说明
+## 5) Anti-Frida / Anti-Debug 独立接入
 
-脚本不内置具体对抗逻辑，而是通过 `--security-module` 提供独立接入点，方便你以外部模块统一维护安全策略。
+脚本不内置具体对抗代码，而通过 `--security-module` 调用你自定义的外部模块：
+
+```bash
+/path/to/security_hook.sh <obfuscated_project_path>
+```
 
 ## 输出
 
-- 单文件：`.obf_build/` 下的 `*.obf.c`, `*.ll`, `*.opt.ll`, `obfuscation_manifest.json`
-- 工程：`--project-out` + `.obf_build/obfuscation_manifest.json`（包含白名单/构建/外部模块信息）
+- 单文件：`.obf_build/` 下 `*.obf.c`, `*.ll`, `*.opt.ll`, `obfuscation_manifest.json`
+- 工程：`--project-out` + `.obf_build/obfuscation_manifest.json`
