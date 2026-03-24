@@ -7,9 +7,11 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Type.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include <string>
 
 #if __has_include("llvm/Passes/PassPlugin.h")
 #include "llvm/Passes/PassPlugin.h"
@@ -23,10 +25,35 @@ using namespace llvm;
 
 namespace {
 
+static bool containsThirdPartyPath(StringRef Path) {
+  std::string Lower = Path.lower();
+  return Lower.find("/pods/") != std::string::npos || Lower.find("\\pods\\") != std::string::npos ||
+         Lower.find("/carthage/") != std::string::npos || Lower.find("\\carthage\\") != std::string::npos ||
+         StringRef(Lower).starts_with("pods/") || StringRef(Lower).starts_with("carthage/");
+}
+
+static bool shouldSkipFunction(const Function &F) {
+  const Module *M = F.getParent();
+  if (!M) {
+    return false;
+  }
+
+  if (containsThirdPartyPath(M->getModuleIdentifier()) || containsThirdPartyPath(M->getSourceFileName())) {
+    return true;
+  }
+
+  if (const DISubprogram *SP = F.getSubprogram()) {
+    if (containsThirdPartyPath(SP->getFilename()) || containsThirdPartyPath(SP->getDirectory())) {
+      return true;
+    }
+  }
+  return false;
+}
+
 class FlattenStateMachinePass : public PassInfoMixin<FlattenStateMachinePass> {
 public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
-    if (F.isDeclaration() || F.size() < 2) {
+    if (F.isDeclaration() || F.size() < 2 || shouldSkipFunction(F)) {
       return PreservedAnalyses::all();
     }
 
@@ -56,7 +83,7 @@ public:
 class BogusControlFlowPass : public PassInfoMixin<BogusControlFlowPass> {
 public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
-    if (F.isDeclaration() || F.empty()) {
+    if (F.isDeclaration() || F.empty() || shouldSkipFunction(F)) {
       return PreservedAnalyses::all();
     }
 
@@ -90,7 +117,7 @@ public:
 class IndirectBranchDispatcherPass : public PassInfoMixin<IndirectBranchDispatcherPass> {
 public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
-    if (F.isDeclaration()) {
+    if (F.isDeclaration() || shouldSkipFunction(F)) {
       return PreservedAnalyses::all();
     }
 
@@ -118,7 +145,7 @@ public:
 class CallIndirectionPass : public PassInfoMixin<CallIndirectionPass> {
 public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
-    if (F.isDeclaration()) {
+    if (F.isDeclaration() || shouldSkipFunction(F)) {
       return PreservedAnalyses::all();
     }
 
@@ -152,7 +179,7 @@ public:
 class SplitMergePass : public PassInfoMixin<SplitMergePass> {
 public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
-    if (F.isDeclaration()) {
+    if (F.isDeclaration() || shouldSkipFunction(F)) {
       return PreservedAnalyses::all();
     }
 
@@ -179,7 +206,7 @@ public:
 class ArithmeticSubstitutionPass : public PassInfoMixin<ArithmeticSubstitutionPass> {
 public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
-    if (F.isDeclaration()) {
+    if (F.isDeclaration() || shouldSkipFunction(F)) {
       return PreservedAnalyses::all();
     }
 

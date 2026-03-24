@@ -140,6 +140,7 @@ cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
 > 说明：默认**不会**把 `-fpass-plugin` 全局注入到 workspace（避免 Pods target 编译失败）。  
 > 如果你确认要全局注入，可显式加 `--xcode-global-pass-plugin`（不推荐，可能影响 Pods）。  
 > Swift 编译链本身不走该参数，因此 Swift 仍以透传策略处理。
+> 即便开启全局注入，插件内部也会对 `Pods/`、`Carthage/` 路径做跳过过滤，尽量避免改写第三方依赖函数。
 
 ```bash
 ./obfuscate.py /path/to/MyApp \
