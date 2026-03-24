@@ -72,10 +72,22 @@ def run(cmd: Sequence[str]) -> None:
     subprocess.run(cmd, check=True)
 
 
-def run_capture(cmd: Sequence[str]) -> str:
+def run_capture(cmd: Sequence[str], log_path: Path | None = None) -> str:
     print("[+]", " ".join(cmd))
-    p = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    return p.stdout or ""
+    try:
+        p = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        out = p.stdout or ""
+        if log_path:
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            log_path.write_text(out, encoding="utf-8", errors="ignore")
+        return out
+    except subprocess.CalledProcessError as e:
+        out = e.stdout or ""
+        if log_path:
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            log_path.write_text(out, encoding="utf-8", errors="ignore")
+        tail = "\n".join(out.splitlines()[-120:])
+        raise RuntimeError(f"Command failed ({e.returncode}). Log: {log_path}\n{tail}") from e
 
 
 def run_probe(cmd: Sequence[str], stdin_data: str = "") -> bool:
@@ -664,8 +676,10 @@ def build_ios_project(
     }
 
     if args.build_target == "app":
-        out = run_capture([*common, "clean", "build"])
+        app_log = build_workdir / "xcodebuild_app.log"
+        out = run_capture([*common, "clean", "build"], log_path=app_log)
         result.update(parse_xcode_plugin_hits(out))
+        result["xcodebuild_log"] = str(app_log)
         if backup_pbxproj and patched_pbxproj:
             shutil.copy2(backup_pbxproj, patched_pbxproj)
             os.remove(backup_pbxproj)
@@ -679,8 +693,10 @@ def build_ios_project(
         export_options = Path(args.export_options_plist)
         baseline_archive = Path(args.baseline_archive_path) if args.baseline_archive_path else archive_path
         baseline_binary = _find_archive_binary(baseline_archive) if baseline_archive.exists() else None
-        out_archive = run_capture([*common, "archive", "-archivePath", str(archive_path)])
+        archive_log = build_workdir / "xcodebuild_archive.log"
+        out_archive = run_capture([*common, "archive", "-archivePath", str(archive_path)], log_path=archive_log)
         result.update(parse_xcode_plugin_hits(out_archive))
+        result["xcodebuild_archive_log"] = str(archive_log)
         run(
             [
                 xcrun,
