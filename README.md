@@ -13,6 +13,8 @@
 
 若插件存在（默认路径 `llvm_passes/build/`），脚本会自动加载并执行以上 pass。
 
+> 当前插件增强点：`obf-flatten` 为 dispatcher + state 机制、`obf-bogus` 为多模板 opaque predicate、`obf-call-indirect` 包含多级 trampoline + table 索引扰动。
+
 ---
 
 ## 目录

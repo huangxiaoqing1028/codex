@@ -1,4 +1,5 @@
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
@@ -11,6 +12,9 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include <algorithm>
+#include <cstdint>
+#include <random>
 #include <string>
 
 #if __has_include("llvm/Passes/PassPlugin.h")
@@ -50,29 +54,120 @@ static bool shouldSkipFunction(const Function &F) {
   return false;
 }
 
+static uint32_t functionSeed(const Function &F) {
+  uint32_t H = 2166136261u;
+  for (char C : F.getName()) {
+    H ^= static_cast<uint8_t>(C);
+    H *= 16777619u;
+  }
+  return H ? H : 1u;
+}
+
+static bool containsPHINodes(const Function &F) {
+  for (const BasicBlock &BB : F) {
+    if (isa<PHINode>(BB.begin())) {
+      return true;
+    }
+  }
+  return false;
+}
+
 class FlattenStateMachinePass : public PassInfoMixin<FlattenStateMachinePass> {
 public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
-    if (F.isDeclaration() || F.size() < 2 || shouldSkipFunction(F)) {
+    if (F.isDeclaration() || F.size() < 3 || shouldSkipFunction(F) || containsPHINodes(F)) {
       return PreservedAnalyses::all();
     }
 
-    // Lightweight flatten pre-step: split large blocks to increase dispatcher granularity.
-    SmallVector<BasicBlock *, 16> Blocks;
+    SmallVector<BasicBlock *, 32> Blocks;
     for (BasicBlock &BB : F) {
-      Blocks.push_back(&BB);
-    }
-
-    bool Changed = false;
-    for (BasicBlock *BB : Blocks) {
-      auto *Term = BB->getTerminator();
-      if (!Term || BB->size() < 4) {
+      if (&BB == &F.getEntryBlock()) {
         continue;
       }
-      Instruction *SplitPoint = &*std::next(BB->begin());
-      if (!SplitPoint->isTerminator()) {
-        SplitBlock(BB, SplitPoint);
-        Changed = true;
+      if (isa<ReturnInst>(BB.getTerminator())) {
+        continue;
+      }
+      Blocks.push_back(&BB);
+    }
+    if (Blocks.size() < 2) {
+      return PreservedAnalyses::all();
+    }
+
+    std::mt19937 Rng(functionSeed(F));
+    std::shuffle(Blocks.begin(), Blocks.end(), Rng);
+
+    LLVMContext &Ctx = F.getContext();
+    Type *I32 = Type::getInt32Ty(Ctx);
+    BasicBlock *Entry = &F.getEntryBlock();
+    Instruction *EntryTerm = Entry->getTerminator();
+    if (!EntryTerm) {
+      return PreservedAnalyses::all();
+    }
+
+    IRBuilder<> EntryBuilder(EntryTerm);
+    AllocaInst *State = EntryBuilder.CreateAlloca(I32, nullptr, "obf.state");
+
+    DenseMap<BasicBlock *, uint32_t> StateMap;
+    for (size_t I = 0; I < Blocks.size(); ++I) {
+      StateMap[Blocks[I]] = static_cast<uint32_t>(I);
+    }
+
+    EntryBuilder.CreateStore(ConstantInt::get(I32, StateMap[Blocks.front()]), State);
+    BasicBlock *Dispatcher = BasicBlock::Create(Ctx, "obf.dispatcher", &F);
+    EntryTerm->eraseFromParent();
+    BranchInst::Create(Dispatcher, Entry);
+
+    IRBuilder<> DispatchBuilder(Dispatcher);
+    Value *LoadedState = DispatchBuilder.CreateLoad(I32, State, "obf.state.ld");
+    BasicBlock *NoiseA = BasicBlock::Create(Ctx, "obf.noise.a", &F);
+    BasicBlock *NoiseB = BasicBlock::Create(Ctx, "obf.noise.b", &F);
+    BasicBlock *DefaultCase = BasicBlock::Create(Ctx, "obf.default", &F);
+    SwitchInst *Sw = DispatchBuilder.CreateSwitch(LoadedState, DefaultCase, Blocks.size());
+    for (BasicBlock *BB : Blocks) {
+      Sw->addCase(ConstantInt::get(I32, StateMap[BB]), BB);
+    }
+
+    IRBuilder<> NA(NoiseA);
+    NA.CreateStore(ConstantInt::get(I32, StateMap[Blocks.front()]), State);
+    NA.CreateBr(NoiseB);
+    IRBuilder<> NB(NoiseB);
+    NB.CreateBr(DefaultCase);
+    IRBuilder<> Def(DefaultCase);
+    Def.CreateBr(Dispatcher);
+
+    bool Changed = true;
+    for (BasicBlock *BB : Blocks) {
+      TerminatorInst *Term = BB->getTerminator();
+      if (!Term) {
+        continue;
+      }
+      if (auto *Br = dyn_cast<BranchInst>(Term)) {
+        IRBuilder<> B(Br);
+        if (Br->isUnconditional()) {
+          BasicBlock *Succ = Br->getSuccessor(0);
+          auto It = StateMap.find(Succ);
+          if (It != StateMap.end()) {
+            B.CreateStore(ConstantInt::get(I32, It->second), State);
+            Br->eraseFromParent();
+            B.CreateBr(Dispatcher);
+          }
+          continue;
+        }
+        BasicBlock *TrueBB = BasicBlock::Create(Ctx, "obf.state.t", &F, Dispatcher);
+        BasicBlock *FalseBB = BasicBlock::Create(Ctx, "obf.state.f", &F, Dispatcher);
+        IRBuilder<> BT(TrueBB);
+        IRBuilder<> BF(FalseBB);
+        BasicBlock *TSucc = Br->getSuccessor(0);
+        BasicBlock *FSucc = Br->getSuccessor(1);
+        uint32_t TState = StateMap.count(TSucc) ? StateMap[TSucc] : StateMap[Blocks.front()];
+        uint32_t FState = StateMap.count(FSucc) ? StateMap[FSucc] : StateMap[Blocks.front()];
+        BT.CreateStore(ConstantInt::get(I32, TState), State);
+        BT.CreateBr(Dispatcher);
+        BF.CreateStore(ConstantInt::get(I32, FState), State);
+        BF.CreateBr(Dispatcher);
+        Value *Cond = Br->getCondition();
+        Br->eraseFromParent();
+        B.CreateCondBr(Cond, TrueBB, FalseBB);
       }
     }
 
@@ -94,12 +189,32 @@ public:
 
     IRBuilder<> B(&*Entry.getFirstInsertionPt());
     Type *I32 = Type::getInt32Ty(F.getContext());
-
-    Value *X = B.CreateAdd(ConstantInt::get(I32, 7), ConstantInt::get(I32, 9));
-    Value *X2 = B.CreateMul(X, X);
-    Value *Expr = B.CreateAdd(X2, X);
-    Value *Mod = B.CreateURem(Expr, ConstantInt::get(I32, 2));
-    Value *Pred = B.CreateICmpEQ(Mod, ConstantInt::get(I32, 0), "opaque_pred");
+    std::mt19937 Rng(functionSeed(F) ^ 0xB0B0u);
+    uint32_t Mode = Rng() % 3;
+    Value *Pred = nullptr;
+    if (Mode == 0) {
+      Value *X = B.CreateAdd(ConstantInt::get(I32, 7), ConstantInt::get(I32, 9));
+      Value *X2 = B.CreateMul(X, X);
+      Value *Expr = B.CreateAdd(X2, X);
+      Value *Mod = B.CreateURem(Expr, ConstantInt::get(I32, 2));
+      Pred = B.CreateICmpEQ(Mod, ConstantInt::get(I32, 0), "opaque_pred.mod");
+    } else if (Mode == 1) {
+      Value *Seed = ConstantInt::get(I32, static_cast<uint32_t>(functionSeed(F)));
+      Value *L = B.CreateXor(Seed, ConstantInt::get(I32, 0x5A5A5A5A));
+      Value *R = B.CreateXor(ConstantInt::get(I32, 0x5A5A5A5A), Seed);
+      Pred = B.CreateICmpEQ(L, R, "opaque_pred.data");
+    } else {
+      Value *Dep = ConstantInt::get(I32, 0);
+      if (!F.arg_empty() && F.arg_begin()->getType()->isIntegerTy()) {
+        Dep = B.CreateZExtOrTrunc(&*F.arg_begin(), I32, "opaque.arg");
+      }
+      Value *T = B.CreateXor(Dep, ConstantInt::get(I32, 0x1234));
+      Value *R = B.CreateXor(T, ConstantInt::get(I32, 0x1234));
+      Pred = B.CreateICmpEQ(R, Dep, "opaque_pred.arg");
+    }
+    if (!Pred) {
+      return PreservedAnalyses::all();
+    }
 
     BasicBlock *OrigSucc = Entry.getTerminator()->getSuccessor(0);
     BasicBlock *BogusBB = BasicBlock::Create(F.getContext(), "bogus.edge", &F, OrigSucc);
@@ -165,10 +280,30 @@ public:
       IRBuilder<> B(CB);
       Value *Callee = CB->getCalledOperand();
       Type *PtrTy = Callee->getType();
-      AllocaInst *Slot = B.CreateAlloca(PtrTy, nullptr, "call.slot");
-      B.CreateStore(Callee, Slot);
-      Value *Reloaded = B.CreateLoad(PtrTy, Slot, "call.indirect");
-      CB->setCalledOperand(Reloaded);
+
+      // Multi-level trampoline: slot0 -> slot1 -> table[index]
+      AllocaInst *Slot0 = B.CreateAlloca(PtrTy, nullptr, "call.slot0");
+      AllocaInst *Slot1 = B.CreateAlloca(PtrTy, nullptr, "call.slot1");
+      B.CreateStore(Callee, Slot0);
+      Value *Reload0 = B.CreateLoad(PtrTy, Slot0, "call.reload0");
+      B.CreateStore(Reload0, Slot1);
+      Value *Reload1 = B.CreateLoad(PtrTy, Slot1, "call.reload1");
+
+      ArrayType *TblTy = ArrayType::get(PtrTy, 2);
+      AllocaInst *Tbl = B.CreateAlloca(TblTy, nullptr, "call.tbl");
+      Value *I0 = ConstantInt::get(Type::getInt32Ty(F.getContext()), 0);
+      Value *I1 = ConstantInt::get(Type::getInt32Ty(F.getContext()), 1);
+      Value *Ptr0 = B.CreateInBoundsGEP(TblTy, Tbl, {I0, I0});
+      Value *Ptr1 = B.CreateInBoundsGEP(TblTy, Tbl, {I0, I1});
+      B.CreateStore(Reload1, Ptr0);
+      B.CreateStore(Callee, Ptr1);
+
+      Value *IdxSeed = B.CreateXor(ConstantInt::get(Type::getInt32Ty(F.getContext()), functionSeed(F)),
+                                   ConstantInt::get(Type::getInt32Ty(F.getContext()), 0x9E37));
+      Value *Idx = B.CreateAnd(IdxSeed, ConstantInt::get(Type::getInt32Ty(F.getContext()), 1));
+      Value *DynPtr = B.CreateInBoundsGEP(TblTy, Tbl, {I0, Idx}, "call.tbl.gep");
+      Value *Reloaded = B.CreateLoad(PtrTy, DynPtr, "call.indirect");
+      CB->setCalledOperand(B.CreateBitCast(Reloaded, PtrTy));
       Changed = true;
     }
 
