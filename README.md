@@ -141,6 +141,7 @@ cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
 
 > 说明：默认**不会**把 `-fpass-plugin` 全局注入到 workspace（避免 Pods target 编译失败）。  
 > 如果你确认要全局注入，可显式加 `--xcode-global-pass-plugin`（不推荐，可能影响 Pods）。  
+> 当检测到 `Pods.xcodeproj` 时，脚本会默认拒绝全局注入；只有 `--force-global-pass-plugin` 才会强制放行。  
 > 默认行为（检测到插件且 build-target 为 app/ipa）：会自动走“主 target 注入”路径，临时 patch 主 target 的 `project.pbxproj`，构建后自动回滚。  
 > 你也可以显式加 `--target-pass-plugin` 强制该行为。  
 > Swift 编译链本身不走该参数，因此 Swift 仍以透传策略处理。

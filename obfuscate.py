@@ -600,6 +600,8 @@ def build_ios_project(
     if not container_path.exists():
         raise RuntimeError(f"Xcode container not found: {container_path}")
 
+    has_pods_project = any("Pods.xcodeproj" in str(p) for p in project_out.rglob("Pods.xcodeproj"))
+
     if args.build_target in {"app", "ipa"} and not args.scheme:
         raise RuntimeError("Auto-build APP/IPA requires --scheme")
 
@@ -636,7 +638,14 @@ def build_ios_project(
     if effective_target_pass_plugin:
         patched_pbxproj, backup_pbxproj = inject_pass_plugin_for_target(project_out, args.scheme, plugin_path)
 
-    if plugin_path and args.xcode_global_pass_plugin:
+    global_injection_enabled = bool(plugin_path and args.xcode_global_pass_plugin)
+    if global_injection_enabled and has_pods_project and not args.force_global_pass_plugin:
+        raise RuntimeError(
+            "Refused unsafe global pass-plugin injection because Pods.xcodeproj is present. "
+            "Use default target injection (recommended) or add --force-global-pass-plugin to override."
+        )
+
+    if global_injection_enabled:
         # Unsafe/global injection: affects all workspace targets (including Pods).
         common.extend(
             [
@@ -667,7 +676,8 @@ def build_ios_project(
         "sdk": sdk,
         "derived_data": str(derived_data),
         "xcode_pass_plugin": plugin_path,
-        "xcode_global_pass_plugin": bool(args.xcode_global_pass_plugin),
+        "xcode_global_pass_plugin": global_injection_enabled,
+        "xcode_global_pass_plugin_blocked": bool(global_injection_enabled and has_pods_project and not args.force_global_pass_plugin),
         "xcode_target_pass_plugin": effective_target_pass_plugin,
         "target_plugin_patch_applied": bool(patched_pbxproj),
         "target_plugin_patch_error": "" if (not effective_target_pass_plugin or patched_pbxproj) else "target_not_found_or_pbxproj_missing",
@@ -931,6 +941,11 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         "--xcode-global-pass-plugin",
         action="store_true",
         help="(Unsafe) Inject pass plugin globally via OTHER_CFLAGS/OTHER_CPLUSPLUSFLAGS; affects Pods targets too",
+    )
+    parser.add_argument(
+        "--force-global-pass-plugin",
+        action="store_true",
+        help="Force unsafe global pass-plugin injection even when Pods.xcodeproj is present",
     )
     parser.add_argument(
         "--target-pass-plugin",
