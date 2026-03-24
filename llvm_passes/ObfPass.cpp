@@ -31,9 +31,10 @@ namespace {
 
 static bool containsThirdPartyPath(StringRef Path) {
   std::string Lower = Path.lower();
+  auto startsWith = [&](const char *Prefix) { return Lower.rfind(Prefix, 0) == 0; };
   return Lower.find("/pods/") != std::string::npos || Lower.find("\\pods\\") != std::string::npos ||
          Lower.find("/carthage/") != std::string::npos || Lower.find("\\carthage\\") != std::string::npos ||
-         StringRef(Lower).starts_with("pods/") || StringRef(Lower).starts_with("carthage/");
+         startsWith("pods/") || startsWith("carthage/");
 }
 
 static bool shouldSkipFunction(const Function &F) {
@@ -124,7 +125,8 @@ public:
     BasicBlock *DefaultCase = BasicBlock::Create(Ctx, "obf.default", &F);
     SwitchInst *Sw = DispatchBuilder.CreateSwitch(LoadedState, DefaultCase, Blocks.size());
     for (BasicBlock *BB : Blocks) {
-      Sw->addCase(ConstantInt::get(I32, StateMap[BB]), BB);
+      auto *CaseVal = cast<ConstantInt>(ConstantInt::get(cast<IntegerType>(I32), StateMap[BB]));
+      Sw->addCase(CaseVal, BB);
     }
 
     IRBuilder<> NA(NoiseA);
@@ -137,7 +139,7 @@ public:
 
     bool Changed = true;
     for (BasicBlock *BB : Blocks) {
-      TerminatorInst *Term = BB->getTerminator();
+      Instruction *Term = BB->getTerminator();
       if (!Term) {
         continue;
       }
