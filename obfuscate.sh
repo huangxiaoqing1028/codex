@@ -329,11 +329,11 @@ build_ollvm_clang() {
     -G Ninja
     -S "$llvm_dir"
     -B "$build_dir"
+    -Wno-dev
     -DCMAKE_BUILD_TYPE=Release
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5
     -DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM"
     -DLLVM_INCLUDE_TESTS=OFF
-    -DLLVM_INCLUDE_BENCHMARKS=OFF
     -DLLVM_INCLUDE_EXAMPLES=OFF
   )
 
@@ -348,10 +348,18 @@ build_ollvm_clang() {
   echo "[INFO] 配置并编译 clang（首次可能较久）..."
   configure_cmake_with_fallback "$build_dir" "${cmake_args[@]}"
 
-  ninja -C "$build_dir" clang clang++
+  if ! ninja -C "$build_dir" clang clang++; then
+    echo "[WARN] 目标 clang++ 不存在，尝试仅构建 clang..."
+    ninja -C "$build_dir" clang
+  fi
 
   cp "$build_dir/bin/clang" "$CLANG_BIN"
-  cp "$build_dir/bin/clang++" "$CLANGXX_BIN"
+  if [[ -x "$build_dir/bin/clang++" ]]; then
+    cp "$build_dir/bin/clang++" "$CLANGXX_BIN"
+  else
+    echo "[WARN] 未找到 clang++，使用 clang 作为 clang++ 兜底"
+    cp "$build_dir/bin/clang" "$CLANGXX_BIN"
+  fi
   chmod +x "$CLANG_BIN" "$CLANGXX_BIN"
 
   echo "[OK] 编译完成: $CLANG_BIN"
