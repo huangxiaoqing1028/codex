@@ -500,6 +500,8 @@ def attach_p0_p1_p2_metrics(
     copy_project: bool,
     selected_plugin: str | None,
     xcode_global_pass_plugin: bool,
+    xcode_target_pass_plugin: bool,
+    target_plugin_patch_applied: bool,
     build_target: str,
 ) -> None:
     """Attach staged coverage metrics.
@@ -513,12 +515,12 @@ def attach_p0_p1_p2_metrics(
     p1 = int(manifest.get("plugin_candidate_file_count", 0))
     can_build = build_target in {"app", "ipa"}
     p2_global_enabled = bool(selected_plugin and xcode_global_pass_plugin and can_build)
-    p2_configured = bool(selected_plugin and can_build)
-    p2 = p1 if p2_global_enabled else 0
+    p2_target_enabled = bool(selected_plugin and xcode_target_pass_plugin and target_plugin_patch_applied and can_build)
+    p2 = p1 if (p2_global_enabled or p2_target_enabled) else 0
     if p2_global_enabled:
         p2_mode = "xcode_global"
-    elif p2_configured:
-        p2_mode = "target_local_or_external"
+    elif p2_target_enabled:
+        p2_mode = "target_local"
     else:
         p2_mode = "none"
 
@@ -528,8 +530,8 @@ def attach_p0_p1_p2_metrics(
         "p2_build_injected_count": p2,
         "p2_injection_mode": p2_mode,
         "p2_plugin_selected": bool(selected_plugin),
-        "p3_verification_status": "estimated" if p2_global_enabled else "unverified",
-        "p3_verified_obfuscated_count": p2 if p2_global_enabled else 0,
+        "p3_verification_status": "estimated" if (p2_global_enabled or p2_target_enabled) else "unverified",
+        "p3_verified_obfuscated_count": p2 if (p2_global_enabled or p2_target_enabled) else 0,
     }
 
 
@@ -599,7 +601,13 @@ def build_ios_project(
 
     patched_pbxproj: Path | None = None
     backup_pbxproj: Path | None = None
-    if plugin_path and args.target_pass_plugin and args.scheme:
+    effective_target_pass_plugin = bool(
+        plugin_path
+        and args.scheme
+        and args.build_target in {"app", "ipa"}
+        and (args.target_pass_plugin or not args.xcode_global_pass_plugin)
+    )
+    if effective_target_pass_plugin:
         patched_pbxproj, backup_pbxproj = inject_pass_plugin_for_target(project_out, args.scheme, plugin_path)
 
     if plugin_path and args.xcode_global_pass_plugin:
@@ -634,7 +642,7 @@ def build_ios_project(
         "derived_data": str(derived_data),
         "xcode_pass_plugin": plugin_path,
         "xcode_global_pass_plugin": bool(args.xcode_global_pass_plugin),
-        "xcode_target_pass_plugin": bool(args.target_pass_plugin),
+        "xcode_target_pass_plugin": effective_target_pass_plugin,
         "target_plugin_patch_applied": bool(patched_pbxproj),
         "ui_guard_define": bool(args.ui_guard_define),
         "macho_order_file": args.macho_order_file,
@@ -1057,7 +1065,9 @@ def project_flow(args: argparse.Namespace, seed: int) -> dict:
         manifest,
         copy_project=bool(args.copy_project),
         selected_plugin=selected_plugin,
-        xcode_global_pass_plugin=bool(args.xcode_global_pass_plugin),
+        xcode_global_pass_plugin=bool(build_manifest.get("xcode_global_pass_plugin", args.xcode_global_pass_plugin)),
+        xcode_target_pass_plugin=bool(build_manifest.get("xcode_target_pass_plugin", False)),
+        target_plugin_patch_applied=bool(build_manifest.get("target_plugin_patch_applied", False)),
         build_target=str(args.build_target),
     )
     if isinstance(build_manifest, dict) and "p3_verification_status" in build_manifest:
