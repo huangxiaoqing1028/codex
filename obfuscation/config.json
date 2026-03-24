@@ -30,6 +30,7 @@
     ".build",
     "node_modules"
   ],
+  "source_roots": [],
   "objc_prefix_whitelist": [
     "NS",
     "UI",

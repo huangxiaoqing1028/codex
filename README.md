@@ -31,6 +31,14 @@ python3 tools/ios_obfuscator.py \
   --mode init-config
 ```
 
+如果目标工程里还没有 hook/runtime 模板，可一键补齐：
+
+```bash
+python3 tools/ios_obfuscator.py \
+  --project-root /path/to/ios/project \
+  --mode bootstrap-assets
+```
+
 生成/更新 Build Phase 脚本：
 
 ```bash
@@ -55,6 +63,8 @@ python3 tools/ios_obfuscator.py \
 - `obfuscation/symbol_map.json`（首次运行自动生成）
 
 如果 `obfuscation/config.json` 不存在，工具会自动使用内置默认配置（并在 dry-run 输出中标明配置来源）。
+
+`source_roots` 为空时会扫描整个项目根目录。大项目建议配置 `source_roots`（例如 `["App", "Sources"]`）来缩小扫描范围。
 
 你可以在 `config.json` 中配置是否启用：
 

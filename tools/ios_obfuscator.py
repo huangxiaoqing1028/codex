@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import shutil
 import hashlib
 import json
 import random
@@ -58,6 +59,7 @@ DEFAULT_CONFIG = {
         ".build",
         "node_modules",
     ],
+    "source_roots": [],
     "objc_prefix_whitelist": ["NS", "UI", "CA", "AV", "CF"],
 }
 
@@ -83,15 +85,20 @@ def deep_merge(base: dict, override: dict) -> dict:
     return merged
 
 
-def iter_source_files(project_root: Path, ignore_paths: Iterable[str]) -> Iterable[Path]:
+def iter_source_files(project_root: Path, ignore_paths: Iterable[str], source_roots: Iterable[str] | None = None) -> Iterable[Path]:
     ignore_markers = [str(project_root / p) for p in ignore_paths]
-    for p in project_root.rglob("*"):
-        if p.suffix not in SOURCE_EXTENSIONS or not p.is_file():
+    roots = list(source_roots or [])
+    scan_roots = [project_root] if not roots else [project_root / r for r in roots]
+    for root in scan_roots:
+        if not root.exists():
             continue
-        ps = str(p)
-        if any(m in ps for m in ignore_markers):
-            continue
-        yield p
+        for p in root.rglob("*"):
+            if p.suffix not in SOURCE_EXTENSIONS or not p.is_file():
+                continue
+            ps = str(p)
+            if any(m in ps for m in ignore_markers):
+                continue
+            yield p
 
 
 def rand_symbol(seed: str, prefix: str = "OBF") -> str:
@@ -324,13 +331,35 @@ def init_config(project_root: Path) -> Path:
     return cfg_path
 
 
+def bootstrap_assets(project_root: Path) -> None:
+    """Install hook/runtime/script templates into target project if missing."""
+    tool_root = Path(__file__).resolve().parents[1]
+    to_copy = [
+        ("obfuscation/hooks/cff_bogus_postlink.sh", "obfuscation/hooks/cff_bogus_postlink.sh"),
+        ("obfuscation/hooks/macho_obfuscation.sh", "obfuscation/hooks/macho_obfuscation.sh"),
+        ("scripts/obfuscate_build_phase.sh", "scripts/obfuscate_build_phase.sh"),
+        ("obfuscation/OBFRuntime.h", "obfuscation/OBFRuntime.h"),
+        ("obfuscation/OBFRuntime.m", "obfuscation/OBFRuntime.m"),
+    ]
+    for src_rel, dst_rel in to_copy:
+        src = tool_root / src_rel
+        dst = project_root / dst_rel
+        if not src.exists() or dst.exists():
+            continue
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+        if dst.suffix == ".sh":
+            dst.chmod(0o755)
+        print(f"[bootstrap] installed: {dst}")
+
+
 def process(project_root: Path, app_binary: str | None, dry_run: bool, mode: str) -> None:
     cfg_path = project_root / "obfuscation" / "config.json"
     file_cfg = load_json(cfg_path, default={})
     cfg = deep_merge(DEFAULT_CONFIG, file_cfg)
     symbol_map_path = project_root / "obfuscation" / "symbol_map.json"
 
-    files = list(iter_source_files(project_root, cfg.get("ignore_paths", [])))
+    files = list(iter_source_files(project_root, cfg.get("ignore_paths", []), cfg.get("source_roots", [])))
     whitelist = cfg.get("objc_prefix_whitelist", ["NS", "UI"])
 
     if mode == "install-build-phase":
@@ -340,6 +369,9 @@ def process(project_root: Path, app_binary: str | None, dry_run: bool, mode: str
         created_path = init_config(project_root)
         print(f"[init-config] wrote: {created_path}")
         return
+    if mode == "bootstrap-assets":
+        bootstrap_assets(project_root)
+        return
 
     if mode in {"dry-run", "capability"}:
         if cfg_path.exists():
@@ -347,9 +379,15 @@ def process(project_root: Path, app_binary: str | None, dry_run: bool, mode: str
         else:
             print("[dry-run] config source: built-in defaults (config.json not found)")
         print(f"[dry-run] source files: {len(files)}")
+        if cfg.get("source_roots"):
+            print(f"[dry-run] source roots: {cfg.get('source_roots')}")
+        else:
+            print("[dry-run] source roots: <project-root> (you can narrow with config.source_roots)")
         print(f"[dry-run] config: {json.dumps(cfg, ensure_ascii=False)}")
         cff_status = control_flow_rewrite_status(project_root, cfg.get("external_binary_hooks", []))
         print(f"[capability] control-flow-rewrite: {cff_status}")
+        if cff_status == "hook-enabled-but-missing-script":
+            print("[hint] run: --mode bootstrap-assets  (or disable external_binary_hooks in config)")
         if mode == "capability":
             return
         return
@@ -400,7 +438,7 @@ def process(project_root: Path, app_binary: str | None, dry_run: bool, mode: str
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project-root", required=True)
-    parser.add_argument("--mode", choices=["dry-run", "run", "install-build-phase", "capability", "init-config"], default="run")
+    parser.add_argument("--mode", choices=["dry-run", "run", "install-build-phase", "capability", "init-config", "bootstrap-assets"], default="run")
     parser.add_argument("--app-binary", default=None)
     args = parser.parse_args()
 
