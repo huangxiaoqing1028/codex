@@ -149,7 +149,7 @@ def decode_escaped(payload: str) -> bytes:
             while j < n and len(oct_digits) < 3 and payload[j] in "01234567":
                 oct_digits.append(payload[j])
                 j += 1
-            out.append(int("".join(oct_digits), 8))
+            out.append(int("".join(oct_digits), 8) & 0xFF)
             i = j
             continue
 
