@@ -446,6 +446,41 @@ def obfuscate_ios_project_sources(
     }
 
 
+def summarize_ios_project_sources_for_inplace_build(
+    project_dir: Path,
+    objc_runtime_whitelist: Sequence[str],
+) -> dict:
+    scanned = 0
+    swift_files = 0
+    skipped_by_whitelist: list[str] = []
+    skipped_third_party_files = 0
+    eligible_files: list[str] = []
+    for src in project_dir.rglob("*"):
+        if not src.is_file():
+            continue
+        rel = src.relative_to(project_dir)
+        if any(part in THIRD_PARTY_DIRS for part in rel.parts):
+            skipped_third_party_files += 1
+            continue
+        if should_obfuscate_source(rel):
+            if is_whitelisted(rel, objc_runtime_whitelist):
+                skipped_by_whitelist.append(str(rel))
+                continue
+            scanned += 1
+            if rel.suffix.lower() == ".swift":
+                swift_files += 1
+            eligible_files.append(str(rel))
+    return {
+        "scanned_source_count": scanned,
+        "swift_passthrough_count": swift_files,
+        "whitelist_skipped_files": skipped_by_whitelist,
+        "third_party_filtered_dirs": sorted(THIRD_PARTY_DIRS),
+        "third_party_filtered_file_count": skipped_third_party_files,
+        "plugin_candidate_file_count": len(eligible_files),
+        "plugin_candidate_files_sample": eligible_files[:200],
+    }
+
+
 def _resolve_container_path(project_out: Path, value: str) -> Path:
     raw = Path(value)
     if raw.is_absolute():
@@ -745,14 +780,15 @@ def project_flow(args: argparse.Namespace, seed: int) -> dict:
     if args.input.is_file():
         raise RuntimeError("--project-mode expects a project directory as input")
 
+    whitelist = load_whitelist(args.objc_whitelist_file)
     if args.copy_project:
         project_out = args.project_out or args.input.with_name(f"{args.input.name}_obf")
         project_out.mkdir(parents=True, exist_ok=True)
-        whitelist = load_whitelist(args.objc_whitelist_file)
         manifest = obfuscate_ios_project_sources(args.input, project_out, seed, whitelist)
         manifest["project_copy_enabled"] = True
     else:
         project_out = args.input
+        summary = summarize_ios_project_sources_for_inplace_build(args.input, whitelist)
         manifest = {
             "mode": "ios_project_inplace_build",
             "project_dir": str(args.input),
@@ -761,12 +797,14 @@ def project_flow(args: argparse.Namespace, seed: int) -> dict:
             "project_copy_enabled": False,
             "inplace_source_rewrite_enabled": False,
             "obfuscated_file_count": 0,
-            "scanned_source_count": 0,
+            "scanned_source_count": summary["scanned_source_count"],
             "obfuscated_files": [],
-            "swift_passthrough_count": 0,
-            "whitelist_skipped_files": [],
-            "third_party_filtered_dirs": sorted(THIRD_PARTY_DIRS),
-            "third_party_filtered_file_count": 0,
+            "swift_passthrough_count": summary["swift_passthrough_count"],
+            "whitelist_skipped_files": summary["whitelist_skipped_files"],
+            "third_party_filtered_dirs": summary["third_party_filtered_dirs"],
+            "third_party_filtered_file_count": summary["third_party_filtered_file_count"],
+            "plugin_candidate_file_count": summary["plugin_candidate_file_count"],
+            "plugin_candidate_files_sample": summary["plugin_candidate_files_sample"],
             "note": "Skipped project copy/rewrites; building directly in original project tree.",
         }
         if args.project_out:
@@ -786,6 +824,8 @@ def project_flow(args: argparse.Namespace, seed: int) -> dict:
     if not selected_plugin and not args.no_default_plugin:
         selected_plugin = detect_default_plugin()
     manifest["selected_pass_plugin"] = selected_plugin
+    if not args.copy_project:
+        manifest["obfuscated_file_count"] = manifest["plugin_candidate_file_count"] if selected_plugin else 0
 
     build_manifest = build_ios_project(project_out, args, build_workdir, plugin_path=selected_plugin)
     manifest["auto_build"] = build_manifest

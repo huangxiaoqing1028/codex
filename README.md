@@ -242,4 +242,4 @@ bash scripts/ipa_obfuscator/build_obfuscated_ipa.sh \
 - 工程（默认原地）：`<project>/.obf_build/obfuscation_manifest.json`
 - 工程（`--copy-project`）：`--project-out` + `.obf_build/obfuscation_manifest.json`
 
-> 说明：默认原地模式不会改写源码文件，因此 manifest 中会保留统计字段但值为 0（如 `obfuscated_file_count=0`），混淆效果主要来自编译阶段插件/构建参数。
+> 说明：默认原地模式不会改写源码文件。manifest 中 `plugin_candidate_file_count`/`plugin_candidate_files_sample` 会统计可被编译阶段插件覆盖的源码候选；若本次构建启用了 pass 插件，则 `obfuscated_file_count` 会回填为该候选数量（用于验收插件覆盖范围）。
