@@ -144,6 +144,7 @@ cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
 > 当检测到 `Pods.xcodeproj` 时，脚本会默认拒绝全局注入；只有 `--force-global-pass-plugin` 才会强制放行。  
 > 默认行为（检测到插件且 build-target 为 app/ipa）：会自动走“主 target 注入”路径，临时 patch 主 target 的 `project.pbxproj`，构建后自动回滚。  
 > 你也可以显式加 `--target-pass-plugin` 强制该行为。  
+> 另外会在构建前临时清理 Pods 工程中残留的 `-fpass-plugin=` 标记（若存在），构建结束自动恢复。  
 > Swift 编译链本身不走该参数，因此 Swift 仍以透传策略处理。
 > 即便开启全局注入，插件内部也会对 `Pods/`、`Carthage/` 路径做跳过过滤，尽量避免改写第三方依赖函数。
 

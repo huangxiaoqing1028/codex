@@ -601,6 +601,9 @@ def build_ios_project(
         raise RuntimeError(f"Xcode container not found: {container_path}")
 
     has_pods_project = any("Pods.xcodeproj" in str(p) for p in project_out.rglob("Pods.xcodeproj"))
+    pods_sanitized_backups: list[tuple[Path, Path]] = []
+    if has_pods_project and plugin_path:
+        pods_sanitized_backups = sanitize_pods_projects_remove_pass_plugin(project_out)
 
     if args.build_target in {"app", "ipa"} and not args.scheme:
         raise RuntimeError("Auto-build APP/IPA requires --scheme")
@@ -641,6 +644,7 @@ def build_ios_project(
 
     global_injection_enabled = bool(plugin_path and args.xcode_global_pass_plugin)
     if global_injection_enabled and has_pods_project and not args.force_global_pass_plugin:
+        restore_pbxproj_backups(pods_sanitized_backups)
         raise RuntimeError(
             "Refused unsafe global pass-plugin injection because Pods.xcodeproj is present. "
             "Use default target injection (recommended) or add --force-global-pass-plugin to override."
@@ -683,6 +687,7 @@ def build_ios_project(
         "xcode_target_pass_plugin": effective_target_pass_plugin,
         "target_plugin_patch_applied": bool(patched_pbxproj),
         "target_plugin_patch_error": "" if (not effective_target_pass_plugin or patched_pbxproj) else "target_not_found_or_pbxproj_missing",
+        "pods_pass_plugin_sanitized_projects": len(pods_sanitized_backups),
         "ui_guard_define": bool(args.ui_guard_define),
         "macho_order_file": args.macho_order_file,
     }
@@ -714,6 +719,7 @@ def build_ios_project(
         if backup_pbxproj and patched_pbxproj:
             shutil.copy2(backup_pbxproj, patched_pbxproj)
             os.remove(backup_pbxproj)
+        restore_pbxproj_backups(pods_sanitized_backups)
         result["build_target"] = "app"
         result["note"] = "App built in DerivedData/Build/Products; sign/export according to your provisioning settings."
         return result
@@ -771,12 +777,14 @@ def build_ios_project(
         if backup_pbxproj and patched_pbxproj:
             shutil.copy2(backup_pbxproj, patched_pbxproj)
             os.remove(backup_pbxproj)
+        restore_pbxproj_backups(pods_sanitized_backups)
         return result
 
     result["build_target"] = "none"
     if backup_pbxproj and patched_pbxproj:
         shutil.copy2(backup_pbxproj, patched_pbxproj)
         os.remove(backup_pbxproj)
+    restore_pbxproj_backups(pods_sanitized_backups)
     return result
 
 
@@ -889,6 +897,33 @@ def build_diff_report(baseline_binary: Path | None, output_binary: Path | None) 
         "strings_removed_sample": removed_strings[:200],
         "symbols_removed_sample": removed_symbols[:200],
     }
+
+
+def restore_pbxproj_backups(backups: list[tuple[Path, Path]]) -> None:
+    for pbxproj, backup in backups:
+        try:
+            if backup.exists():
+                shutil.copy2(backup, pbxproj)
+                backup.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def sanitize_pods_projects_remove_pass_plugin(project_out: Path) -> list[tuple[Path, Path]]:
+    backups: list[tuple[Path, Path]] = []
+    for pods_proj in sorted(project_out.rglob("Pods.xcodeproj")):
+        pbxproj = pods_proj / "project.pbxproj"
+        if not pbxproj.exists():
+            continue
+        text = pbxproj.read_text(encoding="utf-8", errors="ignore")
+        patched = re.sub(r"\s-fpass-plugin=[^\"\s]+", "", text)
+        if patched == text:
+            continue
+        backup = pbxproj.with_suffix(".pbxproj.obf.pods.bak")
+        shutil.copy2(pbxproj, backup)
+        pbxproj.write_text(patched, encoding="utf-8")
+        backups.append((pbxproj, backup))
+    return backups
 
 
 def inject_pass_plugin_for_target(project_out: Path, scheme: str, plugin_path: str) -> tuple[Path | None, Path | None]:
