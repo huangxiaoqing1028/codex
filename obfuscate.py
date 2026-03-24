@@ -455,6 +455,7 @@ def summarize_ios_project_sources_for_inplace_build(
     skipped_by_whitelist: list[str] = []
     skipped_third_party_files = 0
     eligible_files: list[str] = []
+    plugin_eligible_files: list[str] = []
     for src in project_dir.rglob("*"):
         if not src.is_file():
             continue
@@ -470,14 +471,19 @@ def summarize_ios_project_sources_for_inplace_build(
             if rel.suffix.lower() == ".swift":
                 swift_files += 1
             eligible_files.append(str(rel))
+            if rel.suffix.lower() != ".swift":
+                # LLVM C/C++/ObjC pass-plugin candidates (Swift is passthrough in this toolchain).
+                plugin_eligible_files.append(str(rel))
     return {
         "scanned_source_count": scanned,
         "swift_passthrough_count": swift_files,
         "whitelist_skipped_files": skipped_by_whitelist,
         "third_party_filtered_dirs": sorted(THIRD_PARTY_DIRS),
         "third_party_filtered_file_count": skipped_third_party_files,
-        "plugin_candidate_file_count": len(eligible_files),
-        "plugin_candidate_files_sample": eligible_files[:200],
+        "eligible_source_file_count": len(eligible_files),
+        "eligible_source_files_sample": eligible_files[:200],
+        "plugin_candidate_file_count": len(plugin_eligible_files),
+        "plugin_candidate_files_sample": plugin_eligible_files[:200],
     }
 
 
@@ -498,14 +504,25 @@ def attach_p0_p1_p2_metrics(
 
     p0 = int(manifest.get("obfuscated_file_count", 0)) if copy_project else 0
     p1 = int(manifest.get("plugin_candidate_file_count", 0))
-    p2_enabled = bool(selected_plugin and xcode_global_pass_plugin and build_target in {"app", "ipa"})
-    p2 = p1 if p2_enabled else 0
+    can_build = build_target in {"app", "ipa"}
+    p2_global_enabled = bool(selected_plugin and xcode_global_pass_plugin and can_build)
+    p2_configured = bool(selected_plugin and can_build)
+    p2 = p1 if p2_global_enabled else 0
+    if p2_global_enabled:
+        p2_mode = "xcode_global"
+    elif p2_configured:
+        p2_mode = "target_local_or_external"
+    else:
+        p2_mode = "none"
 
     manifest["obfuscation_stages"] = {
         "p0_source_rewrite_count": p0,
         "p1_plugin_candidate_count": p1,
         "p2_build_injected_count": p2,
-        "p2_injection_mode": "xcode_global" if p2_enabled else "none",
+        "p2_injection_mode": p2_mode,
+        "p2_plugin_selected": bool(selected_plugin),
+        "p3_verification_status": "estimated" if p2_global_enabled else "unverified",
+        "p3_verified_obfuscated_count": p2 if p2_global_enabled else 0,
     }
 
 
@@ -831,6 +848,8 @@ def project_flow(args: argparse.Namespace, seed: int) -> dict:
             "whitelist_skipped_files": summary["whitelist_skipped_files"],
             "third_party_filtered_dirs": summary["third_party_filtered_dirs"],
             "third_party_filtered_file_count": summary["third_party_filtered_file_count"],
+            "eligible_source_file_count": summary["eligible_source_file_count"],
+            "eligible_source_files_sample": summary["eligible_source_files_sample"],
             "plugin_candidate_file_count": summary["plugin_candidate_file_count"],
             "plugin_candidate_files_sample": summary["plugin_candidate_files_sample"],
             "note": "Skipped project copy/rewrites; building directly in original project tree.",
