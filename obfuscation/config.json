@@ -1,0 +1,41 @@
+{
+  "objc_symbol_obfuscation": true,
+  "control_flow_flattening": {
+    "enabled": true,
+    "mode": "marker",
+    "bogus_cases": 2
+  },
+  "string_encryption": true,
+  "selector_obfuscation": true,
+  "anti_debug": true,
+  "anti_dump": true,
+  "external_binary_hooks": [
+    {
+      "name": "cff_bogus_postlink",
+      "enabled": true,
+      "command": "${PROJECT_ROOT}/obfuscation/hooks/cff_bogus_postlink.sh \"${APP_BINARY}\""
+    },
+    {
+      "name": "macho_obfuscation",
+      "enabled": true,
+      "command": "${PROJECT_ROOT}/obfuscation/hooks/macho_obfuscation.sh \"${APP_BINARY}\""
+    }
+  ],
+  "ignore_paths": [
+    "Pods",
+    "Carthage",
+    "build",
+    "DerivedData",
+    ".git",
+    ".build",
+    "node_modules"
+  ],
+  "source_roots": [],
+  "objc_prefix_whitelist": [
+    "NS",
+    "UI",
+    "CA",
+    "AV",
+    "CF"
+  ]
+}
