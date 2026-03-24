@@ -421,7 +421,12 @@ def _auto_find_container(project_out: Path) -> tuple[str, Path]:
     raise RuntimeError("No .xcworkspace or .xcodeproj found in obfuscated project output")
 
 
-def build_ios_project(project_out: Path, args: argparse.Namespace, build_workdir: Path) -> dict:
+def build_ios_project(
+    project_out: Path,
+    args: argparse.Namespace,
+    build_workdir: Path,
+    plugin_path: str | None = None,
+) -> dict:
     if args.build_target == "none":
         return {"build_target": "none", "note": "Skipped compile stage; generated obfuscated project copy only."}
 
@@ -461,12 +466,22 @@ def build_ios_project(project_out: Path, args: argparse.Namespace, build_workdir
         sdk,
     ]
 
+    if plugin_path:
+        # Best-effort injection for clang/clang++ units compiled by xcodebuild.
+        common.extend(
+            [
+                f"OTHER_CFLAGS=$(inherited) -fpass-plugin={plugin_path}",
+                f"OTHER_CPLUSPLUSFLAGS=$(inherited) -fpass-plugin={plugin_path}",
+            ]
+        )
+
     result: dict = {
         "container": {"flag": container_flag, "path": str(container_path)},
         "scheme": args.scheme,
         "configuration": configuration,
         "sdk": sdk,
         "derived_data": str(derived_data),
+        "xcode_pass_plugin": plugin_path,
     }
 
     if args.build_target == "app":
@@ -665,7 +680,12 @@ def project_flow(args: argparse.Namespace, seed: int) -> dict:
         run_external_security_module(args.security_module, project_out)
         manifest["security_module"] = args.security_module
 
-    build_manifest = build_ios_project(project_out, args, build_workdir)
+    selected_plugin = args.pass_plugin
+    if not selected_plugin and not args.no_default_plugin:
+        selected_plugin = detect_default_plugin()
+    manifest["selected_pass_plugin"] = selected_plugin
+
+    build_manifest = build_ios_project(project_out, args, build_workdir, plugin_path=selected_plugin)
     manifest["auto_build"] = build_manifest
 
     manifest_path = build_workdir / "obfuscation_manifest.json"
