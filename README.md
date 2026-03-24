@@ -172,6 +172,31 @@ cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
   --export-options-plist /path/to/exportOptions.plist
 ```
 
+### IPA（明文参数一键脚本）
+
+如果你希望按“明文参数”直接传入证书路径、密码、profile 路径，可使用：
+
+```bash
+bash scripts/ipa_obfuscator/build_obfuscated_ipa.sh \
+  -P "/path/to/MyApp" \
+  -s MyApp \
+  -c Release \
+  -t TEAMID1234 \
+  -p "/path/to/exportOptions.plist" \
+  -C "/path/to/dist_cert.p12" \
+  -W "123456" \
+  -F "/path/to/appstore.mobileprovision" \
+  -m app-store \
+  -A
+```
+
+脚本会：
+- 导入 p12 到登录钥匙串（`security import`）
+- 安装 mobileprovision 到 `~/Library/MobileDevice/Provisioning Profiles/`
+- 调用 `obfuscate.py --project-mode --build-target ipa` 执行混淆 + 打包
+
+> 说明：`-W` 目前是明文密码参数，便于直接复制执行；更安全做法是用环境变量传递。
+
 如需复制工程并改写源码（旧流程）：
 
 ```bash
