@@ -23,11 +23,29 @@
 
 ## 1) 构建插件
 
+推荐直接用自动脚本（会尝试从 `llvm-config --cmakedir` 自动探测 `LLVM_DIR`）：
+
+```bash
+./llvm_passes/build_plugin.sh
+```
+
+手动方式：
+
 ```bash
 cd llvm_passes
 mkdir -p build && cd build
 cmake -DLLVM_DIR=/path/to/lib/cmake/llvm ..
 cmake --build . -j
+```
+
+如果你遇到 `Could not find LLVMConfig.cmake`：
+
+```bash
+# 方式1：显式指定
+cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
+
+# 方式2：设置前缀
+cmake -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/llvm ..
 ```
 
 产物示例：
