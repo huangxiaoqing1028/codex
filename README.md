@@ -140,6 +140,9 @@ cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
   --project-out /path/to/MyApp_obf \
   --objc-whitelist-file /path/to/objc_whitelist.txt \
   --security-module /path/to/security_hook.sh \
+  --ui-guard-module /path/to/ui_guard_hook.sh \
+  --ui-guard-define \
+  --macho-order-file /path/to/order_file.txt \
   --build-target app \
   --workspace MyApp.xcworkspace \
   --scheme MyApp \
@@ -174,6 +177,15 @@ cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
 ```bash
 /path/to/security_hook.sh <obfuscated_project_path>
 ```
+
+
+## 6) UI扰动 / Mach-O重排
+
+- `--ui-guard-module`：在工程副本生成后执行外部 UI 防护模块。
+- `--ui-guard-define`：给 C/C++/ObjC/Swift 注入 `OBF_UI_GUARD` 编译宏，便于你在业务代码里启用截图/录屏对抗逻辑。
+- `--macho-order-file`：通过 `OTHER_LDFLAGS=-Wl,-order_file,<file>` 注入 Mach-O 链接顺序文件。
+
+> 说明：这些属于工程/构建接入层，具体 UI 扰动与符号重排策略由你的项目代码和 order file 决定。
 
 ## 输出
 

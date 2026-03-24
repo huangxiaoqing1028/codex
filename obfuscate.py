@@ -475,6 +475,21 @@ def build_ios_project(
             ]
         )
 
+    if args.ui_guard_define:
+        common.extend(
+            [
+                "OTHER_CFLAGS=$(inherited) -DOBF_UI_GUARD=1",
+                "OTHER_CPLUSPLUSFLAGS=$(inherited) -DOBF_UI_GUARD=1",
+                "OTHER_SWIFT_FLAGS=$(inherited) -D OBF_UI_GUARD",
+            ]
+        )
+
+    if args.macho_order_file:
+        order_file = Path(args.macho_order_file)
+        if not order_file.is_absolute():
+            order_file = project_out / order_file
+        common.append(f"OTHER_LDFLAGS=$(inherited) -Wl,-order_file,{order_file}")
+
     result: dict = {
         "container": {"flag": container_flag, "path": str(container_path)},
         "scheme": args.scheme,
@@ -482,6 +497,8 @@ def build_ios_project(
         "sdk": sdk,
         "derived_data": str(derived_data),
         "xcode_pass_plugin": plugin_path,
+        "ui_guard_define": bool(args.ui_guard_define),
+        "macho_order_file": args.macho_order_file,
     }
 
     if args.build_target == "app":
@@ -527,6 +544,12 @@ def run_external_security_module(module_cmd: str, project_out: Path) -> None:
     run(cmd)
 
 
+def run_external_ui_guard_module(module_cmd: str, project_out: Path) -> None:
+    """Run user-provided UI hardening module (e.g., screenshot/screen-record overlays)."""
+    cmd = [module_cmd, str(project_out)]
+    run(cmd)
+
+
 def detect_default_plugin() -> str | None:
     base = Path(__file__).resolve().parent / "llvm_passes" / "build"
     candidates = [
@@ -566,6 +589,9 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--project-out", type=Path, help="Output directory for project-mode; default: <project>_obf")
     parser.add_argument("--objc-whitelist-file", type=Path, help="Objective-C runtime keypoint whitelist (one path fragment per line)")
     parser.add_argument("--security-module", help="External hardening module command (independent integration point)")
+    parser.add_argument("--ui-guard-module", help="External UI guard module command (screen-capture/screenshot hardening hook)")
+    parser.add_argument("--ui-guard-define", action="store_true", help="Inject OBF_UI_GUARD compile define into xcodebuild flags")
+    parser.add_argument("--macho-order-file", help="Mach-O order file for linker reordering (xcodebuild OTHER_LDFLAGS)")
 
     # project auto-build options
     parser.add_argument("--build-target", choices=["none", "app", "ipa"], default="none", help="In project-mode, auto build APP or IPA")
@@ -679,6 +705,9 @@ def project_flow(args: argparse.Namespace, seed: int) -> dict:
     if args.security_module:
         run_external_security_module(args.security_module, project_out)
         manifest["security_module"] = args.security_module
+    if args.ui_guard_module:
+        run_external_ui_guard_module(args.ui_guard_module, project_out)
+        manifest["ui_guard_module"] = args.ui_guard_module
 
     selected_plugin = args.pass_plugin
     if not selected_plugin and not args.no_default_plugin:
