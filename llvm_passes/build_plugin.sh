@@ -26,4 +26,9 @@ fi
 
 cmake --build . -j
 
-echo "[+] Plugin build done. Artifacts are in ${BUILD_DIR}"
+if compgen -G "${BUILD_DIR}/*ObfPassPlugin*.so" >/dev/null || compgen -G "${BUILD_DIR}/*ObfPassPlugin*.dylib" >/dev/null; then
+  echo "[+] Plugin build done. Artifacts are in ${BUILD_DIR}"
+else
+  echo "[!] Stub build completed (LLVM dev package not found). No plugin binary was produced."
+  echo "[!] Install LLVM dev package, then rerun this script."
+fi

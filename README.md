@@ -52,6 +52,9 @@ cmake -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/llvm ..
 - macOS: `ObfPassPlugin.dylib`
 - Linux: `ObfPassPlugin.so`
 
+> 若机器上没有 LLVM dev 包，CMake 会进入 **stub 模式**（配置/构建成功但不会产出插件二进制），并给出安装提示。
+
+
 ## 2) 单文件（默认最大强度）
 
 ```bash
