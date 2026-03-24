@@ -629,8 +629,9 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--dispatcher-mode", action="store_true", help="Enable dispatcher-driven flatten strategy hints")
     parser.add_argument("--state-perturb", action="store_true", help="Enable state-variable perturbation strategy hints")
     parser.add_argument("--indirect-dispatch", action="store_true", help="Enable indirect dispatch strategy hints")
-    parser.add_argument("--project-mode", action="store_true", help="Obfuscate whole iOS project sources into a copied directory")
-    parser.add_argument("--project-out", type=Path, help="Output directory for project-mode; default: <project>_obf")
+    parser.add_argument("--project-mode", action="store_true", help="Enable iOS project workflow")
+    parser.add_argument("--copy-project", action="store_true", help="Copy+rewrite project sources into --project-out before build (disabled by default)")
+    parser.add_argument("--project-out", type=Path, help="Output directory when --copy-project is enabled; default: <project>_obf")
     parser.add_argument("--objc-whitelist-file", type=Path, help="Objective-C runtime keypoint whitelist (one path fragment per line)")
     parser.add_argument("--security-module", help="External hardening module command (independent integration point)")
     parser.add_argument("--ui-guard-module", help="External UI guard module command (screen-capture/screenshot hardening hook)")
@@ -738,11 +739,25 @@ def project_flow(args: argparse.Namespace, seed: int) -> dict:
     if args.input.is_file():
         raise RuntimeError("--project-mode expects a project directory as input")
 
-    project_out = args.project_out or args.input.with_name(f"{args.input.name}_obf")
-    project_out.mkdir(parents=True, exist_ok=True)
+    if args.copy_project:
+        project_out = args.project_out or args.input.with_name(f"{args.input.name}_obf")
+        project_out.mkdir(parents=True, exist_ok=True)
+        whitelist = load_whitelist(args.objc_whitelist_file)
+        manifest = obfuscate_ios_project_sources(args.input, project_out, seed, whitelist)
+        manifest["project_copy_enabled"] = True
+    else:
+        project_out = args.input
+        manifest = {
+            "mode": "ios_project_inplace_build",
+            "project_dir": str(args.input),
+            "output_dir": str(project_out),
+            "seed": seed,
+            "project_copy_enabled": False,
+            "note": "Skipped project copy/rewrites; building directly in original project tree.",
+        }
+        if args.project_out:
+            manifest["project_out_ignored"] = str(args.project_out)
 
-    whitelist = load_whitelist(args.objc_whitelist_file)
-    manifest = obfuscate_ios_project_sources(args.input, project_out, seed, whitelist)
     build_workdir = args.workdir or (project_out / ".obf_build")
     build_workdir.mkdir(parents=True, exist_ok=True)
 
@@ -764,7 +779,10 @@ def project_flow(args: argparse.Namespace, seed: int) -> dict:
     manifest_path = build_workdir / "obfuscation_manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
-    print(f"[+] obfuscated project source copy: {project_out}")
+    if args.copy_project:
+        print(f"[+] obfuscated project source copy: {project_out}")
+    else:
+        print(f"[+] in-place project build root: {project_out}")
     print(f"[+] auto build target: {args.build_target}")
     print(f"[+] manifest: {manifest_path}")
     return manifest

@@ -131,6 +131,9 @@ cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
 
 ## 3) iOS 工程模式（APP / IPA）
 
+> 默认行为：**不复制工程**，直接在原工程目录执行 xcodebuild（避免 copy 目录权限/只读文件问题）。  
+> 如需“复制后再混淆源码”，显式加 `--copy-project`。
+
 ### APP
 
 
@@ -141,7 +144,6 @@ cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
 ./obfuscate.py /path/to/MyApp \
   --platform ios \
   --project-mode \
-  --project-out /path/to/MyApp_obf \
   --objc-whitelist-file /path/to/objc_whitelist.txt \
   --security-module /path/to/security_hook.sh \
   --ui-guard-module /path/to/ui_guard_hook.sh \
@@ -159,7 +161,6 @@ cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
 ./obfuscate.py /path/to/MyApp \
   --platform ios \
   --project-mode \
-  --project-out /path/to/MyApp_obf \
   --build-target ipa \
   --workspace MyApp.xcworkspace \
   --scheme MyApp \
@@ -167,6 +168,20 @@ cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
   --archive-path /tmp/MyApp_obf.xcarchive \
   --export-path /tmp/MyApp_ipa \
   --export-options-plist /path/to/exportOptions.plist
+```
+
+如需复制工程并改写源码（旧流程）：
+
+```bash
+./obfuscate.py /path/to/MyApp \
+  --platform ios \
+  --project-mode \
+  --copy-project \
+  --project-out /path/to/MyApp_obf \
+  --build-target app \
+  --workspace MyApp.xcworkspace \
+  --scheme MyApp \
+  --configuration Release
 ```
 
 ## 4) 白名单与 Swift 混编
@@ -194,4 +209,5 @@ cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
 ## 输出
 
 - 单文件：`.obf_build/` 下 `*.obf.c`, `*.ll`, `*.opt.ll`, `obfuscation_manifest.json`
-- 工程：`--project-out` + `.obf_build/obfuscation_manifest.json`
+- 工程（默认原地）：`<project>/.obf_build/obfuscation_manifest.json`
+- 工程（`--copy-project`）：`--project-out` + `.obf_build/obfuscation_manifest.json`
