@@ -52,6 +52,8 @@ ARCHIVE_PATH=""
 EXPORT_PATH=""
 SEED=""
 AGGRESSIVE=0
+PROFILE_PLIST_TMP=""
+EXPORT_OPTIONS_ACTUAL=""
 
 while getopts ":P:s:c:w:t:p:C:W:F:m:a:e:S:Ah" opt; do
   case "$opt" in
@@ -125,22 +127,21 @@ if [[ -z "$EXPORT_PATH" ]]; then
 fi
 
 install_identity() {
+  local decoded_profile_plist="$1"
   local keychain
   keychain="$HOME/Library/Keychains/login.keychain-db"
   echo "[+] Importing certificate into keychain"
   security import "$P12_PATH" -k "$keychain" -P "$P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security >/dev/null
 
   echo "[+] Installing provisioning profile"
-  local profiles_dir uuid tmp_plist
+  local profiles_dir uuid
   profiles_dir="$HOME/Library/MobileDevice/Provisioning Profiles"
   mkdir -p "$profiles_dir"
 
   uuid=""
-  tmp_plist="$(mktemp -t obf_profile_XXXXXX.plist)"
-  if security cms -D -i "$MOBILEPROVISION_PATH" >"$tmp_plist" 2>/dev/null; then
-    uuid="$(/usr/libexec/PlistBuddy -c 'Print UUID' "$tmp_plist" 2>/dev/null || true)"
+  if [[ -n "$decoded_profile_plist" ]]; then
+    uuid="$(/usr/libexec/PlistBuddy -c 'Print UUID' "$decoded_profile_plist" 2>/dev/null || true)"
   fi
-  rm -f "$tmp_plist"
 
   if [[ -z "$uuid" ]]; then
     uuid="$(uuidgen)"
@@ -151,7 +152,74 @@ install_identity() {
   echo "[i] Profile UUID: $uuid"
 }
 
-install_identity
+decode_profile() {
+  PROFILE_PLIST_TMP="$(mktemp -t obf_profile_XXXXXX.plist)"
+  if security cms -D -i "$MOBILEPROVISION_PATH" >"$PROFILE_PLIST_TMP" 2>/dev/null; then
+    return 0
+  fi
+  rm -f "$PROFILE_PLIST_TMP"
+  PROFILE_PLIST_TMP=""
+  echo "[!] Warning: failed to decode provisioning profile (security cms)."
+  return 1
+}
+
+prepare_export_options() {
+  local source_plist="$1"
+  local decoded_profile_plist="$2"
+  local tmp_export
+  local profile_name bundle_id profile_team team_for_export
+
+  tmp_export="$(mktemp -t obf_export_options_XXXXXX.plist)"
+  cp -f "$source_plist" "$tmp_export"
+
+  team_for_export="$TEAM_ID"
+  profile_name=""
+  bundle_id=""
+  profile_team=""
+
+  if [[ -n "$decoded_profile_plist" ]]; then
+    profile_name="$(/usr/libexec/PlistBuddy -c 'Print Name' "$decoded_profile_plist" 2>/dev/null || true)"
+    profile_team="$(/usr/libexec/PlistBuddy -c 'Print TeamIdentifier:0' "$decoded_profile_plist" 2>/dev/null || true)"
+    bundle_id="$(/usr/libexec/PlistBuddy -c 'Print Entitlements:application-identifier' "$decoded_profile_plist" 2>/dev/null || true)"
+    if [[ -n "$bundle_id" && "$bundle_id" == *.* ]]; then
+      bundle_id="${bundle_id#*.}"
+    fi
+  fi
+
+  if [[ -z "$team_for_export" && -n "$profile_team" ]]; then
+    team_for_export="$profile_team"
+  fi
+
+  if [[ -n "$EXPORT_METHOD" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :method $EXPORT_METHOD" "$tmp_export" 2>/dev/null \
+      || /usr/libexec/PlistBuddy -c "Add :method string $EXPORT_METHOD" "$tmp_export"
+  fi
+
+  if [[ -n "$team_for_export" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :teamID $team_for_export" "$tmp_export" 2>/dev/null \
+      || /usr/libexec/PlistBuddy -c "Add :teamID string $team_for_export" "$tmp_export"
+  fi
+
+  if [[ -n "$bundle_id" && -n "$profile_name" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :signingStyle manual" "$tmp_export" 2>/dev/null \
+      || /usr/libexec/PlistBuddy -c "Add :signingStyle string manual" "$tmp_export"
+    /usr/libexec/PlistBuddy -c "Delete :provisioningProfiles" "$tmp_export" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :provisioningProfiles dict" "$tmp_export" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:$bundle_id string $profile_name" "$tmp_export" 2>/dev/null \
+      || /usr/libexec/PlistBuddy -c "Set :provisioningProfiles:$bundle_id $profile_name" "$tmp_export"
+    echo "[i] exportOptions patched provisioningProfiles: $bundle_id -> $profile_name"
+  else
+    echo "[!] Warning: unable to patch provisioningProfiles automatically (missing bundle id or profile name)."
+  fi
+
+  EXPORT_OPTIONS_ACTUAL="$tmp_export"
+}
+
+trap '[[ -n "${PROFILE_PLIST_TMP:-}" ]] && rm -f "$PROFILE_PLIST_TMP"; [[ -n "${EXPORT_OPTIONS_ACTUAL:-}" && "$EXPORT_OPTIONS_ACTUAL" != "$EXPORT_OPTIONS_PLIST" ]] && rm -f "$EXPORT_OPTIONS_ACTUAL"' EXIT
+
+decode_profile || true
+install_identity "$PROFILE_PLIST_TMP"
+prepare_export_options "$EXPORT_OPTIONS_PLIST" "$PROFILE_PLIST_TMP"
 
 cmd=(python3 obfuscate.py
   "$PROJECT_DIR"
@@ -162,7 +230,7 @@ cmd=(python3 obfuscate.py
   --configuration "$CONFIGURATION"
   --archive-path "$ARCHIVE_PATH"
   --export-path "$EXPORT_PATH"
-  --export-options-plist "$EXPORT_OPTIONS_PLIST"
+  --export-options-plist "$EXPORT_OPTIONS_ACTUAL"
 )
 
 if [[ ${#WORKSPACE_ARG[@]} -gt 0 ]]; then

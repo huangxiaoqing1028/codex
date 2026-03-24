@@ -193,6 +193,7 @@ bash scripts/ipa_obfuscator/build_obfuscated_ipa.sh \
 脚本会：
 - 导入 p12 到登录钥匙串（`security import`）
 - 安装 mobileprovision 到 `~/Library/MobileDevice/Provisioning Profiles/`
+- 自动从 mobileprovision 提取 `teamID / bundle id / profile name`，并临时修正 `exportOptions.plist` 的 `provisioningProfiles` 映射（减少 `No profiles for '<bundle id>' were found`）
 - 调用 `obfuscate.py --project-mode --build-target ipa` 执行混淆 + 打包
 
 > 说明：`-W` 目前是明文密码参数，便于直接复制执行；更安全做法是用环境变量传递。
