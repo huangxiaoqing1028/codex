@@ -759,6 +759,14 @@ def project_flow(args: argparse.Namespace, seed: int) -> dict:
             "output_dir": str(project_out),
             "seed": seed,
             "project_copy_enabled": False,
+            "inplace_source_rewrite_enabled": False,
+            "obfuscated_file_count": 0,
+            "scanned_source_count": 0,
+            "obfuscated_files": [],
+            "swift_passthrough_count": 0,
+            "whitelist_skipped_files": [],
+            "third_party_filtered_dirs": sorted(THIRD_PARTY_DIRS),
+            "third_party_filtered_file_count": 0,
             "note": "Skipped project copy/rewrites; building directly in original project tree.",
         }
         if args.project_out:

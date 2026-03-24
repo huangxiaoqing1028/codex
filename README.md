@@ -241,3 +241,5 @@ bash scripts/ipa_obfuscator/build_obfuscated_ipa.sh \
 - 单文件：`.obf_build/` 下 `*.obf.c`, `*.ll`, `*.opt.ll`, `obfuscation_manifest.json`
 - 工程（默认原地）：`<project>/.obf_build/obfuscation_manifest.json`
 - 工程（`--copy-project`）：`--project-out` + `.obf_build/obfuscation_manifest.json`
+
+> 说明：默认原地模式不会改写源码文件，因此 manifest 中会保留统计字段但值为 0（如 `obfuscated_file_count=0`），混淆效果主要来自编译阶段插件/构建参数。
