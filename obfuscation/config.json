@@ -25,7 +25,10 @@
     "Pods",
     "Carthage",
     "build",
-    "DerivedData"
+    "DerivedData",
+    ".git",
+    ".build",
+    "node_modules"
   ],
   "objc_prefix_whitelist": [
     "NS",

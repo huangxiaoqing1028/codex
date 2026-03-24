@@ -23,6 +23,14 @@ python3 tools/ios_obfuscator.py \
   --mode dry-run
 ```
 
+首次接入项目时，建议先生成配置：
+
+```bash
+python3 tools/ios_obfuscator.py \
+  --project-root /path/to/ios/project \
+  --mode init-config
+```
+
 生成/更新 Build Phase 脚本：
 
 ```bash
@@ -45,6 +53,8 @@ python3 tools/ios_obfuscator.py \
 
 - `obfuscation/config.json`
 - `obfuscation/symbol_map.json`（首次运行自动生成）
+
+如果 `obfuscation/config.json` 不存在，工具会自动使用内置默认配置（并在 dry-run 输出中标明配置来源）。
 
 你可以在 `config.json` 中配置是否启用：
 

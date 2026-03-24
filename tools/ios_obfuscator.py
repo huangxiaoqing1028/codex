@@ -30,6 +30,36 @@ SELECTOR_REGEX = re.compile(r"@selector\(([^)]+)\)")
 STRING_REGEX = re.compile(r'@"([^"\\]*(?:\\.[^"\\]*)*)"')
 BLOCK_BEGIN = "// OBF_CFF_BEGIN"
 BLOCK_END = "// OBF_CFF_END"
+DEFAULT_CONFIG = {
+    "objc_symbol_obfuscation": True,
+    "control_flow_flattening": {"enabled": True, "mode": "marker", "bogus_cases": 2},
+    "string_encryption": True,
+    "selector_obfuscation": True,
+    "anti_debug": True,
+    "anti_dump": True,
+    "external_binary_hooks": [
+        {
+            "name": "cff_bogus_postlink",
+            "enabled": True,
+            "command": "${PROJECT_ROOT}/obfuscation/hooks/cff_bogus_postlink.sh \"${APP_BINARY}\"",
+        },
+        {
+            "name": "macho_obfuscation",
+            "enabled": True,
+            "command": "${PROJECT_ROOT}/obfuscation/hooks/macho_obfuscation.sh \"${APP_BINARY}\"",
+        },
+    ],
+    "ignore_paths": [
+        "Pods",
+        "Carthage",
+        "build",
+        "DerivedData",
+        ".git",
+        ".build",
+        "node_modules",
+    ],
+    "objc_prefix_whitelist": ["NS", "UI", "CA", "AV", "CF"],
+}
 
 
 def load_json(path: Path, default: dict) -> dict:
@@ -41,6 +71,16 @@ def load_json(path: Path, default: dict) -> dict:
 def save_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def deep_merge(base: dict, override: dict) -> dict:
+    merged = dict(base)
+    for k, v in override.items():
+        if isinstance(v, dict) and isinstance(merged.get(k), dict):
+            merged[k] = deep_merge(merged[k], v)
+        else:
+            merged[k] = v
+    return merged
 
 
 def iter_source_files(project_root: Path, ignore_paths: Iterable[str]) -> Iterable[Path]:
@@ -277,9 +317,17 @@ def install_build_phase(project_root: Path) -> None:
     print(f"bash \"{script}\"")
 
 
+def init_config(project_root: Path) -> Path:
+    cfg_path = project_root / "obfuscation" / "config.json"
+    if not cfg_path.exists():
+        save_json(cfg_path, DEFAULT_CONFIG)
+    return cfg_path
+
+
 def process(project_root: Path, app_binary: str | None, dry_run: bool, mode: str) -> None:
     cfg_path = project_root / "obfuscation" / "config.json"
-    cfg = load_json(cfg_path, default={})
+    file_cfg = load_json(cfg_path, default={})
+    cfg = deep_merge(DEFAULT_CONFIG, file_cfg)
     symbol_map_path = project_root / "obfuscation" / "symbol_map.json"
 
     files = list(iter_source_files(project_root, cfg.get("ignore_paths", [])))
@@ -288,8 +336,16 @@ def process(project_root: Path, app_binary: str | None, dry_run: bool, mode: str
     if mode == "install-build-phase":
         install_build_phase(project_root)
         return
+    if mode == "init-config":
+        created_path = init_config(project_root)
+        print(f"[init-config] wrote: {created_path}")
+        return
 
     if mode in {"dry-run", "capability"}:
+        if cfg_path.exists():
+            print(f"[dry-run] config source: {cfg_path}")
+        else:
+            print("[dry-run] config source: built-in defaults (config.json not found)")
         print(f"[dry-run] source files: {len(files)}")
         print(f"[dry-run] config: {json.dumps(cfg, ensure_ascii=False)}")
         cff_status = control_flow_rewrite_status(project_root, cfg.get("external_binary_hooks", []))
@@ -344,7 +400,7 @@ def process(project_root: Path, app_binary: str | None, dry_run: bool, mode: str
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project-root", required=True)
-    parser.add_argument("--mode", choices=["dry-run", "run", "install-build-phase", "capability"], default="run")
+    parser.add_argument("--mode", choices=["dry-run", "run", "install-build-phase", "capability", "init-config"], default="run")
     parser.add_argument("--app-binary", default=None)
     args = parser.parse_args()
 
