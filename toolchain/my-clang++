@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+PLUGIN_PATH="${ROOT_DIR}/build/obf-pass/SimpleObfPass.dylib"
+
+if [[ ! -f "${PLUGIN_PATH}" ]]; then
+  echo "[my-clang++] missing plugin: ${PLUGIN_PATH}" >&2
+  echo "[my-clang++] run scripts/bootstrap_my_clang.sh first" >&2
+  exit 1
+fi
+
+exec clang++ -Xclang -load -Xclang "${PLUGIN_PATH}" -mllvm -passes=simple-obf "$@"
