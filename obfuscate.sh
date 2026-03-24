@@ -319,21 +319,34 @@ build_ollvm_clang() {
     exit 1
   fi
   echo "[INFO] LLVM 根目录: $llvm_dir"
+  patch_legacy_cmake_policies "$llvm_dir"
 
   build_dir="$OLLVM_SRC_DIR/build"
   mkdir -p "$build_dir"
 
-  echo "[INFO] 配置并编译 clang（首次可能较久）..."
-  cmake -G Ninja \
-    -S "$llvm_dir" \
-    -B "$build_dir" \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-    -DLLVM_ENABLE_PROJECTS=clang \
-    -DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM" \
-    -DLLVM_INCLUDE_TESTS=OFF \
-    -DLLVM_INCLUDE_BENCHMARKS=OFF \
+  local cmake_args=()
+  cmake_args+=(
+    -G Ninja
+    -S "$llvm_dir"
+    -B "$build_dir"
+    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+    -DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM"
+    -DLLVM_INCLUDE_TESTS=OFF
+    -DLLVM_INCLUDE_BENCHMARKS=OFF
     -DLLVM_INCLUDE_EXAMPLES=OFF
+  )
+
+  if [[ -d "$llvm_dir/tools/clang" || -d "$llvm_dir/projects/clang" ]]; then
+    cmake_args+=(-DLLVM_ENABLE_PROJECTS=clang)
+  elif [[ -d "$llvm_dir/../clang" ]]; then
+    echo "[INFO] 检测到 legacy LLVM/Clang 分离目录（../clang），跳过 LLVM_ENABLE_PROJECTS"
+  else
+    echo "[WARN] 未检测到 clang 目录（tools/clang, projects/clang, ../clang）"
+  fi
+
+  echo "[INFO] 配置并编译 clang（首次可能较久）..."
+  cmake "${cmake_args[@]}"
 
   ninja -C "$build_dir" clang clang++
 
@@ -344,11 +357,25 @@ build_ollvm_clang() {
   echo "[OK] 编译完成: $CLANG_BIN"
 }
 
+patch_legacy_cmake_policies() {
+  local llvm_dir="$1"
+  local cmakelists="$llvm_dir/CMakeLists.txt"
+  if [[ ! -f "$cmakelists" ]]; then
+    return
+  fi
+
+  # 新版 CMake 已移除 CMP0051=OLD，老 OLLVM 源会因此直接报错
+  if grep -q 'cmake_policy(SET CMP0051 OLD)' "$cmakelists"; then
+    echo "[INFO] 修复 legacy CMake policy: CMP0051 OLD -> NEW"
+    sed -i.bak 's/cmake_policy(SET CMP0051 OLD)/cmake_policy(SET CMP0051 NEW)/g' "$cmakelists"
+  fi
+}
+
 detect_llvm_dir() {
   if [[ -n "$OLLVM_LLVM_DIR" ]]; then
     if [[ -f "$OLLVM_LLVM_DIR/CMakeLists.txt" ]] \
       && [[ -d "$OLLVM_LLVM_DIR/include/llvm" ]] \
-      && [[ -d "$OLLVM_LLVM_DIR/tools/clang" || -d "$OLLVM_LLVM_DIR/projects/clang" ]]; then
+      && [[ -d "$OLLVM_LLVM_DIR/tools/clang" || -d "$OLLVM_LLVM_DIR/projects/clang" || -d "$OLLVM_LLVM_DIR/../clang" ]]; then
       echo "$OLLVM_LLVM_DIR"
       return 0
     fi
@@ -363,20 +390,32 @@ detect_llvm_dir() {
 
   local d
   for d in "${candidates[@]}"; do
-    if [[ -f "$d/CMakeLists.txt" ]] \
-      && [[ -d "$d/tools/clang" || -d "$d/projects/clang" ]] \
-      && [[ -d "$d/include/llvm" ]]; then
-      echo "$d"
-      return 0
+    if [[ -f "$d/CMakeLists.txt" ]] && [[ -d "$d/include/llvm" ]]; then
+      if [[ -d "$d/tools/clang" || -d "$d/projects/clang" || -d "$d/../clang" ]]; then
+        echo "$d"
+        return 0
+      fi
     fi
   done
+
+  # 兼容老目录：源码可能放在 llvm-xx 或其他名字
+  local root_llvm_like
+  root_llvm_like="$(find "$OLLVM_SRC_DIR" -maxdepth 2 -type d \( -name 'llvm*' -o -name 'LLVM*' \) | head -n 1 || true)"
+  if [[ -n "$root_llvm_like" ]] \
+    && [[ -f "$root_llvm_like/CMakeLists.txt" ]] \
+    && [[ -d "$root_llvm_like/include/llvm" ]] \
+    && [[ -d "$root_llvm_like/../clang" || -d "$root_llvm_like/tools/clang" || -d "$root_llvm_like/projects/clang" ]]; then
+    echo "$root_llvm_like"
+    return 0
+  fi
 
   # 兜底：自动搜索 4 层以内可能的 LLVM 根目录
   local found
   found="$(find "$OLLVM_SRC_DIR" -maxdepth 4 -type f -name CMakeLists.txt \
     | sed 's#/CMakeLists.txt$##' \
     | while read -r p; do
-        if [[ -d "$p/include/llvm" && ( -d "$p/tools/clang" || -d "$p/projects/clang" ) ]]; then
+        if [[ -d "$p/include/llvm" ]] \
+          && [[ -d "$p/tools/clang" || -d "$p/projects/clang" || -d "$p/../clang" ]]; then
           echo "$p"
           break
         fi
