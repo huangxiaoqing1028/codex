@@ -139,6 +139,7 @@ cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
 
 > 说明：默认**不会**把 `-fpass-plugin` 全局注入到 workspace（避免 Pods target 编译失败）。  
 > 如果你确认要全局注入，可显式加 `--xcode-global-pass-plugin`（不推荐，可能影响 Pods）。  
+> 推荐使用 `--target-pass-plugin`：脚本会临时 patch 主 target 的 `project.pbxproj`，只给主 target 注入 `-fpass-plugin`，构建后自动回滚 patch。  
 > Swift 编译链本身不走该参数，因此 Swift 仍以透传策略处理。
 > 即便开启全局注入，插件内部也会对 `Pods/`、`Carthage/` 路径做跳过过滤，尽量避免改写第三方依赖函数。
 
@@ -152,6 +153,7 @@ cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
   --ui-guard-define \
   --macho-order-file /path/to/order_file.txt \
   --build-target app \
+  --target-pass-plugin \
   --workspace MyApp.xcworkspace \
   --scheme MyApp \
   --configuration Release
@@ -164,12 +166,14 @@ cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
   --platform ios \
   --project-mode \
   --build-target ipa \
+  --target-pass-plugin \
   --workspace MyApp.xcworkspace \
   --scheme MyApp \
   --configuration Release \
   --archive-path /tmp/MyApp_obf.xcarchive \
   --export-path /tmp/MyApp_ipa \
-  --export-options-plist /path/to/exportOptions.plist
+  --export-options-plist /path/to/exportOptions.plist \
+  --baseline-archive-path /path/to/original.xcarchive
 ```
 
 ### IPA（明文参数一键脚本）
@@ -195,6 +199,7 @@ bash scripts/ipa_obfuscator/build_obfuscated_ipa.sh \
 - 安装 mobileprovision 到 `~/Library/MobileDevice/Provisioning Profiles/`
 - 自动从 mobileprovision 提取 `teamID / bundle id / profile name`，并临时修正 `exportOptions.plist` 的 `provisioningProfiles` 映射（减少 `No profiles for '<bundle id>' were found`）
 - 调用 `obfuscate.py --project-mode --build-target ipa` 执行混淆 + 打包
+- 在 IPA 场景输出 `diff_report`（strings/symbols 差异统计；可通过 `--baseline-archive-path` 指定原包）
 
 > 说明：`-W` 目前是明文密码参数，便于直接复制执行；更安全做法是用环境变量传递。
 > 如果出现 `Cannot parse a NULL or zero-length data`（`security cms` 解析 profile 失败），脚本会自动回退为随机 UUID 文件名继续安装 profile，不会中断流程。
@@ -247,4 +252,4 @@ bash scripts/ipa_obfuscator/build_obfuscated_ipa.sh \
 > - P0 `p0_source_rewrite_count`：源码改写数量（仅 `--copy-project` 有意义）  
 > - P1 `p1_plugin_candidate_count`：可被 LLVM pass 插件覆盖的候选数量（已排除 Swift；Swift 见 `swift_passthrough_count`）  
 > - P2 `p2_build_injected_count`：本次构建实际注入插件参数后的覆盖估计；`p2_injection_mode` 会标记 `xcode_global` / `target_local_or_external` / `none`  
-> - P3 `p3_verification_status` + `p3_verified_obfuscated_count`：覆盖验证状态（当前 `xcode_global` 为估算验证，其他模式为 `unverified`）  
+> - P3 `p3_verification_status` + `p3_verified_obfuscated_count`：构建日志命中统计（匹配 `CompileC` + `-fpass-plugin=`，并过滤 `Pods/Carthage`）

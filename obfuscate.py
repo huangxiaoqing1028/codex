@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import random
 import re
 import shutil
@@ -69,6 +70,12 @@ class Strategy:
 def run(cmd: Sequence[str]) -> None:
     print("[+]", " ".join(cmd))
     subprocess.run(cmd, check=True)
+
+
+def run_capture(cmd: Sequence[str]) -> str:
+    print("[+]", " ".join(cmd))
+    p = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    return p.stdout or ""
 
 
 def run_probe(cmd: Sequence[str], stdin_data: str = "") -> bool:
@@ -590,6 +597,11 @@ def build_ios_project(
         sdk,
     ]
 
+    patched_pbxproj: Path | None = None
+    backup_pbxproj: Path | None = None
+    if plugin_path and args.target_pass_plugin and args.scheme:
+        patched_pbxproj, backup_pbxproj = inject_pass_plugin_for_target(project_out, args.scheme, plugin_path)
+
     if plugin_path and args.xcode_global_pass_plugin:
         # Unsafe/global injection: affects all workspace targets (including Pods).
         common.extend(
@@ -622,12 +634,18 @@ def build_ios_project(
         "derived_data": str(derived_data),
         "xcode_pass_plugin": plugin_path,
         "xcode_global_pass_plugin": bool(args.xcode_global_pass_plugin),
+        "xcode_target_pass_plugin": bool(args.target_pass_plugin),
+        "target_plugin_patch_applied": bool(patched_pbxproj),
         "ui_guard_define": bool(args.ui_guard_define),
         "macho_order_file": args.macho_order_file,
     }
 
     if args.build_target == "app":
-        run([*common, "clean", "build"])
+        out = run_capture([*common, "clean", "build"])
+        result.update(parse_xcode_plugin_hits(out))
+        if backup_pbxproj and patched_pbxproj:
+            shutil.copy2(backup_pbxproj, patched_pbxproj)
+            os.remove(backup_pbxproj)
         result["build_target"] = "app"
         result["note"] = "App built in DerivedData/Build/Products; sign/export according to your provisioning settings."
         return result
@@ -636,7 +654,10 @@ def build_ios_project(
         if not args.export_options_plist:
             raise RuntimeError("Building IPA requires --export-options-plist")
         export_options = Path(args.export_options_plist)
-        run([*common, "archive", "-archivePath", str(archive_path)])
+        baseline_archive = Path(args.baseline_archive_path) if args.baseline_archive_path else archive_path
+        baseline_binary = _find_archive_binary(baseline_archive) if baseline_archive.exists() else None
+        out_archive = run_capture([*common, "archive", "-archivePath", str(archive_path)])
+        result.update(parse_xcode_plugin_hits(out_archive))
         run(
             [
                 xcrun,
@@ -654,9 +675,16 @@ def build_ios_project(
         result["archive_path"] = str(archive_path)
         result["export_path"] = str(export_path)
         result["export_options_plist"] = str(export_options)
+        result["diff_report"] = build_diff_report(baseline_binary, _find_archive_binary(archive_path))
+        if backup_pbxproj and patched_pbxproj:
+            shutil.copy2(backup_pbxproj, patched_pbxproj)
+            os.remove(backup_pbxproj)
         return result
 
     result["build_target"] = "none"
+    if backup_pbxproj and patched_pbxproj:
+        shutil.copy2(backup_pbxproj, patched_pbxproj)
+        os.remove(backup_pbxproj)
     return result
 
 
@@ -687,6 +715,148 @@ def detect_default_plugin() -> str | None:
         if p.exists():
             return str(p)
     return None
+
+
+def _extract_compilec_file(line: str) -> str | None:
+    m = re.search(r"CompileC\s+\S+\s+(\S+\.(?:m|mm|c|cc|cpp|cxx))\b", line)
+    if not m:
+        return None
+    return m.group(1)
+
+
+def parse_xcode_plugin_hits(build_output: str) -> dict:
+    hits: list[str] = []
+    for line in build_output.splitlines():
+        if "-fpass-plugin=" not in line:
+            continue
+        src = _extract_compilec_file(line)
+        if not src:
+            continue
+        norm = src.replace("\\", "/")
+        if "/Pods/" in norm or "/Carthage/" in norm:
+            continue
+        hits.append(src)
+    unique = sorted(set(hits))
+    return {
+        "p3_verification_status": "verified" if unique else "unverified",
+        "p3_verified_obfuscated_count": len(unique),
+        "p3_verified_files_sample": unique[:200],
+    }
+
+
+def _find_archive_binary(archive_path: Path) -> Path | None:
+    apps_dir = archive_path / "Products" / "Applications"
+    if not apps_dir.exists():
+        return None
+    for app in sorted(apps_dir.glob("*.app")):
+        binary = app / app.stem
+        if binary.exists():
+            return binary
+    return None
+
+
+def _collect_binary_signatures(binary: Path) -> dict:
+    strings_tool = shutil.which("strings")
+    nm_tool = shutil.which("nm")
+    if not strings_tool:
+        return {}
+    raw_strings = run_capture([strings_tool, "-a", str(binary)]).splitlines()
+    strings_set = {s for s in raw_strings if len(s) >= 6}
+    symbols_set: set[str] = set()
+    if nm_tool:
+        try:
+            nm_out = run_capture([nm_tool, "-g", str(binary)])
+            for line in nm_out.splitlines():
+                parts = line.split()
+                if parts:
+                    symbols_set.add(parts[-1])
+        except subprocess.CalledProcessError:
+            pass
+    return {"strings": strings_set, "symbols": symbols_set}
+
+
+def build_diff_report(baseline_binary: Path | None, output_binary: Path | None) -> dict:
+    if not baseline_binary or not output_binary or not baseline_binary.exists() or not output_binary.exists():
+        return {"status": "skipped", "reason": "baseline or output binary not available"}
+    before = _collect_binary_signatures(baseline_binary)
+    after = _collect_binary_signatures(output_binary)
+    if not before or not after:
+        return {"status": "skipped", "reason": "strings/nm tools unavailable or signature collection failed"}
+    removed_strings = sorted(before["strings"] - after["strings"])
+    added_strings = sorted(after["strings"] - before["strings"])
+    removed_symbols = sorted(before["symbols"] - after["symbols"])
+    added_symbols = sorted(after["symbols"] - before["symbols"])
+    return {
+        "status": "ok",
+        "baseline_binary": str(baseline_binary),
+        "output_binary": str(output_binary),
+        "strings_removed_count": len(removed_strings),
+        "strings_added_count": len(added_strings),
+        "symbols_removed_count": len(removed_symbols),
+        "symbols_added_count": len(added_symbols),
+        "strings_removed_sample": removed_strings[:200],
+        "symbols_removed_sample": removed_symbols[:200],
+    }
+
+
+def inject_pass_plugin_for_target(project_out: Path, scheme: str, plugin_path: str) -> tuple[Path | None, Path | None]:
+    """Patch main app target build settings in project.pbxproj and return backup/target files."""
+    xcodeproj = next((p for p in sorted(project_out.rglob("*.xcodeproj")) if "Pods.xcodeproj" not in str(p)), None)
+    if not xcodeproj:
+        return (None, None)
+    pbxproj = xcodeproj / "project.pbxproj"
+    if not pbxproj.exists():
+        return (None, None)
+    text = pbxproj.read_text(encoding="utf-8", errors="ignore")
+
+    target_re = re.compile(
+        rf"(?P<tid>[A-F0-9]{{24}}) /\* {re.escape(scheme)} \*/ = \{{[^}}]*?isa = PBXNativeTarget;[^}}]*?buildConfigurationList = (?P<cfglist>[A-F0-9]{{24}}) ",
+        re.S,
+    )
+    tm = target_re.search(text)
+    if not tm:
+        return (None, None)
+    cfglist = tm.group("cfglist")
+    cfglist_re = re.compile(
+        rf"{cfglist} /\* .*? \*/ = \{{[^}}]*?buildConfigurations = \((?P<cfgs>.*?)\);",
+        re.S,
+    )
+    cm = cfglist_re.search(text)
+    if not cm:
+        return (None, None)
+    cfg_ids = re.findall(r"([A-F0-9]{24}) /\*", cm.group("cfgs"))
+    if not cfg_ids:
+        return (None, None)
+
+    patched = text
+    for cfg_id in cfg_ids:
+        block_re = re.compile(rf"({cfg_id} /\* .*? \*/ = \{{.*?buildSettings = \{{)(?P<body>.*?)(\}};.*?\}};)", re.S)
+        bm = block_re.search(patched)
+        if not bm:
+            continue
+        body = bm.group("body")
+        flag = f"-fpass-plugin={plugin_path}"
+        if "OTHER_CFLAGS" not in body:
+            body += f'\n\t\t\t\tOTHER_CFLAGS = "$(inherited) {flag}";'
+        elif flag not in body:
+            body = re.sub(r'OTHER_CFLAGS = "([^"]*)";', lambda m: f'OTHER_CFLAGS = "{m.group(1)} {flag}";', body, count=1)
+        if "OTHER_CPLUSPLUSFLAGS" not in body:
+            body += f'\n\t\t\t\tOTHER_CPLUSPLUSFLAGS = "$(inherited) {flag}";'
+        elif flag not in body:
+            body = re.sub(
+                r'OTHER_CPLUSPLUSFLAGS = "([^"]*)";',
+                lambda m: f'OTHER_CPLUSPLUSFLAGS = "{m.group(1)} {flag}";',
+                body,
+                count=1,
+            )
+        patched = patched[: bm.start("body")] + body + patched[bm.end("body") :]
+
+    if patched == text:
+        return (None, None)
+    backup = pbxproj.with_suffix(".pbxproj.obf.bak")
+    shutil.copy2(pbxproj, backup)
+    pbxproj.write_text(patched, encoding="utf-8")
+    return (pbxproj, backup)
 
 
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
@@ -722,6 +892,15 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         "--xcode-global-pass-plugin",
         action="store_true",
         help="(Unsafe) Inject pass plugin globally via OTHER_CFLAGS/OTHER_CPLUSPLUSFLAGS; affects Pods targets too",
+    )
+    parser.add_argument(
+        "--target-pass-plugin",
+        action="store_true",
+        help="Patch main app target build settings in project.pbxproj to inject -fpass-plugin only for the scheme target",
+    )
+    parser.add_argument(
+        "--baseline-archive-path",
+        help="Optional baseline .xcarchive path for diff report (strings/symbols) against current obfuscated archive",
     )
 
     # project auto-build options
@@ -881,6 +1060,13 @@ def project_flow(args: argparse.Namespace, seed: int) -> dict:
         xcode_global_pass_plugin=bool(args.xcode_global_pass_plugin),
         build_target=str(args.build_target),
     )
+    if isinstance(build_manifest, dict) and "p3_verification_status" in build_manifest:
+        manifest["obfuscation_stages"]["p3_verification_status"] = build_manifest["p3_verification_status"]
+        manifest["obfuscation_stages"]["p3_verified_obfuscated_count"] = int(
+            build_manifest.get("p3_verified_obfuscated_count", 0)
+        )
+        if "p3_verified_files_sample" in build_manifest:
+            manifest["obfuscation_stages"]["p3_verified_files_sample"] = build_manifest["p3_verified_files_sample"]
 
     manifest_path = build_workdir / "obfuscation_manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
