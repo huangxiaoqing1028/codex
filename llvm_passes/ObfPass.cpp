@@ -8,9 +8,16 @@
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Type.h"
 #include "llvm/Passes/PassBuilder.h"
-#include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+
+#if __has_include("llvm/Passes/PassPlugin.h")
+#include "llvm/Passes/PassPlugin.h"
+#elif __has_include("llvm/Passes/PassPluginLibraryInfo.h")
+#include "llvm/Passes/PassPluginLibraryInfo.h"
+#else
+#error "Missing LLVM pass plugin headers (PassPlugin.h / PassPluginLibraryInfo.h)"
+#endif
 
 using namespace llvm;
 

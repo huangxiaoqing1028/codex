@@ -39,6 +39,6 @@ if compgen -G "${BUILD_DIR}/*ObfPassPlugin*.so" >/dev/null || compgen -G "${BUIL
   echo "[+] Plugin build done. Artifacts are in ${BUILD_DIR}"
 else
   echo "[!] Stub build completed. No plugin binary was produced."
-  echo "[!] Cause is usually: LLVM dev package missing, LLVM too old, or missing PassPlugin.h."
+  echo "[!] Cause is usually: LLVM dev package missing, LLVM too old, or missing PassPlugin.h/PassPluginLibraryInfo.h."
   echo "[!] Install/upgrade LLVM (>=11, recommend 14+) and rerun this script."
 fi

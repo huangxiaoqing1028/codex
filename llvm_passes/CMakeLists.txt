@@ -59,7 +59,7 @@ add_definitions(${LLVM_DEFINITIONS})
 
 set(HAVE_LLVM_PASS_PLUGIN_H FALSE)
 foreach(_inc IN LISTS LLVM_INCLUDE_DIRS)
-  if(EXISTS "${_inc}/llvm/Passes/PassPlugin.h")
+  if(EXISTS "${_inc}/llvm/Passes/PassPlugin.h" OR EXISTS "${_inc}/llvm/Passes/PassPluginLibraryInfo.h")
     set(HAVE_LLVM_PASS_PLUGIN_H TRUE)
     break()
   endif()
@@ -73,10 +73,10 @@ if(NOT HAVE_LLVM_PASS_PLUGIN_H AND LLVM_CONFIG_BIN)
     OUTPUT_STRIP_TRAILING_WHITESPACE
     RESULT_VARIABLE LLVM_INCLUDE_RESULT
   )
-  if(LLVM_INCLUDE_RESULT EQUAL 0 AND EXISTS "${LLVM_INCLUDE_DIR_DETECTED}/llvm/Passes/PassPlugin.h")
+  if(LLVM_INCLUDE_RESULT EQUAL 0 AND (EXISTS "${LLVM_INCLUDE_DIR_DETECTED}/llvm/Passes/PassPlugin.h" OR EXISTS "${LLVM_INCLUDE_DIR_DETECTED}/llvm/Passes/PassPluginLibraryInfo.h"))
     include_directories(SYSTEM ${LLVM_INCLUDE_DIR_DETECTED})
     set(HAVE_LLVM_PASS_PLUGIN_H TRUE)
-    message(STATUS "Using llvm-config include dir for PassPlugin.h: ${LLVM_INCLUDE_DIR_DETECTED}")
+    message(STATUS "Using llvm-config include dir for pass plugin headers: ${LLVM_INCLUDE_DIR_DETECTED}")
   endif()
 endif()
 
@@ -84,6 +84,7 @@ if(NOT HAVE_LLVM_PASS_PLUGIN_H)
   if(OBF_ALLOW_STUB)
     message(WARNING
       "Found LLVM, but header llvm/Passes/PassPlugin.h is missing.\\n"
+      "Checked both PassPlugin.h and PassPluginLibraryInfo.h.\\n"
       "This usually means LLVM is too old or not a full dev package.\\n"
       "Build will continue in STUB mode. Recommend LLVM >= 11 (prefer 14+).")
     add_custom_target(ObfPassPlugin ALL
