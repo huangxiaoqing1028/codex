@@ -78,8 +78,86 @@ def find_tool(name: str) -> str:
 
 
 def decode_escaped(payload: str) -> bytes:
-    text = bytes(payload, "utf-8").decode("unicode_escape")
-    return text.encode("utf-8")
+    """Decode common C-style escapes, while safely preserving invalid escapes."""
+
+    out = bytearray()
+    i = 0
+    n = len(payload)
+
+    simple = {
+        "n": "\n",
+        "r": "\r",
+        "t": "\t",
+        "\\": "\\",
+        "'": "'",
+        '"': '"',
+        "0": "\x00",
+        "a": "\a",
+        "b": "\b",
+        "f": "\f",
+        "v": "\v",
+    }
+
+    while i < n:
+        ch = payload[i]
+        if ch != "\\":
+            out.extend(ch.encode("utf-8"))
+            i += 1
+            continue
+
+        if i + 1 >= n:
+            out.extend(b"\\")
+            break
+
+        esc = payload[i + 1]
+        if esc in simple:
+            out.extend(simple[esc].encode("utf-8"))
+            i += 2
+            continue
+
+        # Hex escape: \xNN (1-2 hex chars supported here)
+        if esc == "x":
+            j = i + 2
+            hex_digits = []
+            while j < n and len(hex_digits) < 2 and payload[j] in "0123456789abcdefABCDEF":
+                hex_digits.append(payload[j])
+                j += 1
+            if hex_digits:
+                out.append(int("".join(hex_digits), 16))
+                i = j
+                continue
+            out.extend(b"\\x")
+            i += 2
+            continue
+
+        # Unicode escapes: \uXXXX / \UXXXXXXXX (invalid forms are preserved)
+        if esc in {"u", "U"}:
+            need = 4 if esc == "u" else 8
+            seq = payload[i + 2 : i + 2 + need]
+            if len(seq) == need and all(c in "0123456789abcdefABCDEF" for c in seq):
+                out.extend(chr(int(seq, 16)).encode("utf-8"))
+                i += 2 + need
+                continue
+            out.extend(("\\" + esc).encode("utf-8"))
+            i += 2
+            continue
+
+        # Octal escape: \123 (up to 3 octal digits)
+        if esc in "01234567":
+            j = i + 1
+            oct_digits = []
+            while j < n and len(oct_digits) < 3 and payload[j] in "01234567":
+                oct_digits.append(payload[j])
+                j += 1
+            out.append(int("".join(oct_digits), 8))
+            i = j
+            continue
+
+        # Unknown escape, keep as-is to avoid decode crashes.
+        out.extend(("\\" + esc).encode("utf-8"))
+        i += 2
+
+    return bytes(out)
 
 
 def obfuscate_strings(source: str, seed: int) -> str:
