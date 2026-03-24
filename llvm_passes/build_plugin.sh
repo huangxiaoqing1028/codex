@@ -34,16 +34,22 @@ pick_llvm_config() {
 
   # Deduplicate while keeping order.
   local uniq=()
-  for b in "${bins[@]}"; do
+  local b
+  for b in "${bins[@]:-}"; do
+    [[ -z "$b" ]] && continue
     local seen=0
-    for u in "${uniq[@]}"; do
-      [[ "$u" == "$b" ]] && seen=1 && break
-    done
+    if [[ ${#uniq[@]} -gt 0 ]]; then
+      local u
+      for u in "${uniq[@]}"; do
+        [[ "$u" == "$b" ]] && seen=1 && break
+      done
+    fi
     [[ $seen -eq 0 ]] && uniq+=("$b")
   done
 
   # Prefer llvm-config whose include dir contains PassPlugin headers.
-  for b in "${uniq[@]}"; do
+  for b in "${uniq[@]:-}"; do
+    [[ -z "$b" ]] && continue
     local inc
     inc="$($b --includedir 2>/dev/null || true)"
     if [[ -n "$inc" ]] && has_pass_plugin_header "$inc"; then
@@ -78,6 +84,15 @@ fi
 
 mkdir -p "${BUILD_DIR}"
 cd "${BUILD_DIR}"
+
+reset_noisy_build_env() {
+  # Keep plugin build isolated from huge Xcode/project env flags that can cause
+  # xcrun/ld "Argument list too long" during compiler checks.
+  unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS OBJCFLAGS OBJCXXFLAGS
+  unset OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS OTHER_LDFLAGS SDKROOT
+}
+
+reset_noisy_build_env
 
 if [[ -n "${LLVM_DIR_ARG}" ]]; then
   cmake -DLLVM_DIR="${LLVM_DIR_ARG}" ..

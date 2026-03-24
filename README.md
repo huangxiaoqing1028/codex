@@ -29,6 +29,8 @@
 ./llvm_passes/build_plugin.sh
 ```
 
+> `build_plugin.sh` 会自动清理常见的 Xcode 构建环境变量（如 `CFLAGS/LDFLAGS/SDKROOT`），避免在某些 macOS 环境下出现 `xcrun ... ld ... Argument list too long`。
+
 手动方式：
 
 ```bash
@@ -89,6 +91,8 @@ llvm-config --includedir
 ```bash
 cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
 ```
+
+如果你碰到 `./build_plugin.sh: line xx: uniq[@]: unbound variable`，请更新到最新脚本版本后重试（该数组去重逻辑已兼容 `set -u` 场景）。
 
 
 ## 2) 单文件（默认最大强度）

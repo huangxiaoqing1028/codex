@@ -1,4 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
+# Avoid linker checks in compiler detection (helps on polluted macOS shells).
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 project(ObfPassPlugin LANGUAGES C CXX)
 option(OBF_ALLOW_STUB "Allow configure/build success with a stub target when LLVM dev package is missing" ON)
 
