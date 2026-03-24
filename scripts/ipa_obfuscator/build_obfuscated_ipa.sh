@@ -31,8 +31,8 @@ Options:
   -W  .p12 password (plaintext argument)
   -F  .mobileprovision path
   -m  Export method: app-store/ad-hoc/development/enterprise (optional)
-  -a  Archive output path (default: /tmp/<scheme>_obf.xcarchive)
-  -e  IPA export directory (default: /tmp/<scheme>_ipa)
+  -a  Archive output path (default: <project>/obf_out/<scheme>_obf.xcarchive)
+  -e  IPA export directory (default: <project>/obf_out/<scheme>_ipa)
   -S  Seed for obfuscator (optional)
   -A  Enable aggressive random strategy
 USAGE
@@ -120,11 +120,12 @@ else
 fi
 
 if [[ -z "$ARCHIVE_PATH" ]]; then
-  ARCHIVE_PATH="/tmp/${SCHEME}_obf.xcarchive"
+  ARCHIVE_PATH="$PROJECT_DIR/obf_out/${SCHEME}_obf.xcarchive"
 fi
 if [[ -z "$EXPORT_PATH" ]]; then
-  EXPORT_PATH="/tmp/${SCHEME}_ipa"
+  EXPORT_PATH="$PROJECT_DIR/obf_out/${SCHEME}_ipa"
 fi
+mkdir -p "$(dirname "$ARCHIVE_PATH")" "$EXPORT_PATH"
 
 install_identity() {
   local decoded_profile_plist="$1"

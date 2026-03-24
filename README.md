@@ -198,6 +198,7 @@ bash scripts/ipa_obfuscator/build_obfuscated_ipa.sh \
 
 > 说明：`-W` 目前是明文密码参数，便于直接复制执行；更安全做法是用环境变量传递。
 > 如果出现 `Cannot parse a NULL or zero-length data`（`security cms` 解析 profile 失败），脚本会自动回退为随机 UUID 文件名继续安装 profile，不会中断流程。
+> 默认输出目录为项目根目录下的 `obf_out/`（与 `scripts/` 同级）：`<project>/obf_out/<scheme>_obf.xcarchive` 和 `<project>/obf_out/<scheme>_ipa`。
 
 如需复制工程并改写源码（旧流程）：
 
