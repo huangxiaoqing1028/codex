@@ -23,7 +23,7 @@
 
 ## 1) 构建插件
 
-推荐直接用自动脚本（会尝试从 `llvm-config --cmakedir` 自动探测 `LLVM_DIR`）：
+推荐直接用自动脚本（会自动挑选“包含 PassPlugin 头文件”的 llvm-config，并探测 `LLVM_DIR`）：
 
 ```bash
 ./llvm_passes/build_plugin.sh
