@@ -1,57 +1,46 @@
 # 混淆脚本（LLVM Pass + 字符串 + 随机策略）
 
-现在工程模式已经支持**全自动流程**：
+已补充以下能力：
 
-1. 生成混淆后的 iOS 工程副本
-2. 自动调用 `xcodebuild` 编译
-3. 可直接产出 **APP** 或 **IPA**
-
----
-
-## 功能覆盖
-
-- ✅ 控制流平坦化（flatten）
-- ✅ 垃圾控制流（bogus）
-- ✅ LLVM 自动混淆（自动探测 `-mllvm -fla/-bcf`）
-- ✅ iOS 可用
-- ✅ 自动脚本（工程复制 + 自动编译 APP/IPA）
-
-## 依赖
-
-- `clang`
-- `opt`（单文件 `opt` 后端需要）
-- `xcrun` / `xcodebuild`（工程自动构建）
-- Xcode Command Line Tools
+- 自定义 IR pass（`--custom-opt-pass`）
+- 基本块切分/重组策略参数（`--split-count`）
+- dispatcher 驱动的平坦化策略（`--dispatcher-mode`）
+- 间接分发与状态变量扰动策略（`--indirect-dispatch` / `--state-perturb`）
+- Objective-C runtime 关键点白名单（`--objc-whitelist-file`）
+- Swift 混编工程处理（`.swift` 保留透传，不做字符串改写）
+- Anti-Frida / Anti-Debug 独立接入点（`--security-module`，外部模块注入）
 
 ## 1) 单文件模式
 
 ```bash
-./obfuscate.py demo.c -o demo_obf --seed 1337
+./obfuscate.py demo.c -o demo_obf \
+  --custom-opt-pass -constmerge \
+  --custom-opt-pass -instnamer \
+  --dispatcher-mode \
+  --indirect-dispatch \
+  --state-perturb \
+  --split-count 3 \
+  --flatten --bogus --llvm-auto
 ```
 
-打开 flatten/bogus（若支持）：
+## 2) iOS 工程模式（复制 + 自动编译 APP/IPA）
 
-```bash
-./obfuscate.py demo.c -o demo_obf --flatten --bogus --llvm-auto
-```
-
-## 2) 工程模式：自动生成并编译 APP
+### APP
 
 ```bash
 ./obfuscate.py /path/to/MyApp \
   --platform ios \
   --project-mode \
   --project-out /path/to/MyApp_obf \
+  --objc-whitelist-file /path/to/objc_whitelist.txt \
+  --security-module /path/to/security_hook.sh \
   --build-target app \
   --workspace MyApp.xcworkspace \
   --scheme MyApp \
-  --configuration Release \
-  --seed 1337
+  --configuration Release
 ```
 
-> `--workspace` / `--project` 支持绝对路径或相对于 `--project-out` 的路径。
-
-## 3) 工程模式：自动生成并导出 IPA
+### IPA
 
 ```bash
 ./obfuscate.py /path/to/MyApp \
@@ -64,29 +53,24 @@
   --configuration Release \
   --archive-path /tmp/MyApp_obf.xcarchive \
   --export-path /tmp/MyApp_ipa \
-  --export-options-plist /path/to/exportOptions.plist \
-  --seed 1337
+  --export-options-plist /path/to/exportOptions.plist
 ```
 
-## 参数说明（工程自动构建）
+## 白名单文件格式（示例）
 
-- `--build-target {none,app,ipa}`
-  - `none`：只生成混淆副本
-  - `app`：执行 `clean build`
-  - `ipa`：执行 `archive + -exportArchive`
-- `--workspace` / `--project`：指定容器（不填会自动搜 `.xcworkspace`，其次 `.xcodeproj`）
-- `--scheme`：自动构建必须
-- `--configuration`：默认 `Release`
-- `--sdk`：默认 `iphoneos`
-- `--archive-path`、`--export-path`、`--export-options-plist`：IPA 导出参数
+`objc_whitelist.txt`：每行一个路径片段，命中则跳过该文件混淆。
+
+```txt
+# keep runtime-critical files
+AppDelegate.m
+RuntimeGuard/
+```
+
+## Anti-Frida / Anti-Debug 说明
+
+脚本不内置具体对抗逻辑，而是通过 `--security-module` 提供独立接入点，方便你以外部模块统一维护安全策略。
 
 ## 输出
 
-- 工程副本：`--project-out`
-- 构建中间目录：`--workdir`（默认 `project_out/.obf_build`）
-- 清单：`obfuscation_manifest.json`（包含源码混淆信息 + 自动构建信息）
-
-## 说明
-
-- 工程模式会递归处理源码（`.m/.mm/.c/.cc/.cpp/.cxx`），并跳过 `Pods`、`Carthage`、`build`、`.git`、`.obf_build`。
-- IPA 导出依赖有效签名/导出配置，请确保 `exportOptions.plist` 与证书环境正确。
+- 单文件：`.obf_build/` 下的 `*.obf.c`, `*.ll`, `*.opt.ll`, `obfuscation_manifest.json`
+- 工程：`--project-out` + `.obf_build/obfuscation_manifest.json`（包含白名单/构建/外部模块信息）

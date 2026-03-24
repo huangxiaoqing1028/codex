@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import List, Sequence
 
 STRING_RE = re.compile(r'"(?:\\.|[^"\\])*"')
-IOS_SOURCE_EXTS = {".m", ".mm", ".c", ".cc", ".cpp", ".cxx"}
+IOS_SOURCE_EXTS = {".m", ".mm", ".c", ".cc", ".cpp", ".cxx", ".swift"}
 
 
 @dataclass
@@ -48,6 +48,11 @@ class Strategy:
     passes: List[str]
     pipeline_id: str
     backend: str
+    custom_opt_passes: List[str]
+    split_count: int
+    dispatcher_mode: bool
+    state_perturb: bool
+    indirect_dispatch: bool
 
 
 def run(cmd: Sequence[str]) -> None:
@@ -208,6 +213,24 @@ def choose_pipeline(rng: random.Random, aggressive: bool) -> List[str]:
     return base + chosen
 
 
+def enrich_pipeline(
+    base_passes: List[str],
+    custom_opt_passes: Sequence[str],
+    dispatcher_mode: bool,
+    state_perturb: bool,
+    indirect_dispatch: bool,
+) -> List[str]:
+    passes = list(base_passes)
+    if dispatcher_mode:
+        passes.extend(["-simplifycfg", "-loop-rotate"])
+    if state_perturb:
+        passes.append("-reassociate")
+    if indirect_dispatch:
+        passes.append("-jump-threading")
+    passes.extend(custom_opt_passes)
+    return passes
+
+
 def pipeline_hash(passes: Sequence[str]) -> str:
     return hashlib.sha256(" ".join(passes).encode("utf-8")).hexdigest()[:16]
 
@@ -253,6 +276,12 @@ def build_with_llvm_auto(clang_cmd: Sequence[str], paths: BuildPaths, strategy: 
         flags += ["-mllvm", "-fla"]
     if strategy.bogus:
         flags += ["-mllvm", "-bcf"]
+    if strategy.split_count > 0:
+        flags += ["-mllvm", "-split", "-mllvm", f"-split_num={strategy.split_count}"]
+    if strategy.dispatcher_mode:
+        flags += ["-mllvm", "-fla"]
+    if strategy.indirect_dispatch:
+        flags += ["-mllvm", "-sub"]
     run([*clang_cmd, *flags, str(paths.transformed_src), "-o", str(paths.output)])
 
 
@@ -279,12 +308,36 @@ def should_obfuscate_source(path: Path) -> bool:
     return True
 
 
-def obfuscate_ios_project_sources(project_dir: Path, out_dir: Path, seed: int) -> dict:
+def load_whitelist(path: Path | None) -> list[str]:
+    if not path:
+        return []
+    rules: list[str] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        rules.append(line)
+    return rules
+
+
+def is_whitelisted(rel_path: Path, whitelist_rules: Sequence[str]) -> bool:
+    p = str(rel_path)
+    return any(rule in p for rule in whitelist_rules)
+
+
+def obfuscate_ios_project_sources(
+    project_dir: Path,
+    out_dir: Path,
+    seed: int,
+    objc_runtime_whitelist: Sequence[str],
+) -> dict:
     if not project_dir.is_dir():
         raise RuntimeError(f"Not a directory: {project_dir}")
 
     changed_files: list[str] = []
     scanned = 0
+    swift_files = 0
+    skipped_by_whitelist: list[str] = []
     for src in project_dir.rglob("*"):
         if not src.is_file():
             continue
@@ -293,11 +346,20 @@ def obfuscate_ios_project_sources(project_dir: Path, out_dir: Path, seed: int) -
         dst.parent.mkdir(parents=True, exist_ok=True)
 
         if should_obfuscate_source(rel):
+            if is_whitelisted(rel, objc_runtime_whitelist):
+                shutil.copy2(src, dst)
+                skipped_by_whitelist.append(str(rel))
+                continue
             scanned += 1
-            text = src.read_text(encoding="utf-8", errors="ignore")
-            transformed = obfuscate_strings(text, seed)
-            dst.write_text(transformed, encoding="utf-8")
-            changed_files.append(str(rel))
+            if rel.suffix.lower() == ".swift":
+                # Swift mixed project support: preserve source, do not mutate Swift strings here.
+                swift_files += 1
+                shutil.copy2(src, dst)
+            else:
+                text = src.read_text(encoding="utf-8", errors="ignore")
+                transformed = obfuscate_strings(text, seed)
+                dst.write_text(transformed, encoding="utf-8")
+                changed_files.append(str(rel))
         else:
             shutil.copy2(src, dst)
 
@@ -309,6 +371,8 @@ def obfuscate_ios_project_sources(project_dir: Path, out_dir: Path, seed: int) -
         "obfuscated_file_count": len(changed_files),
         "scanned_source_count": scanned,
         "obfuscated_files": changed_files,
+        "swift_passthrough_count": swift_files,
+        "whitelist_skipped_files": skipped_by_whitelist,
     }
 
 
@@ -413,6 +477,15 @@ def build_ios_project(project_out: Path, args: argparse.Namespace, build_workdir
     return result
 
 
+def run_external_security_module(module_cmd: str, project_out: Path) -> None:
+    """Run user-provided hardening module as an independent integration point.
+
+    Note: this hook is intentionally generic and does not embed anti-analysis payloads.
+    """
+    cmd = [module_cmd, str(project_out)]
+    run(cmd)
+
+
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="LLVM obfuscation automation script")
     parser.add_argument("input", type=Path, help="Input C/C++ source file OR iOS project directory")
@@ -425,8 +498,15 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--llvm-auto", action="store_true", help="Auto-detect and apply LLVM obfuscation flags")
     parser.add_argument("--platform", choices=["native", "ios"], default="native", help="Build platform")
     parser.add_argument("--target", help="Target triple, e.g. arm64-apple-ios13.0")
+    parser.add_argument("--custom-opt-pass", action="append", default=[], help="Append custom opt pass flag(s), repeatable")
+    parser.add_argument("--split-count", type=int, default=0, help="Basic-block split count hint recorded in manifest")
+    parser.add_argument("--dispatcher-mode", action="store_true", help="Enable dispatcher-driven flatten strategy hints")
+    parser.add_argument("--state-perturb", action="store_true", help="Enable state-variable perturbation strategy hints")
+    parser.add_argument("--indirect-dispatch", action="store_true", help="Enable indirect dispatch strategy hints")
     parser.add_argument("--project-mode", action="store_true", help="Obfuscate whole iOS project sources into a copied directory")
     parser.add_argument("--project-out", type=Path, help="Output directory for project-mode; default: <project>_obf")
+    parser.add_argument("--objc-whitelist-file", type=Path, help="Objective-C runtime keypoint whitelist (one path fragment per line)")
+    parser.add_argument("--security-module", help="External hardening module command (independent integration point)")
 
     # project auto-build options
     parser.add_argument("--build-target", choices=["none", "app", "ipa"], default="none", help="In project-mode, auto build APP or IPA")
@@ -451,7 +531,14 @@ def single_file_flow(args: argparse.Namespace, seed: int) -> dict:
     clang_cmd = create_clang_cmd(args.platform, args.target)
     flatten = bool(args.flatten)
     bogus = bool(args.bogus)
-    passes = choose_pipeline(rng, args.aggressive)
+    base_passes = choose_pipeline(rng, args.aggressive)
+    passes = enrich_pipeline(
+        base_passes,
+        custom_opt_passes=args.custom_opt_pass,
+        dispatcher_mode=bool(args.dispatcher_mode),
+        state_perturb=bool(args.state_perturb),
+        indirect_dispatch=bool(args.indirect_dispatch),
+    )
 
     strategy = Strategy(
         seed=seed,
@@ -464,6 +551,11 @@ def single_file_flow(args: argparse.Namespace, seed: int) -> dict:
         passes=passes,
         pipeline_id=pipeline_hash(passes),
         backend="opt",
+        custom_opt_passes=list(args.custom_opt_pass),
+        split_count=max(0, args.split_count),
+        dispatcher_mode=bool(args.dispatcher_mode),
+        state_perturb=bool(args.state_perturb),
+        indirect_dispatch=bool(args.indirect_dispatch),
     )
 
     if args.llvm_auto and probe_llvm_obf_support(clang_cmd, flatten, bogus):
@@ -500,9 +592,14 @@ def project_flow(args: argparse.Namespace, seed: int) -> dict:
     project_out = args.project_out or args.input.with_name(f"{args.input.name}_obf")
     project_out.mkdir(parents=True, exist_ok=True)
 
-    manifest = obfuscate_ios_project_sources(args.input, project_out, seed)
+    whitelist = load_whitelist(args.objc_whitelist_file)
+    manifest = obfuscate_ios_project_sources(args.input, project_out, seed, whitelist)
     build_workdir = args.workdir or (project_out / ".obf_build")
     build_workdir.mkdir(parents=True, exist_ok=True)
+
+    if args.security_module:
+        run_external_security_module(args.security_module, project_out)
+        manifest["security_module"] = args.security_module
 
     build_manifest = build_ios_project(project_out, args, build_workdir)
     manifest["auto_build"] = build_manifest
