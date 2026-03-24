@@ -4,7 +4,16 @@ option(OBF_ALLOW_STUB "Allow configure/build success with a stub target when LLV
 
 # Auto-detect LLVM CMake directory if caller did not pass -DLLVM_DIR.
 if(NOT DEFINED LLVM_DIR)
-  find_program(LLVM_CONFIG_BIN NAMES llvm-config llvm-config-18 llvm-config-17 llvm-config-16)
+  find_program(LLVM_CONFIG_BIN
+    NAMES llvm-config llvm-config-18 llvm-config-17 llvm-config-16
+    PATHS
+      /opt/homebrew/opt/llvm/bin
+      /usr/local/opt/llvm/bin
+    NO_DEFAULT_PATH
+  )
+  if(NOT LLVM_CONFIG_BIN)
+    find_program(LLVM_CONFIG_BIN NAMES llvm-config llvm-config-18 llvm-config-17 llvm-config-16)
+  endif()
   if(LLVM_CONFIG_BIN)
     execute_process(
       COMMAND ${LLVM_CONFIG_BIN} --cmakedir

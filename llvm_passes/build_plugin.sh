@@ -6,6 +6,14 @@ BUILD_DIR="${ROOT_DIR}/build"
 
 LLVM_DIR_ARG="${LLVM_DIR:-}"
 if [[ -z "${LLVM_DIR_ARG}" ]]; then
+  # Homebrew common locations (macOS arm64/intel) even if not in PATH.
+  for candidate in /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin; do
+    if [[ -x "${candidate}/llvm-config" ]]; then
+      export PATH="${candidate}:${PATH}"
+      break
+    fi
+  done
+
   for bin in llvm-config llvm-config-18 llvm-config-17 llvm-config-16; do
     if command -v "${bin}" >/dev/null 2>&1; then
       LLVM_DIR_ARG="$("${bin}" --cmakedir)"

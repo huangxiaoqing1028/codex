@@ -48,6 +48,17 @@ cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
 cmake -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/llvm ..
 ```
 
+macOS（Homebrew）常见还需要把 LLVM bin 加到 PATH：
+
+```bash
+# Apple Silicon
+export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+
+# Intel Mac
+export PATH="/usr/local/opt/llvm/bin:$PATH"
+```
+
+
 产物示例：
 - macOS: `ObfPassPlugin.dylib`
 - Linux: `ObfPassPlugin.so`
