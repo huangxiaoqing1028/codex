@@ -242,4 +242,8 @@ bash scripts/ipa_obfuscator/build_obfuscated_ipa.sh \
 - 工程（默认原地）：`<project>/.obf_build/obfuscation_manifest.json`
 - 工程（`--copy-project`）：`--project-out` + `.obf_build/obfuscation_manifest.json`
 
-> 说明：默认原地模式不会改写源码文件。manifest 中 `plugin_candidate_file_count`/`plugin_candidate_files_sample` 会统计可被编译阶段插件覆盖的源码候选；若本次构建启用了 pass 插件，则 `obfuscated_file_count` 会回填为该候选数量（用于验收插件覆盖范围）。
+> 说明：默认原地模式不会改写源码文件，因此 `obfuscated_file_count` 在原地模式保持为 0。  
+> manifest 新增 `obfuscation_stages`（P0/P1/P2）用于分阶段验收：  
+> - P0 `p0_source_rewrite_count`：源码改写数量（仅 `--copy-project` 有意义）  
+> - P1 `p1_plugin_candidate_count`：可被插件覆盖的源码候选数量  
+> - P2 `p2_build_injected_count`：本次构建实际注入插件参数后的覆盖估计（当前仅 `--xcode-global-pass-plugin` 开启时计数）  

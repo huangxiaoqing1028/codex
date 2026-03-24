@@ -481,6 +481,34 @@ def summarize_ios_project_sources_for_inplace_build(
     }
 
 
+def attach_p0_p1_p2_metrics(
+    manifest: dict,
+    *,
+    copy_project: bool,
+    selected_plugin: str | None,
+    xcode_global_pass_plugin: bool,
+    build_target: str,
+) -> None:
+    """Attach staged coverage metrics.
+
+    P0: source-rewrite stage (on-disk changes)
+    P1: plugin candidate stage (eligible source files)
+    P2: build-injection stage (plugin args actually injected in xcodebuild)
+    """
+
+    p0 = int(manifest.get("obfuscated_file_count", 0)) if copy_project else 0
+    p1 = int(manifest.get("plugin_candidate_file_count", 0))
+    p2_enabled = bool(selected_plugin and xcode_global_pass_plugin and build_target in {"app", "ipa"})
+    p2 = p1 if p2_enabled else 0
+
+    manifest["obfuscation_stages"] = {
+        "p0_source_rewrite_count": p0,
+        "p1_plugin_candidate_count": p1,
+        "p2_build_injected_count": p2,
+        "p2_injection_mode": "xcode_global" if p2_enabled else "none",
+    }
+
+
 def _resolve_container_path(project_out: Path, value: str) -> Path:
     raw = Path(value)
     if raw.is_absolute():
@@ -824,11 +852,16 @@ def project_flow(args: argparse.Namespace, seed: int) -> dict:
     if not selected_plugin and not args.no_default_plugin:
         selected_plugin = detect_default_plugin()
     manifest["selected_pass_plugin"] = selected_plugin
-    if not args.copy_project:
-        manifest["obfuscated_file_count"] = manifest["plugin_candidate_file_count"] if selected_plugin else 0
 
     build_manifest = build_ios_project(project_out, args, build_workdir, plugin_path=selected_plugin)
     manifest["auto_build"] = build_manifest
+    attach_p0_p1_p2_metrics(
+        manifest,
+        copy_project=bool(args.copy_project),
+        selected_plugin=selected_plugin,
+        xcode_global_pass_plugin=bool(args.xcode_global_pass_plugin),
+        build_target=str(args.build_target),
+    )
 
     manifest_path = build_workdir / "obfuscation_manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
