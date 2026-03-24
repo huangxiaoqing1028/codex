@@ -24,6 +24,14 @@ from typing import List, Sequence
 
 STRING_RE = re.compile(r'"(?:\\.|[^"\\])*"')
 IOS_SOURCE_EXTS = {".m", ".mm", ".c", ".cc", ".cpp", ".cxx", ".swift"}
+MAX_PLUGIN_PASSES = [
+    "obf-flatten",
+    "obf-bogus",
+    "obf-split-merge",
+    "obf-arith-sub",
+    "obf-indirect-dispatch",
+    "obf-call-indirect",
+]
 
 
 @dataclass
@@ -504,6 +512,20 @@ def run_external_security_module(module_cmd: str, project_out: Path) -> None:
     run(cmd)
 
 
+def detect_default_plugin() -> str | None:
+    base = Path(__file__).resolve().parent / "llvm_passes" / "build"
+    candidates = [
+        base / "ObfPassPlugin.dylib",
+        base / "libObfPassPlugin.dylib",
+        base / "ObfPassPlugin.so",
+        base / "libObfPassPlugin.so",
+    ]
+    for p in candidates:
+        if p.exists():
+            return str(p)
+    return None
+
+
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="LLVM obfuscation automation script")
     parser.add_argument("input", type=Path, help="Input C/C++ source file OR iOS project directory")
@@ -519,6 +541,8 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--custom-opt-pass", action="append", default=[], help="Append custom opt pass flag(s), repeatable")
     parser.add_argument("--pass-plugin", help="Path to new-PM LLVM pass plugin (.so/.dylib)")
     parser.add_argument("--plugin-pass", action="append", default=[], help="Plugin pipeline pass name, repeatable (e.g. obf-flatten)")
+    parser.add_argument("--no-default-plugin", action="store_true", help="Disable auto-loading repository custom pass plugin")
+    parser.add_argument("--no-max-strength", action="store_true", help="Disable default maximum-strength plugin pass stack")
     parser.add_argument("--split-count", type=int, default=0, help="Basic-block split count hint recorded in manifest")
     parser.add_argument("--dispatcher-mode", action="store_true", help="Enable dispatcher-driven flatten strategy hints")
     parser.add_argument("--state-perturb", action="store_true", help="Enable state-variable perturbation strategy hints")
@@ -560,16 +584,23 @@ def single_file_flow(args: argparse.Namespace, seed: int) -> dict:
         indirect_dispatch=bool(args.indirect_dispatch),
     )
 
+    selected_plugin = args.pass_plugin
+    if not selected_plugin and not args.no_default_plugin:
+        selected_plugin = detect_default_plugin()
+
     plugin_passes = list(args.plugin_pass)
-    if args.pass_plugin and not plugin_passes:
-        if args.dispatcher_mode or args.flatten:
-            plugin_passes.append("obf-flatten")
-        if args.bogus:
-            plugin_passes.append("obf-bogus")
-        if args.indirect_dispatch:
-            plugin_passes.append("obf-indirect-dispatch")
-        if args.state_perturb:
-            plugin_passes.append("obf-call-indirect")
+    if selected_plugin and not plugin_passes:
+        if not args.no_max_strength:
+            plugin_passes = list(MAX_PLUGIN_PASSES)
+        else:
+            if args.dispatcher_mode or args.flatten:
+                plugin_passes.append("obf-flatten")
+            if args.bogus:
+                plugin_passes.append("obf-bogus")
+            if args.indirect_dispatch:
+                plugin_passes.append("obf-indirect-dispatch")
+            if args.state_perturb:
+                plugin_passes.append("obf-call-indirect")
 
     strategy = Strategy(
         seed=seed,
@@ -587,7 +618,7 @@ def single_file_flow(args: argparse.Namespace, seed: int) -> dict:
         dispatcher_mode=bool(args.dispatcher_mode),
         state_perturb=bool(args.state_perturb),
         indirect_dispatch=bool(args.indirect_dispatch),
-        pass_plugin=args.pass_plugin,
+        pass_plugin=selected_plugin,
         plugin_passes=plugin_passes,
     )
 

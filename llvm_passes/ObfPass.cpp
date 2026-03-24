@@ -142,6 +142,69 @@ public:
   }
 };
 
+class SplitMergePass : public PassInfoMixin<SplitMergePass> {
+public:
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
+    if (F.isDeclaration()) {
+      return PreservedAnalyses::all();
+    }
+
+    SmallVector<BasicBlock *, 16> Blocks;
+    for (BasicBlock &BB : F) {
+      Blocks.push_back(&BB);
+    }
+
+    bool Changed = false;
+    for (BasicBlock *BB : Blocks) {
+      if (BB->size() < 5 || BB->getTerminator() == nullptr) {
+        continue;
+      }
+      Instruction *SplitPoint = &*std::next(BB->begin(), 2);
+      if (!SplitPoint->isTerminator()) {
+        SplitBlock(BB, SplitPoint);
+        Changed = true;
+      }
+    }
+    return Changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
+  }
+};
+
+class ArithmeticSubstitutionPass : public PassInfoMixin<ArithmeticSubstitutionPass> {
+public:
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
+    if (F.isDeclaration()) {
+      return PreservedAnalyses::all();
+    }
+
+    SmallVector<BinaryOperator *, 16> Adds;
+    for (BasicBlock &BB : F) {
+      for (Instruction &I : BB) {
+        if (auto *BO = dyn_cast<BinaryOperator>(&I)) {
+          if (BO->getOpcode() == Instruction::Add && BO->getType()->isIntegerTy()) {
+            Adds.push_back(BO);
+          }
+        }
+      }
+    }
+
+    bool Changed = false;
+    for (BinaryOperator *Add : Adds) {
+      IRBuilder<> B(Add);
+      Value *A = Add->getOperand(0);
+      Value *C = Add->getOperand(1);
+      Value *Xor = B.CreateXor(A, C, "obf.xor");
+      Value *And = B.CreateAnd(A, C, "obf.and");
+      Value *Shl = B.CreateShl(And, ConstantInt::get(And->getType(), 1), "obf.shl");
+      Value *Rebuild = B.CreateAdd(Xor, Shl, "obf.add.sub");
+      Add->replaceAllUsesWith(Rebuild);
+      Add->eraseFromParent();
+      Changed = true;
+    }
+
+    return Changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
+  }
+};
+
 } // namespace
 
 extern "C" LLVM_ATTRIBUTE_WEAK PassPluginLibraryInfo llvmGetPassPluginInfo() {
@@ -164,6 +227,14 @@ extern "C" LLVM_ATTRIBUTE_WEAK PassPluginLibraryInfo llvmGetPassPluginInfo() {
                   }
                   if (Name == "obf-call-indirect") {
                     FPM.addPass(CallIndirectionPass());
+                    return true;
+                  }
+                  if (Name == "obf-split-merge") {
+                    FPM.addPass(SplitMergePass());
+                    return true;
+                  }
+                  if (Name == "obf-arith-sub") {
+                    FPM.addPass(ArithmeticSubstitutionPass());
                     return true;
                   }
                   return false;

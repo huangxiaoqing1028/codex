@@ -1,23 +1,27 @@
 # 混淆脚本（LLVM Pass + 字符串 + 随机策略）
 
-已增加你要求的能力：
+本版本默认策略：**只要检测到插件已构建，就默认启用“最大强度”自定义混淆插件栈**。
 
-- 真正的自定义 Pass（新 LLVM PM 插件化接入）
-- flatten 状态机实现（插件 pass：`obf-flatten`）
-- bogus edge / opaque predicate（插件 pass：`obf-bogus`）
-- indirect branch / dispatcher（插件 pass：`obf-indirect-dispatch`）
-- call indirection（插件 pass：`obf-call-indirect`）
-- Objective-C runtime 关键点白名单
-- Swift 混编处理
-- Anti-Frida / Anti-Debug 独立接入点（外部模块）
+## 默认最大强度插件栈
+
+- `obf-flatten`
+- `obf-bogus`
+- `obf-split-merge`
+- `obf-arith-sub`
+- `obf-indirect-dispatch`
+- `obf-call-indirect`
+
+若插件存在（默认路径 `llvm_passes/build/`），脚本会自动加载并执行以上 pass。
+
+---
 
 ## 目录
 
-- `obfuscate.py`：自动化脚本
-- `llvm_passes/ObfPass.cpp`：自定义 LLVM Pass 插件实现
+- `obfuscate.py`：自动化脚本（默认自动加载插件 + 最大强度）
+- `llvm_passes/ObfPass.cpp`：自定义 LLVM Pass 插件
 - `llvm_passes/CMakeLists.txt`：插件构建脚本
 
-## 1) 构建自定义 Pass 插件（新 LLVM）
+## 1) 构建插件
 
 ```bash
 cd llvm_passes
@@ -30,19 +34,39 @@ cmake --build . -j
 - macOS: `ObfPassPlugin.dylib`
 - Linux: `ObfPassPlugin.so`
 
-## 2) 单文件 + 插件 Pass
+## 2) 单文件（默认最大强度）
+
+```bash
+./obfuscate.py demo.c -o demo_obf
+```
+
+如果插件已存在，会自动启用最大强度插件栈。
+
+### 手动指定插件
+
+```bash
+./obfuscate.py demo.c -o demo_obf \
+  --pass-plugin /path/to/ObfPassPlugin.dylib
+```
+
+### 自定义插件 pass 顺序
 
 ```bash
 ./obfuscate.py demo.c -o demo_obf \
   --pass-plugin /path/to/ObfPassPlugin.dylib \
   --plugin-pass obf-flatten \
   --plugin-pass obf-bogus \
+  --plugin-pass obf-split-merge \
+  --plugin-pass obf-arith-sub \
   --plugin-pass obf-indirect-dispatch \
-  --plugin-pass obf-call-indirect \
-  --custom-opt-pass -instcombine
+  --plugin-pass obf-call-indirect
 ```
 
-> 若你只传 `--pass-plugin`，脚本会按开关自动推导默认插件 pass 组合（flatten/bogus/indirect/state）。
+### 禁用默认自动插件
+
+```bash
+./obfuscate.py demo.c -o demo_obf --no-default-plugin
+```
 
 ## 3) iOS 工程模式（APP / IPA）
 
@@ -79,19 +103,12 @@ cmake --build . -j
 
 ## 4) 白名单与 Swift 混编
 
-- `--objc-whitelist-file`：每行一个路径片段，命中则跳过该文件混淆。
-- `.swift` 文件默认透传复制（不改写字符串）。
+- `--objc-whitelist-file`：命中路径片段则跳过混淆
+- `.swift`：透传复制，不改写字符串
 
-示例：
+## 5) 外部安全模块
 
-```txt
-AppDelegate.m
-RuntimeGuard/
-```
-
-## 5) Anti-Frida / Anti-Debug 独立接入
-
-脚本不内置具体对抗代码，而通过 `--security-module` 调用你自定义的外部模块：
+通过 `--security-module` 独立挂载外部模块：
 
 ```bash
 /path/to/security_hook.sh <obfuscated_project_path>
