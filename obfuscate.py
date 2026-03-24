@@ -24,6 +24,7 @@ from typing import List, Sequence
 
 STRING_RE = re.compile(r'"(?:\\.|[^"\\])*"')
 IOS_SOURCE_EXTS = {".m", ".mm", ".c", ".cc", ".cpp", ".cxx", ".swift"}
+THIRD_PARTY_DIRS = {"Pods", "Carthage"}
 MAX_PLUGIN_PASSES = [
     "obf-flatten",
     "obf-bogus",
@@ -398,12 +399,17 @@ def obfuscate_ios_project_sources(
     scanned = 0
     swift_files = 0
     skipped_by_whitelist: list[str] = []
+    skipped_third_party_files = 0
     for src in project_dir.rglob("*"):
         if not src.is_file():
             continue
         rel = src.relative_to(project_dir)
         if out_dir in src.parents:
             # Skip output tree if user places project-out under input project directory.
+            continue
+        if any(part in THIRD_PARTY_DIRS for part in rel.parts):
+            # Filter third-party dependency trees (Pods/Carthage) in project mode.
+            skipped_third_party_files += 1
             continue
         dst = out_dir / rel
 
@@ -435,6 +441,8 @@ def obfuscate_ios_project_sources(
         "obfuscated_files": changed_files,
         "swift_passthrough_count": swift_files,
         "whitelist_skipped_files": skipped_by_whitelist,
+        "third_party_filtered_dirs": sorted(THIRD_PARTY_DIRS),
+        "third_party_filtered_file_count": skipped_third_party_files,
     }
 
 
