@@ -196,6 +196,7 @@ bash scripts/ipa_obfuscator/build_obfuscated_ipa.sh \
 - 调用 `obfuscate.py --project-mode --build-target ipa` 执行混淆 + 打包
 
 > 说明：`-W` 目前是明文密码参数，便于直接复制执行；更安全做法是用环境变量传递。
+> 如果出现 `Cannot parse a NULL or zero-length data`（`security cms` 解析 profile 失败），脚本会自动回退为随机 UUID 文件名继续安装 profile，不会中断流程。
 
 如需复制工程并改写源码（旧流程）：
 

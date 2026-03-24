@@ -131,10 +131,22 @@ install_identity() {
   security import "$P12_PATH" -k "$keychain" -P "$P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security >/dev/null
 
   echo "[+] Installing provisioning profile"
-  local profiles_dir uuid
+  local profiles_dir uuid tmp_plist
   profiles_dir="$HOME/Library/MobileDevice/Provisioning Profiles"
   mkdir -p "$profiles_dir"
-  uuid="$(security cms -D -i "$MOBILEPROVISION_PATH" | /usr/libexec/PlistBuddy -c 'Print UUID' /dev/stdin)"
+
+  uuid=""
+  tmp_plist="$(mktemp -t obf_profile_XXXXXX.plist)"
+  if security cms -D -i "$MOBILEPROVISION_PATH" >"$tmp_plist" 2>/dev/null; then
+    uuid="$(/usr/libexec/PlistBuddy -c 'Print UUID' "$tmp_plist" 2>/dev/null || true)"
+  fi
+  rm -f "$tmp_plist"
+
+  if [[ -z "$uuid" ]]; then
+    uuid="$(uuidgen)"
+    echo "[!] Warning: failed to parse provisioning profile UUID, fallback to random name: $uuid"
+  fi
+
   cp -f "$MOBILEPROVISION_PATH" "$profiles_dir/$uuid.mobileprovision"
   echo "[i] Profile UUID: $uuid"
 }
