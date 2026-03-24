@@ -82,5 +82,21 @@ brew install llvm@15
 export PATH="/opt/homebrew/opt/llvm@15/bin:$PATH"
 ```
 
-### Q3: Swift 代码是否也会走这个 pass？
+### Q3: CMake 显示 `CXX compiler is broken` / `xcrun ... can't exec .../usr/bin/ld`
+通常是本机环境变量污染（`CC/CXX/LDFLAGS/SDKROOT`）或 Xcode 命令行工具路径异常导致。脚本已自动：
+
+- 强制使用 `xcrun --find clang/clang++/ld`
+- 注入 `CMAKE_OSX_SYSROOT`
+- 清理 `CC/CXX/CFLAGS/CXXFLAGS/LDFLAGS/SDKROOT` 等变量
+
+若仍失败，请先执行：
+
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+xcodebuild -runFirstLaunch
+```
+
+然后重试 `./scripts/bootstrap_my_clang.sh`。
+
+### Q4: Swift 代码是否也会走这个 pass？
 不会。该方案主要作用于 clang 前端编译的 C/C++/ObjC/ObjC++ 单元。Swift 需单独方案。
