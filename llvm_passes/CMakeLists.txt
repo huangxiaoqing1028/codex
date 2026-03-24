@@ -56,6 +56,26 @@ list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
 include(AddLLVM)
 include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
+include(CheckIncludeFileCXX)
+set(CMAKE_REQUIRED_INCLUDES ${LLVM_INCLUDE_DIRS})
+
+check_include_file_cxx("llvm/Passes/PassPlugin.h" HAVE_LLVM_PASS_PLUGIN_H)
+if(NOT HAVE_LLVM_PASS_PLUGIN_H)
+  if(OBF_ALLOW_STUB)
+    message(WARNING
+      "Found LLVM, but header llvm/Passes/PassPlugin.h is missing.\\n"
+      "This usually means LLVM is too old or not a full dev package.\\n"
+      "Build will continue in STUB mode. Recommend LLVM >= 11 (prefer 14+).")
+    add_custom_target(ObfPassPlugin ALL
+      COMMAND ${CMAKE_COMMAND} -E echo "Stub build: llvm/Passes/PassPlugin.h not found, plugin was not compiled."
+      VERBATIM
+    )
+    return()
+  else()
+    message(FATAL_ERROR
+      "Missing llvm/Passes/PassPlugin.h. Install a newer LLVM dev package (>=11, recommend 14+).")
+  endif()
+endif()
 
 add_llvm_pass_plugin(ObfPassPlugin
   ObfPass.cpp

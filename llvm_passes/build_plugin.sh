@@ -18,6 +18,7 @@ if [[ -z "${LLVM_DIR_ARG}" ]]; then
     if command -v "${bin}" >/dev/null 2>&1; then
       LLVM_DIR_ARG="$("${bin}" --cmakedir)"
       echo "[+] Detected LLVM_DIR via ${bin}: ${LLVM_DIR_ARG}"
+      echo "[+] ${bin} version: $("${bin}" --version)"
       break
     fi
   done
@@ -37,6 +38,7 @@ cmake --build . -j
 if compgen -G "${BUILD_DIR}/*ObfPassPlugin*.so" >/dev/null || compgen -G "${BUILD_DIR}/*ObfPassPlugin*.dylib" >/dev/null; then
   echo "[+] Plugin build done. Artifacts are in ${BUILD_DIR}"
 else
-  echo "[!] Stub build completed (LLVM dev package not found). No plugin binary was produced."
-  echo "[!] Install LLVM dev package, then rerun this script."
+  echo "[!] Stub build completed. No plugin binary was produced."
+  echo "[!] Cause is usually: LLVM dev package missing, LLVM too old, or missing PassPlugin.h."
+  echo "[!] Install/upgrade LLVM (>=11, recommend 14+) and rerun this script."
 fi

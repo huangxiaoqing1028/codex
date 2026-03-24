@@ -66,6 +66,16 @@ export PATH="/usr/local/opt/llvm/bin:$PATH"
 > 若机器上没有 LLVM dev 包，CMake 会进入 **stub 模式**（配置/构建成功但不会产出插件二进制），并给出安装提示。
 
 
+如果你遇到 `fatal error: 'llvm/Passes/PassPlugin.h' file not found`：
+
+- 说明当前 LLVM 版本过旧或不是完整 dev 包（缺少新 PM 插件头）。
+- 建议安装 **LLVM >= 11**（推荐 14+），并确保 `llvm-config --version` 对应的是该版本。
+
+```bash
+llvm-config --version
+```
+
+
 ## 2) 单文件（默认最大强度）
 
 ```bash
