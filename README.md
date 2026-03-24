@@ -76,6 +76,21 @@ llvm-config --version
 ```
 
 
+如果 `llvm-config --version` 很新（如 22.x）但仍报 `PassPlugin.h not found`，请确认 CMake 没有误用系统/Xcode 的 LLVM 包：
+
+```bash
+which llvm-config
+llvm-config --cmakedir
+llvm-config --includedir
+```
+
+然后重新显式指定：
+
+```bash
+cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
+```
+
+
 ## 2) 单文件（默认最大强度）
 
 ```bash

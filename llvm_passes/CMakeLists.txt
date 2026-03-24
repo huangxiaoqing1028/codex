@@ -56,10 +56,30 @@ list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
 include(AddLLVM)
 include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
-include(CheckIncludeFileCXX)
-set(CMAKE_REQUIRED_INCLUDES ${LLVM_INCLUDE_DIRS})
 
-check_include_file_cxx("llvm/Passes/PassPlugin.h" HAVE_LLVM_PASS_PLUGIN_H)
+set(HAVE_LLVM_PASS_PLUGIN_H FALSE)
+foreach(_inc IN LISTS LLVM_INCLUDE_DIRS)
+  if(EXISTS "${_inc}/llvm/Passes/PassPlugin.h")
+    set(HAVE_LLVM_PASS_PLUGIN_H TRUE)
+    break()
+  endif()
+endforeach()
+
+# Fallback: some package configs expose incomplete include dirs; trust llvm-config --includedir.
+if(NOT HAVE_LLVM_PASS_PLUGIN_H AND LLVM_CONFIG_BIN)
+  execute_process(
+    COMMAND ${LLVM_CONFIG_BIN} --includedir
+    OUTPUT_VARIABLE LLVM_INCLUDE_DIR_DETECTED
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE LLVM_INCLUDE_RESULT
+  )
+  if(LLVM_INCLUDE_RESULT EQUAL 0 AND EXISTS "${LLVM_INCLUDE_DIR_DETECTED}/llvm/Passes/PassPlugin.h")
+    include_directories(SYSTEM ${LLVM_INCLUDE_DIR_DETECTED})
+    set(HAVE_LLVM_PASS_PLUGIN_H TRUE)
+    message(STATUS "Using llvm-config include dir for PassPlugin.h: ${LLVM_INCLUDE_DIR_DETECTED}")
+  endif()
+endif()
+
 if(NOT HAVE_LLVM_PASS_PLUGIN_H)
   if(OBF_ALLOW_STUB)
     message(WARNING
