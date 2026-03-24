@@ -205,6 +205,7 @@ bash scripts/ipa_obfuscator/build_obfuscated_ipa.sh \
 - 调用 `obfuscate.py --project-mode --build-target ipa` 执行混淆 + 打包
 - 在 IPA 场景输出 `diff_report`（strings/symbols 差异统计；可通过 `--baseline-archive-path` 指定原包）
 - 若 xcodebuild 失败，会在 `.obf_build/xcodebuild_archive.log`（或 app 模式的 `xcodebuild_app.log`）保留完整日志，错误信息会打印末尾片段
+- 若检测到“插件注入导致编译失败”，脚本会自动尝试一次“去掉插件注入”的回退构建（日志在 `*_fallback_no_plugin.log`，manifest 会标记 `plugin_compile_fallback=true`）
 
 > 说明：`-W` 目前是明文密码参数，便于直接复制执行；更安全做法是用环境变量传递。
 > 如果出现 `Cannot parse a NULL or zero-length data`（`security cms` 解析 profile 失败），脚本会自动回退为随机 UUID 文件名继续安装 profile，不会中断流程。

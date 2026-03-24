@@ -611,7 +611,7 @@ def build_ios_project(
     archive_path = Path(args.archive_path) if args.archive_path else (build_workdir / "ObfuscatedApp.xcarchive")
     export_path = Path(args.export_path) if args.export_path else (build_workdir / "Export")
 
-    common = [
+    common_base = [
         xcrun,
         "xcodebuild",
         "-verbose",
@@ -626,6 +626,7 @@ def build_ios_project(
         "-sdk",
         sdk,
     ]
+    common = list(common_base)
 
     patched_pbxproj: Path | None = None
     backup_pbxproj: Path | None = None
@@ -676,6 +677,7 @@ def build_ios_project(
         "sdk": sdk,
         "derived_data": str(derived_data),
         "xcode_pass_plugin": plugin_path,
+        "xcode_pass_plugin_effective": plugin_path,
         "xcode_global_pass_plugin": global_injection_enabled,
         "xcode_global_pass_plugin_blocked": bool(global_injection_enabled and has_pods_project and not args.force_global_pass_plugin),
         "xcode_target_pass_plugin": effective_target_pass_plugin,
@@ -687,7 +689,26 @@ def build_ios_project(
 
     if args.build_target == "app":
         app_log = build_workdir / "xcodebuild_app.log"
-        out = run_capture([*common, "clean", "build"], log_path=app_log)
+        try:
+            out = run_capture([*common, "clean", "build"], log_path=app_log)
+        except RuntimeError as e:
+            plugin_injected = bool(global_injection_enabled or (effective_target_pass_plugin and patched_pbxproj))
+            if not plugin_injected:
+                raise
+            if backup_pbxproj and patched_pbxproj:
+                shutil.copy2(backup_pbxproj, patched_pbxproj)
+                os.remove(backup_pbxproj)
+                patched_pbxproj = None
+                backup_pbxproj = None
+            fallback_log = build_workdir / "xcodebuild_app_fallback_no_plugin.log"
+            out = run_capture([*common_base, "clean", "build"], log_path=fallback_log)
+            result["plugin_compile_fallback"] = True
+            result["plugin_compile_fallback_reason"] = str(e).splitlines()[0]
+            result["xcodebuild_log_fallback"] = str(fallback_log)
+            result["xcode_pass_plugin_effective"] = None
+            result["xcode_global_pass_plugin"] = False
+            result["xcode_target_pass_plugin"] = False
+            result["target_plugin_patch_applied"] = False
         result.update(parse_xcode_plugin_hits(out))
         result["xcodebuild_log"] = str(app_log)
         if backup_pbxproj and patched_pbxproj:
@@ -704,7 +725,29 @@ def build_ios_project(
         baseline_archive = Path(args.baseline_archive_path) if args.baseline_archive_path else archive_path
         baseline_binary = _find_archive_binary(baseline_archive) if baseline_archive.exists() else None
         archive_log = build_workdir / "xcodebuild_archive.log"
-        out_archive = run_capture([*common, "archive", "-archivePath", str(archive_path)], log_path=archive_log)
+        try:
+            out_archive = run_capture([*common, "archive", "-archivePath", str(archive_path)], log_path=archive_log)
+        except RuntimeError as e:
+            plugin_injected = bool(global_injection_enabled or (effective_target_pass_plugin and patched_pbxproj))
+            if not plugin_injected:
+                raise
+            if backup_pbxproj and patched_pbxproj:
+                shutil.copy2(backup_pbxproj, patched_pbxproj)
+                os.remove(backup_pbxproj)
+                patched_pbxproj = None
+                backup_pbxproj = None
+            fallback_log = build_workdir / "xcodebuild_archive_fallback_no_plugin.log"
+            out_archive = run_capture(
+                [*common_base, "archive", "-archivePath", str(archive_path)],
+                log_path=fallback_log,
+            )
+            result["plugin_compile_fallback"] = True
+            result["plugin_compile_fallback_reason"] = str(e).splitlines()[0]
+            result["xcodebuild_archive_log_fallback"] = str(fallback_log)
+            result["xcode_pass_plugin_effective"] = None
+            result["xcode_global_pass_plugin"] = False
+            result["xcode_target_pass_plugin"] = False
+            result["target_plugin_patch_applied"] = False
         result.update(parse_xcode_plugin_hits(out_archive))
         result["xcodebuild_archive_log"] = str(archive_log)
         run(
