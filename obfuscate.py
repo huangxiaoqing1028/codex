@@ -510,8 +510,8 @@ def build_ios_project(
         sdk,
     ]
 
-    if plugin_path:
-        # Best-effort injection for clang/clang++ units compiled by xcodebuild.
+    if plugin_path and args.xcode_global_pass_plugin:
+        # Unsafe/global injection: affects all workspace targets (including Pods).
         common.extend(
             [
                 f"OTHER_CFLAGS=$(inherited) -fpass-plugin={plugin_path}",
@@ -541,6 +541,7 @@ def build_ios_project(
         "sdk": sdk,
         "derived_data": str(derived_data),
         "xcode_pass_plugin": plugin_path,
+        "xcode_global_pass_plugin": bool(args.xcode_global_pass_plugin),
         "ui_guard_define": bool(args.ui_guard_define),
         "macho_order_file": args.macho_order_file,
     }
@@ -637,6 +638,11 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--ui-guard-module", help="External UI guard module command (screen-capture/screenshot hardening hook)")
     parser.add_argument("--ui-guard-define", action="store_true", help="Inject OBF_UI_GUARD compile define into xcodebuild flags")
     parser.add_argument("--macho-order-file", help="Mach-O order file for linker reordering (xcodebuild OTHER_LDFLAGS)")
+    parser.add_argument(
+        "--xcode-global-pass-plugin",
+        action="store_true",
+        help="(Unsafe) Inject pass plugin globally via OTHER_CFLAGS/OTHER_CPLUSPLUSFLAGS; affects Pods targets too",
+    )
 
     # project auto-build options
     parser.add_argument("--build-target", choices=["none", "app", "ipa"], default="none", help="In project-mode, auto build APP or IPA")

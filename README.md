@@ -137,8 +137,9 @@ cmake -DLLVM_DIR="$(llvm-config --cmakedir)" ..
 ### APP
 
 
-> 说明：工程模式下 `build-target app/ipa` 现在会尝试把 pass 插件注入到 xcodebuild 的 C/C++/ObjC 编译参数（`OTHER_CFLAGS` / `OTHER_CPLUSPLUSFLAGS`，`-fpass-plugin=...`）。
-> Swift 编译链不走该参数，因此 Swift 仍以透传策略处理。
+> 说明：默认**不会**把 `-fpass-plugin` 全局注入到 workspace（避免 Pods target 编译失败）。  
+> 如果你确认要全局注入，可显式加 `--xcode-global-pass-plugin`（不推荐，可能影响 Pods）。  
+> Swift 编译链本身不走该参数，因此 Swift 仍以透传策略处理。
 
 ```bash
 ./obfuscate.py /path/to/MyApp \
