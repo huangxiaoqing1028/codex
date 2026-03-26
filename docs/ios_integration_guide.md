@@ -27,10 +27,10 @@
 ## 2) 快速验证
 
 ```bash
-./toolchain/my-clang -O0 -S -emit-llvm /tmp/demo.c -o /tmp/demo.ll
+./scripts/export_ir_ios.sh /tmp/demo.c /tmp/demo_ios.ll
 ```
 
-查看 `/tmp/demo.ll`，应能观察到 `add/sub` 被替换成等价但不同形态的 IR 运算（由 `simple-obf` pass 处理）。
+查看 `/tmp/demo_ios.ll`，应能观察到 `add/sub` 被替换成等价但不同形态的 IR 运算（由 `simple-obf` pass 处理）。
 
 ### 一键验证脚本（推荐）
 

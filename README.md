@@ -13,7 +13,7 @@
 示例 Xcode 工程：`example/ObfDemo/ObfDemo.xcodeproj`（已配置 `ObfToolchain.xcconfig` 直接走 `my-clang`）。
 
 `./scripts/bootstrap_my_clang.sh` 执行后会自动生成 `/tmp/demo.c`，可直接运行：
-`./toolchain/my-clang -O0 -S -emit-llvm /tmp/demo.c -o /tmp/demo.ll`。
+`./scripts/export_ir_ios.sh /tmp/demo.c /tmp/demo_ios.ll`（arm64 + iphonesimulator）。
 
 一键验证（自动对比“带 pass / 不带 pass”并输出 PASS/FAIL）：
 `./scripts/verify_pass.sh`。
