@@ -33,7 +33,7 @@ public:
       auto *Init = dyn_cast<ConstantDataSequential>(GV.getInitializer());
       if (!Init || !Init->isString())
         continue;
-      if (GV.getName().startswith("__obf_"))
+      if (GV.getName().starts_with("__obf_"))
         continue;
 
       StringRef Raw = Init->getRawDataValues();
@@ -141,8 +141,9 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
     for (CallInst *CI : Calls) {
       IRBuilder<> Builder(CI);
       Value *Callee = CI->getCalledOperand();
-      AllocaInst *Slot = new AllocaInst(Callee->getType(), 0, "obf.callee.slot",
-                                        &*F.getEntryBlock().getFirstInsertionPt());
+      IRBuilder<> EntryBuilder(&*F.getEntryBlock().getFirstInsertionPt());
+      AllocaInst *Slot =
+          EntryBuilder.CreateAlloca(Callee->getType(), nullptr, "obf.callee.slot");
       Builder.CreateStore(Callee, Slot);
       Value *Loaded = Builder.CreateLoad(Callee->getType(), Slot, "obf.callee");
       CI->setCalledOperand(Loaded);
@@ -203,7 +204,7 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
       BogusBuilder.CreateUnreachable();
 
       Value *Opaque = createOpaqueTrue(Builder, Builder.getTrue());
-      BranchInst::Create(Target, Bogus, Opaque, BI);
+      BranchInst::Create(Target, Bogus, Opaque, BI->getIterator());
       BI->eraseFromParent();
       Changed = true;
     }
