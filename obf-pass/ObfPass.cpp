@@ -53,6 +53,13 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
 llvmGetPassPluginInfo() {
   return {LLVM_PLUGIN_API_VERSION, "SimpleObfPass", LLVM_VERSION_STRING,
           [](PassBuilder &PB) {
+            PB.registerPipelineStartEPCallback(
+                [](ModulePassManager &MPM, OptimizationLevel) {
+                  FunctionPassManager FPM;
+                  FPM.addPass(SimpleObfPass());
+                  MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
+                });
+
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, FunctionPassManager &FPM,
                    ArrayRef<PassBuilder::PipelineElement>) {

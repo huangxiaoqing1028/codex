@@ -135,3 +135,16 @@ project(SimpleObfPass LANGUAGES C CXX)
 rm -rf build/obf-pass
 ./scripts/bootstrap_my_clang.sh
 ```
+
+### Q6: Xcode 报 `main.c Command CompileC failed with a nonzero exit code`
+若你使用的是旧版封装器，可能把 `-mllvm -passes=simple-obf` 直接透传给 clang，导致编译期参数不兼容。当前版本已修复为仅使用：
+
+```bash
+-fpass-plugin=/.../SimpleObfPass.dylib
+```
+
+请更新到最新代码并重跑：
+
+```bash
+./scripts/bootstrap_my_clang.sh
+```
