@@ -14,6 +14,7 @@
 
 `./scripts/bootstrap_my_clang.sh` 执行后会自动生成 `/tmp/demo.c`，可直接运行：
 `./scripts/export_ir_ios.sh /tmp/demo.c /tmp/demo_ios.ll`（arm64 + iphonesimulator）。
+在 macOS 下，bootstrap 也会尝试自动导出 `/tmp/demo_ios.ll`。
 
 一键验证（自动对比“带 pass / 不带 pass”并输出 PASS/FAIL）：
 `./scripts/verify_pass.sh`。

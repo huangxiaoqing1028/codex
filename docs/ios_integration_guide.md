@@ -23,6 +23,7 @@
 - `toolchain/my-clang`
 - `toolchain/my-clang++`
 - `/tmp/demo.c`（已自动生成，可直接用于验证命令）
+- `/tmp/demo_ios.ll`（macOS 下会尝试自动导出 arm64 + iphonesimulator IR）
 
 ## 2) 快速验证
 

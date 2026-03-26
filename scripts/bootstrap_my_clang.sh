@@ -100,6 +100,14 @@ EOF
 cp "${ROOT_DIR}/demo/demo.c" /tmp/demo.c
 echo "[bootstrap] demo source: /tmp/demo.c"
 
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  if "${ROOT_DIR}/scripts/export_ir_ios.sh" /tmp/demo.c /tmp/demo_ios.ll; then
+    echo "[bootstrap] demo iOS IR: /tmp/demo_ios.ll"
+  else
+    echo "[bootstrap] warning: failed to export /tmp/demo_ios.ll (check iOS simulator SDK)." >&2
+  fi
+fi
+
 echo "[bootstrap] done"
 echo "[bootstrap] wrapper clang: ${ROOT_DIR}/toolchain/my-clang"
 echo "[bootstrap] wrapper clang++: ${ROOT_DIR}/toolchain/my-clang++"
