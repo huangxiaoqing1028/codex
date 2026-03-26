@@ -107,3 +107,17 @@ xcodebuild -runFirstLaunch
 
 ### Q4: Swift 代码是否也会走这个 pass？
 不会。该方案主要作用于 clang 前端编译的 C/C++/ObjC/ObjC++ 单元。Swift 需单独方案。
+
+### Q5: `check_source_compiles: C: needs to be enabled before use`
+这是 CMake 工程未启用 C 语言导致 LLVM 的 `FindFFI/FindTerminfo` 检测失败。当前模板已修复为：
+
+```cmake
+project(SimpleObfPass LANGUAGES C CXX)
+```
+
+如果你是旧版本代码，请拉取最新后重新执行：
+
+```bash
+rm -rf build/obf-pass
+./scripts/bootstrap_my_clang.sh
+```
