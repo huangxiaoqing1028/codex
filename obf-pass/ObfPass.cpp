@@ -12,6 +12,7 @@
 #include "llvm/Passes/PassPlugin.h"
 #endif
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 
 using namespace llvm;
@@ -222,10 +223,10 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
 public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
     bool Changed = false;
-    const std::string Triple = F.getParent()->getTargetTriple();
-    const bool ConservativeMode =
-        Triple.find("apple-ios") != std::string::npos ||
-        Triple.find("ios-simulator") != std::string::npos;
+    llvm::Triple TT(F.getParent()->getTargetTriple());
+    const bool ConservativeMode = TT.isiOS() || TT.isTvOS() ||
+                                  TT.isWatchOS() ||
+                                  TT.isSimulatorEnvironment();
     SmallVector<BinaryOperator *, 32> Worklist;
 
     for (BasicBlock &BB : F) {
