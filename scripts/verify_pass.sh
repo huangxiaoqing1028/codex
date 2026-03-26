@@ -15,6 +15,12 @@ fail() {
   exit 1
 }
 
+function_ir() {
+  local file="$1"
+  local func="$2"
+  awk "/define .*@${func}\\(/,/^}/" "${file}"
+}
+
 if [[ ! -f "${PLUGIN_PATH}" ]]; then
   fail "missing plugin: ${PLUGIN_PATH} (run ./scripts/bootstrap_my_clang.sh)"
 fi
@@ -47,16 +53,22 @@ if cmp -s "${PLAIN_LL}" "${PASS_LL}"; then
   fail "pass IR is identical to plain IR. Check plugin loading."
 fi
 
-PLAIN_NEG_COUNT="$(grep -E -c 'sub( [a-z]+)* i[0-9]+ 0,' "${PLAIN_LL}" || true)"
-PASS_NEG_COUNT="$(grep -E -c 'sub( [a-z]+)* i[0-9]+ 0,' "${PASS_LL}" || true)"
+PLAIN_ADD_IR="$(function_ir "${PLAIN_LL}" "add")"
+PASS_ADD_IR="$(function_ir "${PASS_LL}" "add")"
+PLAIN_SUB_IR="$(function_ir "${PLAIN_LL}" "sub")"
+PASS_SUB_IR="$(function_ir "${PASS_LL}" "sub")"
 
-if [[ "${PASS_NEG_COUNT}" -gt "${PLAIN_NEG_COUNT}" ]]; then
+if grep -q " add " <<<"${PLAIN_ADD_IR}" &&
+   grep -q " sub " <<<"${PLAIN_SUB_IR}" &&
+   grep -q " sub " <<<"${PASS_ADD_IR}" &&
+   grep -q " 0, " <<<"${PASS_ADD_IR}" &&
+   grep -q " add " <<<"${PASS_SUB_IR}" &&
+   grep -q " 0, " <<<"${PASS_SUB_IR}"; then
   echo "[verify] PASS"
   echo "[verify] plain IR: ${PLAIN_LL}"
   echo "[verify] with-pass IR: ${PASS_LL}"
-  echo "[verify] plain neg-count: ${PLAIN_NEG_COUNT}"
-  echo "[verify] with-pass neg-count: ${PASS_NEG_COUNT}"
+  echo "[verify] add/sub function-level transform detected"
   exit 0
 fi
 
-fail "IR diff found, but transform signal is weak. Check ${PLAIN_LL} and ${PASS_LL}."
+fail "IR diff found, but add/sub function-level transform not confirmed. Check ${PLAIN_LL} and ${PASS_LL}."

@@ -42,7 +42,7 @@
 
 1. 用同一 LLVM 的原生 clang 生成输入 IR（不带 pass）
 2. 用同一 LLVM 的 `opt -load-pass-plugin` 生成“带 pass”的 IR
-3. 检查两份 IR 是否不同，并统计 `sub iN 0, ...`（neg 形态）数量变化，输出 `PASS/FAIL`
+3. 在 `add/sub` 函数级别对比变换前后指令形态（`add -> sub(neg)`、`sub -> add(neg)`），输出 `PASS/FAIL`
 
 ## 2.1) 直接可用的 Xcode 示例工程
 
