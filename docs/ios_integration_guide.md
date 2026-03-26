@@ -280,3 +280,17 @@ MY_CLANG_DISABLE_PLUGIN=1 ./scripts/build_obfdemo_xcode.sh
 brew install llvm@22
 LLVM_CONFIG=/opt/homebrew/opt/llvm@22/bin/llvm-config ./scripts/bootstrap_my_clang.sh
 ```
+
+### Q15: LLVM 22 下出现 `fatal error: 'llvm/Passes/PassPlugin.h' file not found`
+通常不是这个头不存在，而是 CMake target 没有正确拿到 LLVM 的 include 路径。
+
+当前版本已在 `obf-pass/CMakeLists.txt` 对 `SimpleObfPass` 显式设置：
+- `target_include_directories(... ${LLVM_INCLUDE_DIRS})`
+- `target_compile_definitions(... ${LLVM_DEFINITIONS})`
+
+若你本机仍报错，请先清理旧构建目录再重试：
+
+```bash
+rm -rf build/obf-pass
+LLVM_CONFIG=/opt/homebrew/opt/llvm@22/bin/llvm-config ./scripts/bootstrap_my_clang.sh
+```
