@@ -42,7 +42,7 @@
 
 1. 用同一 LLVM 的原生 clang 生成输入 IR（不带 pass）
 2. 用同一 LLVM 的 `opt -load-pass-plugin` 生成“带 pass”的 IR
-3. 对比 IR 中 `obf.add2sub / obf.sub2add / obf.negrhs` 标记并输出 `PASS/FAIL`
+3. 检查两份 IR 是否不同，并统计 `sub iN 0, ...`（neg 形态）数量变化，输出 `PASS/FAIL`
 
 ## 2.1) 直接可用的 Xcode 示例工程
 

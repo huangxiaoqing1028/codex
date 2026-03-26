@@ -43,12 +43,20 @@ cp "${INPUT_LL}" "${PLAIN_LL}"
 "${OPT_BIN}" -load-pass-plugin "${PLUGIN_PATH}" -passes=simple-obf -S \
   "${INPUT_LL}" -o "${PASS_LL}"
 
-if grep -q "obf\.add2sub\|obf\.sub2add\|obf\.negrhs" "${PASS_LL}" && \
-   ! grep -q "obf\.add2sub\|obf\.sub2add\|obf\.negrhs" "${PLAIN_LL}"; then
+if cmp -s "${PLAIN_LL}" "${PASS_LL}"; then
+  fail "pass IR is identical to plain IR. Check plugin loading."
+fi
+
+PLAIN_NEG_COUNT="$(grep -E -c 'sub( [a-z]+)* i[0-9]+ 0,' "${PLAIN_LL}" || true)"
+PASS_NEG_COUNT="$(grep -E -c 'sub( [a-z]+)* i[0-9]+ 0,' "${PASS_LL}" || true)"
+
+if [[ "${PASS_NEG_COUNT}" -gt "${PLAIN_NEG_COUNT}" ]]; then
   echo "[verify] PASS"
   echo "[verify] plain IR: ${PLAIN_LL}"
   echo "[verify] with-pass IR: ${PASS_LL}"
+  echo "[verify] plain neg-count: ${PLAIN_NEG_COUNT}"
+  echo "[verify] with-pass neg-count: ${PASS_NEG_COUNT}"
   exit 0
 fi
 
-fail "IR markers not as expected. Check ${PLAIN_LL} and ${PASS_LL}."
+fail "IR diff found, but transform signal is weak. Check ${PLAIN_LL} and ${PASS_LL}."
