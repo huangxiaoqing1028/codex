@@ -14,21 +14,24 @@ fi
 
 LLVM_CONFIG_BIN="${LLVM_CONFIG:-}"
 if [[ -z "${LLVM_CONFIG_BIN}" ]]; then
-  if [[ -x "/opt/homebrew/opt/llvm@15/bin/llvm-config" ]]; then
-    LLVM_CONFIG_BIN="/opt/homebrew/opt/llvm@15/bin/llvm-config"
-  elif [[ -x "/usr/local/opt/llvm@15/bin/llvm-config" ]]; then
-    LLVM_CONFIG_BIN="/usr/local/opt/llvm@15/bin/llvm-config"
-  elif command -v llvm-config >/dev/null 2>&1; then
+  # Prefer newer Homebrew LLVM first (works for llvm@22 packaging as well).
+  for v in 22 21 20 19 18 17 16 15 14; do
+    if [[ -x "/opt/homebrew/opt/llvm@${v}/bin/llvm-config" ]]; then
+      LLVM_CONFIG_BIN="/opt/homebrew/opt/llvm@${v}/bin/llvm-config"
+      break
+    elif [[ -x "/usr/local/opt/llvm@${v}/bin/llvm-config" ]]; then
+      LLVM_CONFIG_BIN="/usr/local/opt/llvm@${v}/bin/llvm-config"
+      break
+    fi
+  done
+
+  if [[ -z "${LLVM_CONFIG_BIN}" ]] && command -v llvm-config >/dev/null 2>&1; then
     LLVM_CONFIG_BIN="$(command -v llvm-config)"
-  elif [[ -x "/opt/homebrew/opt/llvm@14/bin/llvm-config" ]]; then
-    LLVM_CONFIG_BIN="/opt/homebrew/opt/llvm@14/bin/llvm-config"
-  elif [[ -x "/usr/local/opt/llvm@14/bin/llvm-config" ]]; then
-    LLVM_CONFIG_BIN="/usr/local/opt/llvm@14/bin/llvm-config"
   fi
 fi
 
 if [[ -z "${LLVM_CONFIG_BIN}" ]]; then
-  echo "[bootstrap] llvm-config not found. Install: brew install llvm@14 (or llvm@15)" >&2
+  echo "[bootstrap] llvm-config not found. Install: brew install llvm@22 (or any llvm@15+)" >&2
   exit 1
 fi
 

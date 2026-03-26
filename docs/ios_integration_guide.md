@@ -269,3 +269,14 @@ MY_CLANG_DISABLE_PLUGIN=1 ./scripts/build_obfdemo_xcode.sh
 ```
 
 若此时可编译，再开启 pass 注入定位具体问题。
+
+### Q14: 这个插件支持 LLVM 22 打包吗？
+支持。当前 pass 使用的是新 PM 插件接口（`PassPlugin.h` + `llvmGetPassPluginInfo`），可在 LLVM 14+ 构建；
+`scripts/bootstrap_my_clang.sh` 也会优先探测 `llvm@22`（然后依次回退到 21..14）。
+
+若你是 Homebrew 环境，可直接：
+
+```bash
+brew install llvm@22
+LLVM_CONFIG=/opt/homebrew/opt/llvm@22/bin/llvm-config ./scripts/bootstrap_my_clang.sh
+```
