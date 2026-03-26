@@ -40,8 +40,8 @@
 
 该脚本会自动：
 
-1. 用同一 LLVM 的原生 clang 生成“不带 pass”的 IR
-2. 用 `my-clang` 生成“带 pass”的 IR
+1. 用同一 LLVM 的原生 clang 生成输入 IR（不带 pass）
+2. 用同一 LLVM 的 `opt -load-pass-plugin` 生成“带 pass”的 IR
 3. 对比 IR 中 `obf.add2sub / obf.sub2add / obf.negrhs` 标记并输出 `PASS/FAIL`
 
 ## 2.1) 直接可用的 Xcode 示例工程
