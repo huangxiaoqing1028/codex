@@ -1,7 +1,9 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Passes/PassBuilder.h"
 #if __has_include("llvm/Plugins/PassPlugin.h")
@@ -11,10 +13,77 @@
 #endif
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Transforms/Utils/ModuleUtils.h"
 
 using namespace llvm;
 
 namespace {
+class StringEncryptionPass : public PassInfoMixin<StringEncryptionPass> {
+public:
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &) {
+    LLVMContext &Ctx = M.getContext();
+    SmallVector<std::tuple<GlobalVariable *, uint8_t, uint64_t>, 32> Targets;
+
+    for (GlobalVariable &GV : M.globals()) {
+      if (!GV.hasInitializer())
+        continue;
+      if (!GV.getValueType()->isArrayTy())
+        continue;
+
+      auto *Init = dyn_cast<ConstantDataSequential>(GV.getInitializer());
+      if (!Init || !Init->isString())
+        continue;
+      if (GV.getName().startswith("__obf_"))
+        continue;
+
+      StringRef Raw = Init->getRawDataValues();
+      if (Raw.empty())
+        continue;
+
+      uint8_t Key = static_cast<uint8_t>((hash_value(GV.getName()) & 0xFFU) | 1U);
+      SmallVector<uint8_t, 128> Encoded;
+      Encoded.reserve(Raw.size());
+      for (char C : Raw)
+        Encoded.push_back(static_cast<uint8_t>(C) ^ Key);
+
+      GV.setInitializer(ConstantDataArray::get(Ctx, Encoded));
+      GV.setConstant(false);
+      Targets.emplace_back(&GV, Key, static_cast<uint64_t>(Raw.size()));
+    }
+
+    if (Targets.empty())
+      return PreservedAnalyses::all();
+
+    FunctionCallee DecodeDecl = M.getOrInsertFunction(
+        "__obf_decode_all_strings",
+        FunctionType::get(Type::getVoidTy(Ctx), false));
+    Function *DecodeFn = cast<Function>(DecodeDecl.getCallee());
+    DecodeFn->setLinkage(GlobalValue::InternalLinkage);
+
+    if (!DecodeFn->empty())
+      DecodeFn->deleteBody();
+
+    BasicBlock *Entry = BasicBlock::Create(Ctx, "entry", DecodeFn);
+    IRBuilder<> Builder(Entry);
+
+    for (auto &[GV, Key, Len] : Targets) {
+      Value *Base = Builder.CreateConstInBoundsGEP2_32(
+          GV->getValueType(), GV, 0, 0, "obf.str.base");
+      for (uint64_t I = 0; I < Len; ++I) {
+        Value *Ptr =
+            Builder.CreateInBoundsGEP(Builder.getInt8Ty(), Base, Builder.getInt64(I));
+        LoadInst *B = Builder.CreateLoad(Builder.getInt8Ty(), Ptr, "obf.str.enc");
+        Value *Dec = Builder.CreateXor(B, Builder.getInt8(Key), "obf.str.dec");
+        Builder.CreateStore(Dec, Ptr);
+      }
+    }
+
+    Builder.CreateRetVoid();
+    appendToGlobalCtors(M, DecodeFn, 65535);
+    return PreservedAnalyses::none();
+  }
+};
+
 class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
   static Value *createOpaqueTrue(IRBuilder<> &Builder, Value *Cond) {
     // cond == (((zext(cond) ^ 1) == 0))
@@ -231,9 +300,20 @@ llvmGetPassPluginInfo() {
           [](PassBuilder &PB) {
             PB.registerPipelineStartEPCallback(
                 [](ModulePassManager &MPM, OptimizationLevel) {
+                  MPM.addPass(StringEncryptionPass());
                   FunctionPassManager FPM;
                   FPM.addPass(SimpleObfPass());
                   MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
+                });
+
+            PB.registerPipelineParsingCallback(
+                [](StringRef Name, ModulePassManager &MPM,
+                   ArrayRef<PassBuilder::PipelineElement>) {
+                  if (Name == "string-obf") {
+                    MPM.addPass(StringEncryptionPass());
+                    return true;
+                  }
+                  return false;
                 });
 
             PB.registerPipelineParsingCallback(

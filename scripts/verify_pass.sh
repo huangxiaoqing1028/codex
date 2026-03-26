@@ -54,7 +54,7 @@ fi
 "${PLAIN_CLANG}" -O0 -Xclang -disable-O0-optnone -S -emit-llvm "${DEMO_SRC}" -o "${INPUT_LL}"
 cp "${INPUT_LL}" "${PLAIN_LL}"
 
-"${OPT_BIN}" -load-pass-plugin "${PLUGIN_PATH}" -passes='function(simple-obf)' -S \
+"${OPT_BIN}" -load-pass-plugin "${PLUGIN_PATH}" -passes='string-obf,function(simple-obf)' -S \
   "${INPUT_LL}" -o "${PASS_LL}"
 
 if cmp -s "${PLAIN_LL}" "${PASS_LL}"; then
@@ -68,12 +68,13 @@ PASS_SUB_IR="$(function_ir "${PASS_LL}" "sub")"
 
 if [[ "${PLAIN_ADD_IR}" != "${PASS_ADD_IR}" ]] &&
    [[ "${PLAIN_SUB_IR}" != "${PASS_SUB_IR}" ]] &&
-   grep -q "obf\\." <<<"${PASS_ADD_IR}${PASS_SUB_IR}"; then
+   grep -q "obf\\." <<<"${PASS_ADD_IR}${PASS_SUB_IR}" &&
+   ! grep -q "OBF_SECRET_DEMO" "${PASS_LL}"; then
   echo "[verify] PASS"
   echo "[verify] plain IR: ${PLAIN_LL}"
   echo "[verify] with-pass IR: ${PASS_LL}"
-  echo "[verify] add/sub function-level obfuscation detected"
+  echo "[verify] arithmetic obfuscation + module string obfuscation detected"
   exit 0
 fi
 
-fail "IR diff found, but add/sub obfuscation markers not confirmed. Check ${PLAIN_LL} and ${PASS_LL}."
+fail "IR diff found, but expected obfuscation markers were not confirmed. Check ${PLAIN_LL} and ${PASS_LL}."
