@@ -282,7 +282,11 @@ LLVM_CONFIG=/opt/homebrew/opt/llvm@22/bin/llvm-config ./scripts/bootstrap_my_cla
 ```
 
 ### Q15: LLVM 22 下出现 `fatal error: 'llvm/Passes/PassPlugin.h' file not found`
-通常不是这个头不存在，而是 CMake target 没有正确拿到 LLVM 的 include 路径。
+LLVM 22 中插件头可能迁移到 `llvm/Plugins/PassPlugin.h`。当前代码已做兼容：
+- 优先包含 `llvm/Plugins/PassPlugin.h`
+- 若不存在则回退 `llvm/Passes/PassPlugin.h`
+
+另外，这类报错也可能是 CMake target 没有正确拿到 LLVM 的 include 路径。
 
 当前版本已在 `obf-pass/CMakeLists.txt` 对 `SimpleObfPass` 显式设置：
 - `target_include_directories(... ${LLVM_INCLUDE_DIRS})`
