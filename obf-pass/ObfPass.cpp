@@ -4,6 +4,7 @@
 #include "llvm/IR/PassManager.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
+#include "llvm/ADT/SmallVector.h"
 
 using namespace llvm;
 
@@ -12,6 +13,7 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
 public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
     bool Changed = false;
+    SmallVector<BinaryOperator *, 32> Worklist;
 
     for (BasicBlock &BB : F) {
       for (Instruction &I : BB) {
@@ -20,27 +22,39 @@ public:
           continue;
         }
 
-        IRBuilder<> Builder(BinOp);
-        Value *LHS = BinOp->getOperand(0);
-        Value *RHS = BinOp->getOperand(1);
-
-        if (BinOp->getOpcode() == Instruction::Add) {
-          Value *NegRHS = Builder.CreateNeg(RHS, "obf.negrhs");
-          Value *Sub = Builder.CreateSub(LHS, NegRHS, "obf.add2sub");
-          BinOp->replaceAllUsesWith(Sub);
-          BinOp->eraseFromParent();
-          Changed = true;
-          break;
+        if (BinOp->getOpcode() != Instruction::Add &&
+            BinOp->getOpcode() != Instruction::Sub) {
+          continue;
         }
 
-        if (BinOp->getOpcode() == Instruction::Sub) {
-          Value *NegRHS = Builder.CreateNeg(RHS, "obf.negrhs");
-          Value *Add = Builder.CreateAdd(LHS, NegRHS, "obf.sub2add");
-          BinOp->replaceAllUsesWith(Add);
-          BinOp->eraseFromParent();
-          Changed = true;
-          break;
+        if (!BinOp->getType()->isIntOrIntVectorTy()) {
+          continue;
         }
+
+        Worklist.push_back(BinOp);
+      }
+    }
+
+    for (BinaryOperator *BinOp : Worklist) {
+      IRBuilder<> Builder(BinOp);
+      Value *LHS = BinOp->getOperand(0);
+      Value *RHS = BinOp->getOperand(1);
+
+      if (BinOp->getOpcode() == Instruction::Add) {
+        Value *NegRHS = Builder.CreateNeg(RHS, "obf.negrhs");
+        Value *Sub = Builder.CreateSub(LHS, NegRHS, "obf.add2sub");
+        BinOp->replaceAllUsesWith(Sub);
+        BinOp->eraseFromParent();
+        Changed = true;
+        continue;
+      }
+
+      if (BinOp->getOpcode() == Instruction::Sub) {
+        Value *NegRHS = Builder.CreateNeg(RHS, "obf.negrhs");
+        Value *Add = Builder.CreateAdd(LHS, NegRHS, "obf.sub2add");
+        BinOp->replaceAllUsesWith(Add);
+        BinOp->eraseFromParent();
+        Changed = true;
       }
     }
 

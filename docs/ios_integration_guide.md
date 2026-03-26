@@ -148,3 +148,17 @@ rm -rf build/obf-pass
 ```bash
 ./scripts/bootstrap_my_clang.sh
 ```
+
+### Q7: `clang frontend command failed due to signal` / `Abort trap: 6`
+这通常是旧版 pass 在遍历指令时“边遍历边删除”触发的崩溃。当前版本已改为：
+
+- 先收集待变换指令（worklist）
+- 再统一做替换与删除
+- 仅处理整数 `add/sub`（跳过非整数类型）
+
+更新代码后请重新构建插件：
+
+```bash
+rm -rf build/obf-pass
+./scripts/bootstrap_my_clang.sh
+```
