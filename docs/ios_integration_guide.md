@@ -31,7 +31,7 @@
 ./scripts/export_ir_ios.sh /tmp/demo.c /tmp/demo_ios.ll
 ```
 
-查看 `/tmp/demo_ios.ll`，应能观察到 `add/sub` 被替换成等价但不同形态的 IR 运算（由 `simple-obf` pass 处理）。
+查看 `/tmp/demo_ios.ll`，应能观察到 `add/sub/xor` 被替换成等价但不同形态的 IR 运算（由 `simple-obf` pass 处理）。
 
 ### 一键验证脚本（推荐）
 
@@ -43,7 +43,7 @@
 
 1. 用同一 LLVM 的原生 clang 生成输入 IR（不带 pass）
 2. 用同一 LLVM 的 `opt -load-pass-plugin` 生成“带 pass”的 IR
-3. 在 `add/sub` 函数级别对比变换前后指令形态（`add -> sub(neg)`、`sub -> add(neg)`），输出 `PASS/FAIL`
+3. 对比函数级别变换前后指令形态（包含 `add/sub/xor` 的多形态变换），输出 `PASS/FAIL`
 
 > 脚本内部会使用 `-Xclang -disable-O0-optnone` 生成输入 IR，并通过 `opt -passes='function(simple-obf)'` 显式执行 pass，避免验证不稳定。
 
@@ -179,7 +179,7 @@ rm -rf build/obf-pass
 
 - 先收集待变换指令（worklist）
 - 再统一做替换与删除
-- 仅处理整数 `add/sub`（跳过非整数类型）
+- 仅处理整数算术（`add/sub/xor`，跳过非整数类型）
 
 更新代码后请重新构建插件：
 

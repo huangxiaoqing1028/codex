@@ -8,12 +8,42 @@
 #else
 #include "llvm/Passes/PassPlugin.h"
 #endif
+#include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallVector.h"
 
 using namespace llvm;
 
 namespace {
 class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
+  static Value *createMBAAdd(IRBuilder<> &Builder, Value *A, Value *B) {
+    // A + B == (A ^ B) + ((A & B) << 1)
+    Value *Xor = Builder.CreateXor(A, B, "obf.mba.xor");
+    Value *And = Builder.CreateAnd(A, B, "obf.mba.and");
+    Value *Carry = Builder.CreateShl(
+        And, ConstantInt::get(cast<IntegerType>(A->getType()), 1),
+        "obf.mba.carry");
+    return Builder.CreateAdd(Xor, Carry, "obf.mba.add");
+  }
+
+  static Value *createMBAXor(IRBuilder<> &Builder, Value *A, Value *B) {
+    // A ^ B == (A | B) - (A & B)
+    Value *Or = Builder.CreateOr(A, B, "obf.mba.or");
+    Value *And = Builder.CreateAnd(A, B, "obf.mba.and");
+    return Builder.CreateSub(Or, And, "obf.mba.xor");
+  }
+
+  static Value *createObfuscatedConst(IRBuilder<> &Builder, APInt C,
+                                      uint64_t Seed) {
+    // C == (C ^ K) ^ K
+    APInt K = APInt(C.getBitWidth(), Seed).zextOrTrunc(C.getBitWidth());
+    if (K.isZero())
+      K = APInt(C.getBitWidth(), 0xA5A5A5A5ULL).zextOrTrunc(C.getBitWidth());
+    Constant *CK = ConstantInt::get(Builder.getContext(), K);
+    Constant *Masked = ConstantInt::get(Builder.getContext(), C ^ K);
+    Value *Tmp = Builder.CreateXor(Masked, CK, "obf.const.masked");
+    return Builder.CreateXor(Tmp, CK, "obf.const");
+  }
+
 public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
     bool Changed = false;
@@ -27,11 +57,12 @@ public:
         }
 
         if (BinOp->getOpcode() != Instruction::Add &&
-            BinOp->getOpcode() != Instruction::Sub) {
+            BinOp->getOpcode() != Instruction::Sub &&
+            BinOp->getOpcode() != Instruction::Xor) {
           continue;
         }
 
-        if (!BinOp->getType()->isIntOrIntVectorTy()) {
+        if (!BinOp->getType()->isIntegerTy()) {
           continue;
         }
 
@@ -44,19 +75,44 @@ public:
       Value *LHS = BinOp->getOperand(0);
       Value *RHS = BinOp->getOperand(1);
 
-      if (BinOp->getOpcode() == Instruction::Add) {
-        Value *NegRHS = Builder.CreateNeg(RHS, "obf.negrhs");
-        Value *Sub = Builder.CreateSub(LHS, NegRHS, "obf.add2sub");
-        BinOp->replaceAllUsesWith(Sub);
-        BinOp->eraseFromParent();
-        Changed = true;
-        continue;
+      uint64_t Seed = hash_value(F.getName()) ^ hash_value(BinOp->getOpcode()) ^
+                      hash_value(BinOp->getDebugLoc().getLine());
+
+      if (auto *CI = dyn_cast<ConstantInt>(RHS)) {
+        RHS = createObfuscatedConst(Builder, CI->getValue(), Seed);
       }
 
-      if (BinOp->getOpcode() == Instruction::Sub) {
-        Value *NegRHS = Builder.CreateNeg(RHS, "obf.negrhs");
-        Value *Add = Builder.CreateAdd(LHS, NegRHS, "obf.sub2add");
-        BinOp->replaceAllUsesWith(Add);
+      Value *NewValue = nullptr;
+      if (BinOp->getOpcode() == Instruction::Add) {
+        if ((Seed & 1) == 0) {
+          Value *NegRHS = Builder.CreateNeg(RHS, "obf.negrhs");
+          NewValue = Builder.CreateSub(LHS, NegRHS, "obf.add2sub");
+        } else {
+          NewValue = createMBAAdd(Builder, LHS, RHS);
+        }
+      } else if (BinOp->getOpcode() == Instruction::Sub) {
+        if ((Seed & 1) == 0) {
+          Value *NegRHS = Builder.CreateNeg(RHS, "obf.negrhs");
+          NewValue = Builder.CreateAdd(LHS, NegRHS, "obf.sub2add");
+        } else {
+          Value *NegRHS = Builder.CreateNeg(RHS, "obf.negrhs");
+          NewValue = createMBAAdd(Builder, LHS, NegRHS);
+        }
+      } else if (BinOp->getOpcode() == Instruction::Xor) {
+        if ((Seed & 1) == 0) {
+          NewValue = createMBAXor(Builder, LHS, RHS);
+        } else {
+          Value *And = Builder.CreateAnd(LHS, RHS, "obf.xor.and");
+          Value *TwoAnd = Builder.CreateShl(
+              And, ConstantInt::get(cast<IntegerType>(LHS->getType()), 1),
+              "obf.xor.twiceand");
+          Value *Add = Builder.CreateAdd(LHS, RHS, "obf.xor.add");
+          NewValue = Builder.CreateSub(Add, TwoAnd, "obf.xor.alt");
+        }
+      }
+
+      if (NewValue) {
+        BinOp->replaceAllUsesWith(NewValue);
         BinOp->eraseFromParent();
         Changed = true;
       }

@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PLUGIN_PATH="${ROOT_DIR}/build/obf-pass/SimpleObfPass.dylib"
+PLUGIN_PATH_DYLIB="${ROOT_DIR}/build/obf-pass/SimpleObfPass.dylib"
+PLUGIN_PATH_SO="${ROOT_DIR}/build/obf-pass/SimpleObfPass.so"
 BINDIR_FILE="${ROOT_DIR}/build/obf-pass/llvm-bindir.txt"
 DEMO_SRC="/tmp/demo.c"
 
@@ -21,8 +22,15 @@ function_ir() {
   awk "/define .*@${func}\\(/,/^}/" "${file}"
 }
 
-if [[ ! -f "${PLUGIN_PATH}" ]]; then
-  fail "missing plugin: ${PLUGIN_PATH} (run ./scripts/bootstrap_my_clang.sh)"
+PLUGIN_PATH=""
+if [[ -f "${PLUGIN_PATH_DYLIB}" ]]; then
+  PLUGIN_PATH="${PLUGIN_PATH_DYLIB}"
+elif [[ -f "${PLUGIN_PATH_SO}" ]]; then
+  PLUGIN_PATH="${PLUGIN_PATH_SO}"
+fi
+
+if [[ -z "${PLUGIN_PATH}" ]]; then
+  fail "missing plugin: ${PLUGIN_PATH_DYLIB} (or .so, run ./scripts/bootstrap_my_clang.sh)"
 fi
 
 if [[ ! -f "${BINDIR_FILE}" ]]; then
@@ -58,17 +66,14 @@ PASS_ADD_IR="$(function_ir "${PASS_LL}" "add")"
 PLAIN_SUB_IR="$(function_ir "${PLAIN_LL}" "sub")"
 PASS_SUB_IR="$(function_ir "${PASS_LL}" "sub")"
 
-if grep -q " add " <<<"${PLAIN_ADD_IR}" &&
-   grep -q " sub " <<<"${PLAIN_SUB_IR}" &&
-   grep -q " sub " <<<"${PASS_ADD_IR}" &&
-   grep -q " 0, " <<<"${PASS_ADD_IR}" &&
-   grep -q " add " <<<"${PASS_SUB_IR}" &&
-   grep -q " 0, " <<<"${PASS_SUB_IR}"; then
+if [[ "${PLAIN_ADD_IR}" != "${PASS_ADD_IR}" ]] &&
+   [[ "${PLAIN_SUB_IR}" != "${PASS_SUB_IR}" ]] &&
+   grep -q "obf\\." <<<"${PASS_ADD_IR}${PASS_SUB_IR}"; then
   echo "[verify] PASS"
   echo "[verify] plain IR: ${PLAIN_LL}"
   echo "[verify] with-pass IR: ${PASS_LL}"
-  echo "[verify] add/sub function-level transform detected"
+  echo "[verify] add/sub function-level obfuscation detected"
   exit 0
 fi
 
-fail "IR diff found, but add/sub function-level transform not confirmed. Check ${PLAIN_LL} and ${PASS_LL}."
+fail "IR diff found, but add/sub obfuscation markers not confirmed. Check ${PLAIN_LL} and ${PASS_LL}."
