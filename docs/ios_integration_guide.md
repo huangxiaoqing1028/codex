@@ -175,3 +175,15 @@ rm -rf build/obf-pass
 
 如果仍然崩溃，常见原因是 **插件与 clang 不是同一套 LLVM**（例如：插件用 Homebrew LLVM 14 构建，但编译时用了 Apple clang）。  
 当前封装器会优先读取 `build/obf-pass/llvm-bindir.txt` 并调用同目录下的 `clang/clang++`，确保 ABI 一致。
+
+### Q8: Xcode 日志只看到 `.../toolchain/my-clang`，看不到 `-fpass-plugin`
+这是正常的：Xcode 显示的是 wrapper 启动命令，不会自动展开 wrapper 内部参数。
+可以临时开启详细日志验证：
+
+```bash
+MY_CLANG_VERBOSE=1 ./toolchain/my-clang -c /tmp/demo.c -o /tmp/demo.o
+```
+
+会输出：
+- 实际使用的 plugin 路径
+- 最终执行的 clang 完整命令（含 `-fpass-plugin=...`）

@@ -20,4 +20,10 @@ if [[ -f "${BINDIR_FILE}" ]]; then
   fi
 fi
 
-exec "${CLANGXX_BIN}" -fpass-plugin="${PLUGIN_PATH}" "$@"
+CMD=("${CLANGXX_BIN}" "-fpass-plugin=${PLUGIN_PATH}" "$@")
+if [[ "${MY_CLANG_VERBOSE:-0}" == "1" ]]; then
+  echo "[my-clang++] plugin: ${PLUGIN_PATH}" >&2
+  echo "[my-clang++] exec: ${CMD[*]}" >&2
+fi
+
+exec "${CMD[@]}"
