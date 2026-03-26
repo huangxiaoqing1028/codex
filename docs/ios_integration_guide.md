@@ -72,6 +72,20 @@
    - `CXX` = `/绝对路径/到/仓库/toolchain/my-clang++`
 3. 清理构建缓存后重新编译。
 
+### 验证配置建议（重点）
+
+- **Release / O1+ 验证最自然**：通常不需要额外处理 `optnone`。
+- **Debug / O0 验证**：建议加上 `-Xclang -disable-O0-optnone`，否则 pass 观测可能不稳定。
+
+示例（xcconfig）：
+
+```xcconfig
+OTHER_CFLAGS[config=Debug] = $(inherited) -O0 -Xclang -disable-O0-optnone
+OTHER_CPLUSPLUSFLAGS[config=Debug] = $(inherited) -O0 -Xclang -disable-O0-optnone
+OTHER_CFLAGS[config=Release] = $(inherited) -O1
+OTHER_CPLUSPLUSFLAGS[config=Release] = $(inherited) -O1
+```
+
 ### 方式 B：通过 xcconfig 统一注入
 
 新建 `ObfToolchain.xcconfig`：
