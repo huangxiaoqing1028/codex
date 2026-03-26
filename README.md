@@ -14,3 +14,6 @@
 
 `./scripts/bootstrap_my_clang.sh` 执行后会自动生成 `/tmp/demo.c`，可直接运行：
 `./toolchain/my-clang -O0 -S -emit-llvm /tmp/demo.c -o /tmp/demo.ll`。
+
+一键验证（自动对比“带 pass / 不带 pass”并输出 PASS/FAIL）：
+`./scripts/verify_pass.sh`。

@@ -32,6 +32,18 @@
 
 查看 `/tmp/demo.ll`，应能观察到 `add/sub` 被替换成等价但不同形态的 IR 运算（由 `simple-obf` pass 处理）。
 
+### 一键验证脚本（推荐）
+
+```bash
+./scripts/verify_pass.sh
+```
+
+该脚本会自动：
+
+1. 用同一 LLVM 的原生 clang 生成“不带 pass”的 IR
+2. 用 `my-clang` 生成“带 pass”的 IR
+3. 对比 IR 中 `obf.add2sub / obf.sub2add / obf.negrhs` 标记并输出 `PASS/FAIL`
+
 ## 2.1) 直接可用的 Xcode 示例工程
 
 仓库已提供可直接打开的示例：`example/ObfDemo/ObfDemo.xcodeproj`。  
