@@ -41,7 +41,7 @@
 				A00100000000000000000001 /* main.c */,
 				A00100000000000000000003 /* ObfToolchain.xcconfig */,
 			);
-			path = ObfDemo;
+			name = ObfDemo;
 			sourceTree = "<group>";
 		};
 		A00100020000000000000003 /* Products */ = {
