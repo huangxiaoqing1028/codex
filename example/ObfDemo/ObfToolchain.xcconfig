@@ -1,0 +1,4 @@
+CC = $(SRCROOT)/../../toolchain/my-clang
+CXX = $(SRCROOT)/../../toolchain/my-clang++
+OTHER_CFLAGS = $(inherited) -O0
+OTHER_CPLUSPLUSFLAGS = $(inherited) -O0

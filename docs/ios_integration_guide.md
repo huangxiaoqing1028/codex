@@ -36,6 +36,20 @@ C
 
 查看 `/tmp/demo.ll`，应能观察到 `add/sub` 被替换成等价但不同形态的 IR 运算（由 `simple-obf` pass 处理）。
 
+## 2.1) 直接可用的 Xcode 示例工程
+
+仓库已提供可直接打开的示例：`example/ObfDemo/ObfDemo.xcodeproj`。  
+它通过 `example/ObfDemo/ObfToolchain.xcconfig` 预置了：
+
+- `CC = $(SRCROOT)/../../toolchain/my-clang`
+- `CXX = $(SRCROOT)/../../toolchain/my-clang++`
+
+一键命令行构建：
+
+```bash
+./scripts/build_obfdemo_xcode.sh
+```
+
 ## 3) iOS 工程接入（Xcode 15）
 
 > 推荐先在 Debug 做小范围验证，再扩展到 Release。
