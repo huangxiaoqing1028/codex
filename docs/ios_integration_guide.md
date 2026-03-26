@@ -162,3 +162,6 @@ rm -rf build/obf-pass
 rm -rf build/obf-pass
 ./scripts/bootstrap_my_clang.sh
 ```
+
+如果仍然崩溃，常见原因是 **插件与 clang 不是同一套 LLVM**（例如：插件用 Homebrew LLVM 14 构建，但编译时用了 Apple clang）。  
+当前封装器会优先读取 `build/obf-pass/llvm-bindir.txt` 并调用同目录下的 `clang/clang++`，确保 ABI 一致。

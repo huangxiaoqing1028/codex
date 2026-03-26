@@ -33,8 +33,10 @@ if [[ -z "${LLVM_CONFIG_BIN}" ]]; then
 fi
 
 LLVM_VERSION="$("${LLVM_CONFIG_BIN}" --version)"
+LLVM_BINDIR="$("${LLVM_CONFIG_BIN}" --bindir)"
 echo "[bootstrap] using LLVM ${LLVM_VERSION}"
 echo "[bootstrap] llvm-config: ${LLVM_CONFIG_BIN}"
+echo "[bootstrap] llvm bindir: ${LLVM_BINDIR}"
 
 if [[ "${LLVM_VERSION%%.*}" -lt 14 ]]; then
   echo "[bootstrap] error: LLVM ${LLVM_VERSION} is too old. Please use llvm@14+." >&2
@@ -85,6 +87,10 @@ else
 fi
 
 cmake --build "${PASS_BUILD_DIR}" -j"${JOBS}"
+
+cat > "${PASS_BUILD_DIR}/llvm-bindir.txt" <<EOF
+${LLVM_BINDIR}
+EOF
 
 echo "[bootstrap] done"
 echo "[bootstrap] wrapper clang: ${ROOT_DIR}/toolchain/my-clang"

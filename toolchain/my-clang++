@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PLUGIN_PATH="${ROOT_DIR}/build/obf-pass/SimpleObfPass.dylib"
+BINDIR_FILE="${ROOT_DIR}/build/obf-pass/llvm-bindir.txt"
 
 if [[ ! -f "${PLUGIN_PATH}" ]]; then
   echo "[my-clang++] missing plugin: ${PLUGIN_PATH}" >&2
@@ -11,4 +12,12 @@ if [[ ! -f "${PLUGIN_PATH}" ]]; then
   exit 1
 fi
 
-exec clang++ -fpass-plugin="${PLUGIN_PATH}" "$@"
+CLANGXX_BIN="clang++"
+if [[ -f "${BINDIR_FILE}" ]]; then
+  LLVM_BINDIR="$(cat "${BINDIR_FILE}")"
+  if [[ -x "${LLVM_BINDIR}/clang++" ]]; then
+    CLANGXX_BIN="${LLVM_BINDIR}/clang++"
+  fi
+fi
+
+exec "${CLANGXX_BIN}" -fpass-plugin="${PLUGIN_PATH}" "$@"
