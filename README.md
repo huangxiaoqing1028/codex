@@ -1,6 +1,6 @@
 # my-clang + 混淆 Pass（Xcode 15 可接入）
 
-> 支持 LLVM 14 / 15（推荐 14+）。
+> 支持 LLVM 14 / 15（iOS App 示例推荐 LLVM 15+）。
 
 快速开始：
 

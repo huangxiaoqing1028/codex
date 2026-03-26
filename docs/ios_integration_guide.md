@@ -234,3 +234,17 @@ PRODUCT_NAME = $(TARGET_NAME)
 rm -rf ~/Library/Developer/Xcode/DerivedData/ObfDemo-*
 ./scripts/bootstrap_my_clang.sh
 ```
+
+### Q11: `math.h: ... _Float16 is not supported on this target`
+这通常是 **LLVM 14 + 新版 iPhoneSimulator SDK + x86_64** 组合导致的前端能力不足。
+建议：
+
+1. 升级并优先使用 `llvm@15+`
+2. 重新 bootstrap（脚本会优先探测 llvm@15）
+3. 清理 DerivedData 后重编
+
+```bash
+brew install llvm@15
+rm -rf ~/Library/Developer/Xcode/DerivedData/ObfDemo-*
+./scripts/bootstrap_my_clang.sh
+```

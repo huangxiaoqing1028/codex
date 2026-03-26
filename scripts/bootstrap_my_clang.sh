@@ -14,16 +14,16 @@ fi
 
 LLVM_CONFIG_BIN="${LLVM_CONFIG:-}"
 if [[ -z "${LLVM_CONFIG_BIN}" ]]; then
-  if command -v llvm-config >/dev/null 2>&1; then
+  if [[ -x "/opt/homebrew/opt/llvm@15/bin/llvm-config" ]]; then
+    LLVM_CONFIG_BIN="/opt/homebrew/opt/llvm@15/bin/llvm-config"
+  elif [[ -x "/usr/local/opt/llvm@15/bin/llvm-config" ]]; then
+    LLVM_CONFIG_BIN="/usr/local/opt/llvm@15/bin/llvm-config"
+  elif command -v llvm-config >/dev/null 2>&1; then
     LLVM_CONFIG_BIN="$(command -v llvm-config)"
   elif [[ -x "/opt/homebrew/opt/llvm@14/bin/llvm-config" ]]; then
     LLVM_CONFIG_BIN="/opt/homebrew/opt/llvm@14/bin/llvm-config"
-  elif [[ -x "/opt/homebrew/opt/llvm@15/bin/llvm-config" ]]; then
-    LLVM_CONFIG_BIN="/opt/homebrew/opt/llvm@15/bin/llvm-config"
   elif [[ -x "/usr/local/opt/llvm@14/bin/llvm-config" ]]; then
     LLVM_CONFIG_BIN="/usr/local/opt/llvm@14/bin/llvm-config"
-  elif [[ -x "/usr/local/opt/llvm@15/bin/llvm-config" ]]; then
-    LLVM_CONFIG_BIN="/usr/local/opt/llvm@15/bin/llvm-config"
   fi
 fi
 
@@ -41,6 +41,11 @@ echo "[bootstrap] llvm bindir: ${LLVM_BINDIR}"
 if [[ "${LLVM_VERSION%%.*}" -lt 14 ]]; then
   echo "[bootstrap] error: LLVM ${LLVM_VERSION} is too old. Please use llvm@14+." >&2
   exit 1
+fi
+
+if [[ "${LLVM_VERSION%%.*}" -lt 15 ]]; then
+  echo "[bootstrap] warning: LLVM ${LLVM_VERSION} may fail on latest iOS SDK (e.g. _Float16)." >&2
+  echo "[bootstrap] warning: prefer llvm@15+ for iOS App demo builds." >&2
 fi
 
 cmake_args=(
