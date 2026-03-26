@@ -189,3 +189,10 @@ MY_CLANG_VERBOSE=1 ./toolchain/my-clang -c /tmp/demo.c -o /tmp/demo.o
 - 最终执行的 clang 完整命令（含 `-fpass-plugin=...`）
 
 > `MY_CLANG_VERBOSE` 只要是非空且不为 `0` 都会开启；即使 plugin 缺失也会先打印 plugin 目标路径，便于排查。
+
+如果在 Xcode 里也想看到同样输出，推荐临时把编译器切到 verbose wrapper：
+
+- `CC = /绝对路径/到/仓库/toolchain/my-clang-verbose`
+- `CXX = /绝对路径/到/仓库/toolchain/my-clang++-verbose`
+
+因为你在终端前缀写的 `MY_CLANG_VERBOSE=1 ...` 只作用于那条终端命令，不会自动传给 Xcode 编译进程。

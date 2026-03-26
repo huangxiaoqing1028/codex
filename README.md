@@ -17,3 +17,7 @@
 
 一键验证（自动对比“带 pass / 不带 pass”并输出 PASS/FAIL）：
 `./scripts/verify_pass.sh`。
+
+调试日志版本编译器（用于在 Xcode 构建日志里观察最终 `-fpass-plugin` 命令）：
+- `toolchain/my-clang-verbose`
+- `toolchain/my-clang++-verbose`
