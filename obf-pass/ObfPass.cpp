@@ -36,6 +36,17 @@ public:
     for (GlobalVariable &GV : M.globals()) {
       if (!GV.hasInitializer())
         continue;
+      if (!GV.isConstant())
+        continue;
+      if (!GV.hasPrivateLinkage())
+        continue;
+      if (GV.getSection().size() > 0)
+        continue;
+      if (!GV.hasGlobalUnnamedAddr())
+        continue;
+      // Keep ObjC/runtime metadata untouched; only obfuscate plain C literals.
+      if (!GV.getName().starts_with(".str"))
+        continue;
       if (!GV.getValueType()->isArrayTy())
         continue;
 

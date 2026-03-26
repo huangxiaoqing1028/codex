@@ -59,6 +59,9 @@ rm -rf build/obf-pass
 ./scripts/bootstrap_my_clang.sh
 ```
 
+### Q17: ObjC 工程出现 `C-string symbol ... located within another string` / `Segmentation fault: 11`
+这是因为过度处理了 ObjC 运行时元数据字符串。当前版本已收敛字符串加密范围，仅处理**私有 C 字面量字符串**（典型 `.str*` 符号），并跳过 ObjC/runtime 元数据符号。
+
 ## 2.1) 直接可用的 Xcode 示例工程
 
 仓库已提供可直接打开的 **iOS App 示例**：`example/ObfDemo/ObfDemo.xcodeproj`。
