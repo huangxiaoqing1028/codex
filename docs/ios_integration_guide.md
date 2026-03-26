@@ -223,8 +223,7 @@ PRODUCT_NAME = $(TARGET_NAME)
 示例工程已修复该设置。
 
 ### Q10: `Could not build module '_DarwinFoundation1'` / `too many errors emitted`
-这是旧 LLVM clang 与新 iOS SDK 模块体系不兼容的常见症状。
-示例工程已默认关闭模块并附加 `-fno-modules`（Debug/Release）以提高兼容性。
+这是旧 LLVM clang 与新 iOS SDK 兼容性不足的常见症状（尤其 LLVM 14）。
 
 若仍出现该错误，建议：
 
@@ -249,3 +248,13 @@ brew install llvm@15
 rm -rf ~/Library/Developer/Xcode/DerivedData/ObfDemo-*
 ./scripts/bootstrap_my_clang.sh
 ```
+
+### Q12: `UIKitDefines.h: 'UIUtilities/UIDefines.h' file not found`
+这通常是 iOS 工程把模块体系关掉（`CLANG_ENABLE_MODULES=NO` 或 `-fno-modules`）导致 UIKit 子模块头无法解析。
+请确保：
+
+```text
+CLANG_ENABLE_MODULES = YES
+```
+
+并移除 `-fno-modules` 后再重编。
