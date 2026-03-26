@@ -220,3 +220,17 @@ PRODUCT_NAME = $(TARGET_NAME)
 ```
 
 示例工程已修复该设置。
+
+### Q10: `Could not build module '_DarwinFoundation1'` / `too many errors emitted`
+这是旧 LLVM clang 与新 iOS SDK 模块体系不兼容的常见症状。
+示例工程已默认关闭模块并附加 `-fno-modules`（Debug/Release）以提高兼容性。
+
+若仍出现该错误，建议：
+
+1. 升级到更新 LLVM（优先 15+，更推荐最新稳定版）
+2. 清理缓存后重编：
+
+```bash
+rm -rf ~/Library/Developer/Xcode/DerivedData/ObfDemo-*
+./scripts/bootstrap_my_clang.sh
+```

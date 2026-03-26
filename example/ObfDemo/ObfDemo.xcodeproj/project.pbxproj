@@ -150,7 +150,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = A00100000000000000000004 /* ObfToolchain.xcconfig */;
 				buildSettings = {
-					CLANG_ENABLE_MODULES = YES;
+						CLANG_ENABLE_MODULES = NO;
 					CODE_SIGNING_ALLOWED = NO;
 					GCC_OPTIMIZATION_LEVEL = 0;
 					INFOPLIST_FILE = Info.plist;
@@ -166,7 +166,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = A00100000000000000000004 /* ObfToolchain.xcconfig */;
 				buildSettings = {
-					CLANG_ENABLE_MODULES = YES;
+						CLANG_ENABLE_MODULES = NO;
 					CODE_SIGNING_ALLOWED = NO;
 					GCC_OPTIMIZATION_LEVEL = s;
 					INFOPLIST_FILE = Info.plist;

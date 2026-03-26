@@ -11,7 +11,7 @@
 2. 打开 `example/ObfDemo/ObfDemo.xcodeproj`。
 3. 选择 iOS 模拟器（如 iPhone 15），Build/Run `ObfDemo`。
 
-> 工程已预置验证参数：Release 使用 `-O1`；Debug 保持 `-O0` 同时附带 `-Xclang -disable-O0-optnone`，便于在 Debug 导 IR 时观察到 pass 变换。
+> 工程已预置验证参数：Release 使用 `-O1`；Debug 保持 `-O0` 同时附带 `-Xclang -disable-O0-optnone`；并统一附加 `-fno-modules` 以规避旧 LLVM clang 与新 iOS SDK 的模块兼容问题。
 
 ## 命令行构建（macOS）
 
