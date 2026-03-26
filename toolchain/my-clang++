@@ -11,4 +11,4 @@ if [[ ! -f "${PLUGIN_PATH}" ]]; then
   exit 1
 fi
 
-exec clang++ -Xclang -load -Xclang "${PLUGIN_PATH}" -mllvm -passes=simple-obf "$@"
+exec clang++ -fpass-plugin="${PLUGIN_PATH}" -mllvm -passes=simple-obf "$@"

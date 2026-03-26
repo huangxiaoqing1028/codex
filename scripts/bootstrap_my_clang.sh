@@ -12,22 +12,39 @@ if ! command -v cmake >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v llvm-config >/dev/null 2>&1; then
-  echo "[bootstrap] llvm-config not found. Install: brew install llvm@15" >&2
+LLVM_CONFIG_BIN="${LLVM_CONFIG:-}"
+if [[ -z "${LLVM_CONFIG_BIN}" ]]; then
+  if command -v llvm-config >/dev/null 2>&1; then
+    LLVM_CONFIG_BIN="$(command -v llvm-config)"
+  elif [[ -x "/opt/homebrew/opt/llvm@14/bin/llvm-config" ]]; then
+    LLVM_CONFIG_BIN="/opt/homebrew/opt/llvm@14/bin/llvm-config"
+  elif [[ -x "/opt/homebrew/opt/llvm@15/bin/llvm-config" ]]; then
+    LLVM_CONFIG_BIN="/opt/homebrew/opt/llvm@15/bin/llvm-config"
+  elif [[ -x "/usr/local/opt/llvm@14/bin/llvm-config" ]]; then
+    LLVM_CONFIG_BIN="/usr/local/opt/llvm@14/bin/llvm-config"
+  elif [[ -x "/usr/local/opt/llvm@15/bin/llvm-config" ]]; then
+    LLVM_CONFIG_BIN="/usr/local/opt/llvm@15/bin/llvm-config"
+  fi
+fi
+
+if [[ -z "${LLVM_CONFIG_BIN}" ]]; then
+  echo "[bootstrap] llvm-config not found. Install: brew install llvm@14 (or llvm@15)" >&2
   exit 1
 fi
 
-LLVM_VERSION="$(llvm-config --version)"
+LLVM_VERSION="$("${LLVM_CONFIG_BIN}" --version)"
 echo "[bootstrap] using LLVM ${LLVM_VERSION}"
+echo "[bootstrap] llvm-config: ${LLVM_CONFIG_BIN}"
 
-if [[ "${LLVM_VERSION%%.*}" -lt 15 ]]; then
-  echo "[bootstrap] warning: LLVM ${LLVM_VERSION} detected; Xcode 15 建议使用 llvm@15 或更高版本" >&2
+if [[ "${LLVM_VERSION%%.*}" -lt 14 ]]; then
+  echo "[bootstrap] error: LLVM ${LLVM_VERSION} is too old. Please use llvm@14+." >&2
+  exit 1
 fi
 
 cmake_args=(
   -S "${ROOT_DIR}/obf-pass"
   -B "${PASS_BUILD_DIR}"
-  -DLLVM_DIR="$(llvm-config --cmakedir)"
+  -DLLVM_DIR="$("${LLVM_CONFIG_BIN}" --cmakedir)"
 )
 
 if [[ "$(uname -s)" == "Darwin" ]]; then

@@ -7,7 +7,7 @@
 - ✅ 一键脚本（`scripts/bootstrap_my_clang.sh`）
 - ✅ iOS 工程接入方式（本文件）
 
-> 说明：仓库提供的是“可一键编译得到可用工具链”的方案。因为 clang/LLVM 二进制会受本机架构、系统版本、签名策略影响，不建议直接分发单一预编译包给所有机器。
+> 说明：仓库提供的是“可一键编译得到可用工具链”的方案。因为 clang/LLVM 二进制会受本机架构、系统版本、签名策略影响，不建议直接分发单一预编译包给所有机器。当前脚本支持 LLVM 14 / 15（>=14）。
 
 ## 1) 一键构建
 
@@ -76,6 +76,13 @@ CXX = /绝对路径/到/仓库/toolchain/my-clang++
 
 ### Q2: 提示 `llvm-config not found`
 安装并导出 PATH：
+
+```bash
+brew install llvm@14
+export PATH="/opt/homebrew/opt/llvm@14/bin:$PATH"
+```
+
+也可用 LLVM 15：
 
 ```bash
 brew install llvm@15

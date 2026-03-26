@@ -1,5 +1,7 @@
 # my-clang + 混淆 Pass（Xcode 15 可接入）
 
+> 支持 LLVM 14 / 15（推荐 14+）。
+
 快速开始：
 
 ```bash
