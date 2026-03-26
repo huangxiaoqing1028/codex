@@ -27,6 +27,8 @@
 - 直接调用间接化（call indirection）。
 - 完整模块级字符串加密（全局字符串 XOR 编码 + 全局构造器运行时解码）。
 
+> iOS/simulator 目标默认使用 conservative 模式（优先稳定性），会保留字符串加密与安全算术替换，并跳过高风险 CFG 激进变换。
+
 调试日志版本编译器（用于在 Xcode 构建日志里观察最终 `-fpass-plugin` 命令）：
 - `toolchain/my-clang-verbose`
 - `toolchain/my-clang++-verbose`

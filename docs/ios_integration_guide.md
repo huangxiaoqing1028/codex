@@ -47,6 +47,8 @@
 
 > 脚本内部会使用 `-Xclang -disable-O0-optnone` 生成输入 IR，并通过 `opt -passes='string-obf,function(simple-obf)'` 显式执行 pass（模块级字符串加密 + 函数级算术/控制流混淆），避免验证不稳定。
 
+> 兼容性说明：在 `apple-ios` / `ios-simulator` 目标下，`simple-obf` 默认启用 conservative 模式（保留字符串加密与安全算术替换，关闭高风险 CFG/调用间接化步骤）以避免部分 LLVM 22 组合下的前端崩溃。
+
 ## 2.1) 直接可用的 Xcode 示例工程
 
 仓库已提供可直接打开的 **iOS App 示例**：`example/ObfDemo/ObfDemo.xcodeproj`。

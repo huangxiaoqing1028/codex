@@ -11,13 +11,21 @@
 #else
 #include "llvm/Passes/PassPlugin.h"
 #endif
-#include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 
 using namespace llvm;
 
 namespace {
+static uint64_t fnv1a64(StringRef S) {
+  uint64_t H = 1469598103934665603ULL;
+  for (char C : S) {
+    H ^= static_cast<unsigned char>(C);
+    H *= 1099511628211ULL;
+  }
+  return H;
+}
+
 class StringEncryptionPass : public PassInfoMixin<StringEncryptionPass> {
 public:
   PreservedAnalyses run(Module &M, ModuleAnalysisManager &) {
@@ -40,7 +48,7 @@ public:
       if (Raw.empty())
         continue;
 
-      uint8_t Key = static_cast<uint8_t>((hash_value(GV.getName()) & 0xFFU) | 1U);
+      uint8_t Key = static_cast<uint8_t>((fnv1a64(GV.getName()) & 0xFFU) | 1U);
       SmallVector<uint8_t, 128> Encoded;
       Encoded.reserve(Raw.size());
       for (char C : Raw)
@@ -214,6 +222,10 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
 public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
     bool Changed = false;
+    const std::string Triple = F.getParent()->getTargetTriple();
+    const bool ConservativeMode =
+        Triple.find("apple-ios") != std::string::npos ||
+        Triple.find("ios-simulator") != std::string::npos;
     SmallVector<BinaryOperator *, 32> Worklist;
 
     for (BasicBlock &BB : F) {
@@ -242,39 +254,61 @@ public:
       Value *LHS = BinOp->getOperand(0);
       Value *RHS = BinOp->getOperand(1);
 
-      uint64_t Seed = hash_value(F.getName()) ^ hash_value(BinOp->getOpcode()) ^
-                      hash_value(BinOp->getDebugLoc().getLine());
-
-      if (auto *CI = dyn_cast<ConstantInt>(RHS)) {
-        RHS = createObfuscatedConst(Builder, CI->getValue(), Seed);
-      }
-
       Value *NewValue = nullptr;
       if (BinOp->getOpcode() == Instruction::Add) {
-        if ((Seed & 1) == 0) {
+        if (ConservativeMode) {
           Value *NegRHS = Builder.CreateNeg(RHS, "obf.negrhs");
           NewValue = Builder.CreateSub(LHS, NegRHS, "obf.add2sub");
         } else {
-          NewValue = createMBAAdd(Builder, LHS, RHS);
+          uint64_t Seed = fnv1a64(F.getName()) ^
+                          static_cast<uint64_t>(BinOp->getOpcode()) ^
+                          static_cast<uint64_t>(BinOp->getDebugLoc().getLine());
+          if (auto *CI = dyn_cast<ConstantInt>(RHS))
+            RHS = createObfuscatedConst(Builder, CI->getValue(), Seed);
+          if ((Seed & 1) == 0) {
+            Value *NegRHS = Builder.CreateNeg(RHS, "obf.negrhs");
+            NewValue = Builder.CreateSub(LHS, NegRHS, "obf.add2sub");
+          } else {
+            NewValue = createMBAAdd(Builder, LHS, RHS);
+          }
         }
       } else if (BinOp->getOpcode() == Instruction::Sub) {
-        if ((Seed & 1) == 0) {
+        if (ConservativeMode) {
           Value *NegRHS = Builder.CreateNeg(RHS, "obf.negrhs");
           NewValue = Builder.CreateAdd(LHS, NegRHS, "obf.sub2add");
         } else {
-          Value *NegRHS = Builder.CreateNeg(RHS, "obf.negrhs");
-          NewValue = createMBAAdd(Builder, LHS, NegRHS);
+          uint64_t Seed = fnv1a64(F.getName()) ^
+                          static_cast<uint64_t>(BinOp->getOpcode()) ^
+                          static_cast<uint64_t>(BinOp->getDebugLoc().getLine());
+          if (auto *CI = dyn_cast<ConstantInt>(RHS))
+            RHS = createObfuscatedConst(Builder, CI->getValue(), Seed);
+          if ((Seed & 1) == 0) {
+            Value *NegRHS = Builder.CreateNeg(RHS, "obf.negrhs");
+            NewValue = Builder.CreateAdd(LHS, NegRHS, "obf.sub2add");
+          } else {
+            Value *NegRHS = Builder.CreateNeg(RHS, "obf.negrhs");
+            NewValue = createMBAAdd(Builder, LHS, NegRHS);
+          }
         }
       } else if (BinOp->getOpcode() == Instruction::Xor) {
-        if ((Seed & 1) == 0) {
+        if (ConservativeMode) {
           NewValue = createMBAXor(Builder, LHS, RHS);
         } else {
-          Value *And = Builder.CreateAnd(LHS, RHS, "obf.xor.and");
-          Value *TwoAnd = Builder.CreateShl(
-              And, ConstantInt::get(cast<IntegerType>(LHS->getType()), 1),
-              "obf.xor.twiceand");
-          Value *Add = Builder.CreateAdd(LHS, RHS, "obf.xor.add");
-          NewValue = Builder.CreateSub(Add, TwoAnd, "obf.xor.alt");
+          uint64_t Seed = fnv1a64(F.getName()) ^
+                          static_cast<uint64_t>(BinOp->getOpcode()) ^
+                          static_cast<uint64_t>(BinOp->getDebugLoc().getLine());
+          if (auto *CI = dyn_cast<ConstantInt>(RHS))
+            RHS = createObfuscatedConst(Builder, CI->getValue(), Seed);
+          if ((Seed & 1) == 0) {
+            NewValue = createMBAXor(Builder, LHS, RHS);
+          } else {
+            Value *And = Builder.CreateAnd(LHS, RHS, "obf.xor.and");
+            Value *TwoAnd = Builder.CreateShl(
+                And, ConstantInt::get(cast<IntegerType>(LHS->getType()), 1),
+                "obf.xor.twiceand");
+            Value *Add = Builder.CreateAdd(LHS, RHS, "obf.xor.add");
+            NewValue = Builder.CreateSub(Add, TwoAnd, "obf.xor.alt");
+          }
         }
       }
 
@@ -286,9 +320,11 @@ public:
     }
 
     // Additional control/data obfuscation layers.
-    Changed |= indirectifyDirectCalls(F);
-    Changed |= splitBasicBlocks(F);
-    Changed |= perturbBranches(F);
+    if (!ConservativeMode) {
+      Changed |= indirectifyDirectCalls(F);
+      Changed |= splitBasicBlocks(F);
+      Changed |= perturbBranches(F);
+    }
 
     return Changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
   }
