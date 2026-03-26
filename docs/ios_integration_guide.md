@@ -48,7 +48,7 @@
 
 ## 2.1) 直接可用的 Xcode 示例工程
 
-仓库已提供可直接打开的示例：`example/ObfDemo/ObfDemo.xcodeproj`。  
+仓库已提供可直接打开的 **iOS App 示例**：`example/ObfDemo/ObfDemo.xcodeproj`。
 它通过 `example/ObfDemo/ObfToolchain.xcconfig` 预置了：
 
 - `CC = $(SRCROOT)/../../toolchain/my-clang`
@@ -160,7 +160,7 @@ rm -rf build/obf-pass
 ./scripts/bootstrap_my_clang.sh
 ```
 
-### Q6: Xcode 报 `main.c Command CompileC failed with a nonzero exit code`
+### Q6: Xcode 报 `Command CompileC failed with a nonzero exit code`
 若你使用的是旧版封装器，可能把 `-mllvm -passes=simple-obf` 直接透传给 clang，导致编译期参数不兼容。当前版本已修复为仅使用：
 
 ```bash

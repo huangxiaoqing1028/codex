@@ -13,4 +13,6 @@ xcodebuild \
   -project "${PROJECT}" \
   -scheme ObfDemo \
   -configuration Debug \
-  -sdk macosx build
+  -sdk iphonesimulator \
+  -destination 'platform=iOS Simulator,name=iPhone 15' \
+  build
