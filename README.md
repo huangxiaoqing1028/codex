@@ -22,6 +22,9 @@
 当前 `simple-obf` 已包含更复杂的混淆策略（不仅 add/sub）：
 - `add/sub/xor` 多形态 MBA 变换；
 - 常量掩码拆分（`C == (C ^ K) ^ K`）。
+- 基本块切分（basic block splitting）；
+- 伪控制流与条件分支扰动（opaque predicate）；
+- 直接调用间接化（call indirection）。
 
 调试日志版本编译器（用于在 Xcode 构建日志里观察最终 `-fpass-plugin` 命令）：
 - `toolchain/my-clang-verbose`

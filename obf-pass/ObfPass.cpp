@@ -1,5 +1,6 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Passes/PassBuilder.h"
@@ -15,6 +16,13 @@ using namespace llvm;
 
 namespace {
 class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
+  static Value *createOpaqueTrue(IRBuilder<> &Builder, Value *Cond) {
+    // cond == (((zext(cond) ^ 1) == 0))
+    Value *AsInt = Builder.CreateZExt(Cond, Builder.getInt8Ty(), "obf.cond.zext");
+    Value *Flip = Builder.CreateXor(AsInt, Builder.getInt8(1), "obf.cond.flip");
+    return Builder.CreateICmpEQ(Flip, Builder.getInt8(0), "obf.cond.opaque");
+  }
+
   static Value *createMBAAdd(IRBuilder<> &Builder, Value *A, Value *B) {
     // A + B == (A ^ B) + ((A & B) << 1)
     Value *Xor = Builder.CreateXor(A, B, "obf.mba.xor");
@@ -42,6 +50,95 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
     Constant *Masked = ConstantInt::get(Builder.getContext(), C ^ K);
     Value *Tmp = Builder.CreateXor(Masked, CK, "obf.const.masked");
     return Builder.CreateXor(Tmp, CK, "obf.const");
+  }
+
+  static bool indirectifyDirectCalls(Function &F) {
+    bool Changed = false;
+    SmallVector<CallInst *, 16> Calls;
+    for (BasicBlock &BB : F) {
+      for (Instruction &I : BB) {
+        auto *CI = dyn_cast<CallInst>(&I);
+        if (!CI)
+          continue;
+        if (CI->isInlineAsm())
+          continue;
+        Function *Callee = CI->getCalledFunction();
+        if (!Callee || Callee->isIntrinsic())
+          continue;
+        Calls.push_back(CI);
+      }
+    }
+
+    for (CallInst *CI : Calls) {
+      IRBuilder<> Builder(CI);
+      Value *Callee = CI->getCalledOperand();
+      AllocaInst *Slot = new AllocaInst(Callee->getType(), 0, "obf.callee.slot",
+                                        &*F.getEntryBlock().getFirstInsertionPt());
+      Builder.CreateStore(Callee, Slot);
+      Value *Loaded = Builder.CreateLoad(Callee->getType(), Slot, "obf.callee");
+      CI->setCalledOperand(Loaded);
+      Changed = true;
+    }
+    return Changed;
+  }
+
+  static bool splitBasicBlocks(Function &F) {
+    bool Changed = false;
+    SmallVector<BasicBlock *, 16> ToSplit;
+    for (BasicBlock &BB : F) {
+      if (BB.getTerminator()->getNumSuccessors() == 0)
+        continue;
+      if (BB.size() < 6)
+        continue;
+      ToSplit.push_back(&BB);
+    }
+
+    for (BasicBlock *BB : ToSplit) {
+      auto It = BB->getFirstInsertionPt();
+      if (It == BB->end())
+        continue;
+      Instruction *SplitPt = &*It;
+      for (int i = 0; i < 2 && SplitPt; ++i)
+        SplitPt = SplitPt->getNextNode();
+      if (!SplitPt || SplitPt == BB->getTerminator())
+        continue;
+      BB->splitBasicBlock(SplitPt, "obf.split");
+      Changed = true;
+    }
+    return Changed;
+  }
+
+  static bool perturbBranches(Function &F) {
+    bool Changed = false;
+    SmallVector<BranchInst *, 16> Branches;
+    for (BasicBlock &BB : F) {
+      if (auto *BI = dyn_cast<BranchInst>(BB.getTerminator()))
+        Branches.push_back(BI);
+    }
+
+    for (BranchInst *BI : Branches) {
+      IRBuilder<> Builder(BI);
+      if (BI->isConditional()) {
+        Value *Cond = BI->getCondition();
+        Value *ObfCond = createOpaqueTrue(Builder, Cond);
+        BI->setCondition(ObfCond);
+        Changed = true;
+        continue;
+      }
+
+      BasicBlock *Src = BI->getParent();
+      BasicBlock *Target = BI->getSuccessor(0);
+      Function *Fn = Src->getParent();
+      BasicBlock *Bogus = BasicBlock::Create(Fn->getContext(), "obf.bogus", Fn, Target);
+      IRBuilder<> BogusBuilder(Bogus);
+      BogusBuilder.CreateUnreachable();
+
+      Value *Opaque = createOpaqueTrue(Builder, Builder.getTrue());
+      BranchInst::Create(Target, Bogus, Opaque, BI);
+      BI->eraseFromParent();
+      Changed = true;
+    }
+    return Changed;
   }
 
 public:
@@ -117,6 +214,11 @@ public:
         Changed = true;
       }
     }
+
+    // Additional control/data obfuscation layers.
+    Changed |= indirectifyDirectCalls(F);
+    Changed |= splitBasicBlocks(F);
+    Changed |= perturbBranches(F);
 
     return Changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
   }

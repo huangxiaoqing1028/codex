@@ -31,7 +31,7 @@
 ./scripts/export_ir_ios.sh /tmp/demo.c /tmp/demo_ios.ll
 ```
 
-查看 `/tmp/demo_ios.ll`，应能观察到 `add/sub/xor` 被替换成等价但不同形态的 IR 运算（由 `simple-obf` pass 处理）。
+查看 `/tmp/demo_ios.ll`，应能观察到 `add/sub/xor` 被替换成等价但不同形态的 IR 运算（由 `simple-obf` pass 处理），并在控制流上出现 `obf.split` / `obf.bogus` 等结构。
 
 ### 一键验证脚本（推荐）
 
