@@ -49,6 +49,16 @@
 
 > 兼容性说明：在 `apple-ios` / `ios-simulator` 目标下，`simple-obf` 默认启用 conservative 模式（保留字符串加密与安全算术替换，关闭高风险 CFG/调用间接化步骤）以避免部分 LLVM 22 组合下的前端崩溃。
 
+### Q16: 这次崩溃是不是 clang 与 pass 插件 ABI 不匹配？
+有这个可能。当前 wrapper 已增加主版本校验：会读取 `build/obf-pass/llvm-version.txt`，并与实际执行的 `clang --version` 主版本比对；不一致时直接报错退出，避免继续注入插件导致 crash。
+
+建议修复步骤：
+
+```bash
+rm -rf build/obf-pass
+./scripts/bootstrap_my_clang.sh
+```
+
 ## 2.1) 直接可用的 Xcode 示例工程
 
 仓库已提供可直接打开的 **iOS App 示例**：`example/ObfDemo/ObfDemo.xcodeproj`。

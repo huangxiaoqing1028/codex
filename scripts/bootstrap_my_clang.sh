@@ -104,6 +104,10 @@ cat > "${PASS_BUILD_DIR}/llvm-bindir.txt" <<EOF
 ${LLVM_BINDIR}
 EOF
 
+cat > "${PASS_BUILD_DIR}/llvm-version.txt" <<EOF
+${LLVM_VERSION}
+EOF
+
 cp "${ROOT_DIR}/demo/demo.c" /tmp/demo.c
 echo "[bootstrap] demo source: /tmp/demo.c"
 

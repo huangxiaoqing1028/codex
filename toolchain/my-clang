@@ -6,6 +6,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PLUGIN_PATH_DYLIB="${ROOT_DIR}/build/obf-pass/SimpleObfPass.dylib"
 PLUGIN_PATH_SO="${ROOT_DIR}/build/obf-pass/SimpleObfPass.so"
 BINDIR_FILE="${ROOT_DIR}/build/obf-pass/llvm-bindir.txt"
+VERSION_FILE="${ROOT_DIR}/build/obf-pass/llvm-version.txt"
 VERBOSE_FLAG="${MY_CLANG_VERBOSE:-}"
 IS_VERBOSE=0
 if [[ -n "${VERBOSE_FLAG}" && "${VERBOSE_FLAG}" != "0" ]]; then
@@ -40,6 +41,17 @@ fi
 if [[ "${MY_CLANG_DISABLE_PLUGIN:-0}" == "1" ]]; then
   CMD=("${CLANG_BIN}" "$@")
 else
+  if [[ -f "${VERSION_FILE}" ]]; then
+    BUILT_LLVM_VERSION="$(cat "${VERSION_FILE}")"
+    BUILT_LLVM_MAJOR="${BUILT_LLVM_VERSION%%.*}"
+    CLANG_VERSION_LINE="$("${CLANG_BIN}" --version 2>/dev/null | head -n1 || true)"
+    CLANG_MAJOR="$(sed -E 's/.*version ([0-9]+).*/\1/' <<<"${CLANG_VERSION_LINE}")"
+    if [[ -n "${BUILT_LLVM_MAJOR}" && -n "${CLANG_MAJOR}" && "${BUILT_LLVM_MAJOR}" != "${CLANG_MAJOR}" ]]; then
+      echo "[my-clang] LLVM ABI mismatch: plugin built with LLVM ${BUILT_LLVM_VERSION}, but compiler is: ${CLANG_VERSION_LINE}" >&2
+      echo "[my-clang] rerun ./scripts/bootstrap_my_clang.sh or set MY_CLANG_DISABLE_PLUGIN=1 for troubleshooting" >&2
+      exit 1
+    fi
+  fi
   CMD=("${CLANG_BIN}" "-fpass-plugin=${PLUGIN_PATH}" "$@")
 fi
 if [[ "${IS_VERBOSE}" == "1" ]]; then
