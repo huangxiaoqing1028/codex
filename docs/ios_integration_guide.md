@@ -44,6 +44,8 @@
 2. 用同一 LLVM 的 `opt -load-pass-plugin` 生成“带 pass”的 IR
 3. 在 `add/sub` 函数级别对比变换前后指令形态（`add -> sub(neg)`、`sub -> add(neg)`），输出 `PASS/FAIL`
 
+> 脚本内部会使用 `-Xclang -disable-O0-optnone` 生成输入 IR，并通过 `opt -passes='function(simple-obf)'` 显式执行 pass，避免验证不稳定。
+
 ## 2.1) 直接可用的 Xcode 示例工程
 
 仓库已提供可直接打开的示例：`example/ObfDemo/ObfDemo.xcodeproj`。  

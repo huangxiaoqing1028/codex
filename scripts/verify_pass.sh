@@ -43,10 +43,10 @@ if [[ ! -f "${DEMO_SRC}" ]]; then
   cp "${ROOT_DIR}/demo/demo.c" "${DEMO_SRC}"
 fi
 
-"${PLAIN_CLANG}" -O0 -S -emit-llvm "${DEMO_SRC}" -o "${INPUT_LL}"
+"${PLAIN_CLANG}" -O0 -Xclang -disable-O0-optnone -S -emit-llvm "${DEMO_SRC}" -o "${INPUT_LL}"
 cp "${INPUT_LL}" "${PLAIN_LL}"
 
-"${OPT_BIN}" -load-pass-plugin "${PLUGIN_PATH}" -passes=simple-obf -S \
+"${OPT_BIN}" -load-pass-plugin "${PLUGIN_PATH}" -passes='function(simple-obf)' -S \
   "${INPUT_LL}" -o "${PASS_LL}"
 
 if cmp -s "${PLAIN_LL}" "${PASS_LL}"; then
