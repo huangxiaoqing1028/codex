@@ -187,3 +187,5 @@ MY_CLANG_VERBOSE=1 ./toolchain/my-clang -c /tmp/demo.c -o /tmp/demo.o
 会输出：
 - 实际使用的 plugin 路径
 - 最终执行的 clang 完整命令（含 `-fpass-plugin=...`）
+
+> `MY_CLANG_VERBOSE` 只要是非空且不为 `0` 都会开启；即使 plugin 缺失也会先打印 plugin 目标路径，便于排查。

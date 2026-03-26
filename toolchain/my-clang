@@ -5,6 +5,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PLUGIN_PATH="${ROOT_DIR}/build/obf-pass/SimpleObfPass.dylib"
 BINDIR_FILE="${ROOT_DIR}/build/obf-pass/llvm-bindir.txt"
+VERBOSE_FLAG="${MY_CLANG_VERBOSE:-}"
+IS_VERBOSE=0
+if [[ -n "${VERBOSE_FLAG}" && "${VERBOSE_FLAG}" != "0" ]]; then
+  IS_VERBOSE=1
+fi
+
+if [[ "${IS_VERBOSE}" == "1" ]]; then
+  echo "[my-clang] plugin: ${PLUGIN_PATH}" >&2
+fi
 
 if [[ ! -f "${PLUGIN_PATH}" ]]; then
   echo "[my-clang] missing plugin: ${PLUGIN_PATH}" >&2
@@ -21,8 +30,7 @@ if [[ -f "${BINDIR_FILE}" ]]; then
 fi
 
 CMD=("${CLANG_BIN}" "-fpass-plugin=${PLUGIN_PATH}" "$@")
-if [[ "${MY_CLANG_VERBOSE:-0}" == "1" ]]; then
-  echo "[my-clang] plugin: ${PLUGIN_PATH}" >&2
+if [[ "${IS_VERBOSE}" == "1" ]]; then
   echo "[my-clang] exec: ${CMD[*]}" >&2
 fi
 
