@@ -92,6 +92,9 @@ cat > "${PASS_BUILD_DIR}/llvm-bindir.txt" <<EOF
 ${LLVM_BINDIR}
 EOF
 
+cp "${ROOT_DIR}/demo/demo.c" /tmp/demo.c
+echo "[bootstrap] demo source: /tmp/demo.c"
+
 echo "[bootstrap] done"
 echo "[bootstrap] wrapper clang: ${ROOT_DIR}/toolchain/my-clang"
 echo "[bootstrap] wrapper clang++: ${ROOT_DIR}/toolchain/my-clang++"

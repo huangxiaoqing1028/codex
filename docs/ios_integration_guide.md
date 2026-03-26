@@ -22,15 +22,11 @@
 - `build/obf-pass/SimpleObfPass.dylib`
 - `toolchain/my-clang`
 - `toolchain/my-clang++`
+- `/tmp/demo.c`（已自动生成，可直接用于验证命令）
 
 ## 2) 快速验证
 
 ```bash
-cat > /tmp/demo.c <<'C'
-int add(int a, int b) { return a + b; }
-int sub(int a, int b) { return a - b; }
-C
-
 ./toolchain/my-clang -O0 -S -emit-llvm /tmp/demo.c -o /tmp/demo.ll
 ```
 
