@@ -11,7 +11,7 @@
 2. 打开 `example/ObfDemo/ObfDemo.xcodeproj`。
 3. 选择 iOS 模拟器（如 iPhone 15），Build/Run `ObfDemo`。
 
-> 工程已预置验证参数：Release 使用 `-O1`；Debug 保持 `-O0` 同时附带 `-Xclang -disable-O0-optnone`。iOS 示例建议使用 LLVM 15+。
+> 工程已预置验证参数：Release 使用 `-O1`；Debug 保持 `-O0` 同时附带 `-Xclang -disable-O0-optnone`。iOS 示例要求 LLVM 15+（`bootstrap_my_clang.sh` 在 macOS 上会对低版本直接报错）。
 
 ## 命令行构建（macOS）
 

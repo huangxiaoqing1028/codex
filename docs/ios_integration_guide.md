@@ -227,7 +227,7 @@ PRODUCT_NAME = $(TARGET_NAME)
 
 若仍出现该错误，建议：
 
-1. 升级到更新 LLVM（优先 15+，更推荐最新稳定版）
+1. 升级到更新 LLVM（15+，更推荐最新稳定版）
 2. 清理缓存后重编：
 
 ```bash
@@ -249,6 +249,8 @@ rm -rf ~/Library/Developer/Xcode/DerivedData/ObfDemo-*
 ./scripts/bootstrap_my_clang.sh
 ```
 
+> 说明：从当前版本开始，`bootstrap_my_clang.sh` 在 macOS 下检测到 LLVM < 15 会直接失败，避免继续进入已知不兼容配置。
+
 ### Q12: `UIKitDefines.h: 'UIUtilities/UIDefines.h' file not found`
 这通常是 iOS 工程把模块体系关掉（`CLANG_ENABLE_MODULES=NO` 或 `-fno-modules`）导致 UIKit 子模块头无法解析。
 请确保：
@@ -258,3 +260,12 @@ CLANG_ENABLE_MODULES = YES
 ```
 
 并移除 `-fno-modules` 后再重编。
+
+### Q13: 想先确认是否是 pass 注入导致的错误，如何快速二分？
+可以临时禁用 wrapper 的 pass 注入，仅保留同一套 clang 路径：
+
+```bash
+MY_CLANG_DISABLE_PLUGIN=1 ./scripts/build_obfdemo_xcode.sh
+```
+
+若此时可编译，再开启 pass 注入定位具体问题。

@@ -43,9 +43,13 @@ if [[ "${LLVM_VERSION%%.*}" -lt 14 ]]; then
   exit 1
 fi
 
-if [[ "${LLVM_VERSION%%.*}" -lt 15 ]]; then
-  echo "[bootstrap] warning: LLVM ${LLVM_VERSION} may fail on latest iOS SDK (e.g. _Float16)." >&2
-  echo "[bootstrap] warning: prefer llvm@15+ for iOS App demo builds." >&2
+if [[ "$(uname -s)" == "Darwin" && "${LLVM_VERSION%%.*}" -lt 15 ]]; then
+  echo "[bootstrap] error: LLVM ${LLVM_VERSION} is not supported for iOS demo builds." >&2
+  echo "[bootstrap] error: install llvm@15+ (or newer) and rerun bootstrap." >&2
+  exit 1
+elif [[ "${LLVM_VERSION%%.*}" -lt 15 ]]; then
+  echo "[bootstrap] warning: LLVM ${LLVM_VERSION} may fail on newer Apple SDK targets." >&2
+  echo "[bootstrap] warning: prefer llvm@15+ when building iOS demos." >&2
 fi
 
 cmake_args=(
