@@ -210,3 +210,13 @@ MY_CLANG_VERBOSE=1 ./toolchain/my-clang -c /tmp/demo.c -o /tmp/demo.o
 - `CXX = /绝对路径/到/仓库/toolchain/my-clang++-verbose`
 
 因为你在终端前缀写的 `MY_CLANG_VERBOSE=1 ...` 只作用于那条终端命令，不会自动传给 Xcode 编译进程。
+
+### Q9: `Multiple commands produce .../Debug-iphonesimulator/.app`
+这通常是 target 的 `PRODUCT_NAME` 为空导致产物名变成 `.app`。
+请在 target 的 Debug/Release Build Settings 里确认：
+
+```text
+PRODUCT_NAME = $(TARGET_NAME)
+```
+
+示例工程已修复该设置。

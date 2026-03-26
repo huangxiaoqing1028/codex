@@ -149,31 +149,33 @@
 		A00100070000000000000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = A00100000000000000000004 /* ObfToolchain.xcconfig */;
-			buildSettings = {
-				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGNING_ALLOWED = NO;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				INFOPLIST_FILE = Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.ObfDemo;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
+				buildSettings = {
+					CLANG_ENABLE_MODULES = YES;
+					CODE_SIGNING_ALLOWED = NO;
+					GCC_OPTIMIZATION_LEVEL = 0;
+					INFOPLIST_FILE = Info.plist;
+					IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+					PRODUCT_NAME = "$(TARGET_NAME)";
+					PRODUCT_BUNDLE_IDENTIFIER = com.example.ObfDemo;
+					SDKROOT = iphoneos;
+					TARGETED_DEVICE_FAMILY = "1,2";
+				};
 			name = Debug;
 		};
 		A00100070000000000000002 /* Release */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = A00100000000000000000004 /* ObfToolchain.xcconfig */;
-			buildSettings = {
-				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGNING_ALLOWED = NO;
-				GCC_OPTIMIZATION_LEVEL = s;
-				INFOPLIST_FILE = Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.ObfDemo;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
+				buildSettings = {
+					CLANG_ENABLE_MODULES = YES;
+					CODE_SIGNING_ALLOWED = NO;
+					GCC_OPTIMIZATION_LEVEL = s;
+					INFOPLIST_FILE = Info.plist;
+					IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+					PRODUCT_NAME = "$(TARGET_NAME)";
+					PRODUCT_BUNDLE_IDENTIFIER = com.example.ObfDemo;
+					SDKROOT = iphoneos;
+					TARGETED_DEVICE_FAMILY = "1,2";
+				};
 			name = Release;
 		};
 		A00100070000000000000003 /* Debug */ = {
