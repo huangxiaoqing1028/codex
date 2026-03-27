@@ -20,7 +20,8 @@
 `./scripts/verify_pass.sh`。
 
 当前 `simple-obf` 已包含更复杂的混淆策略（不仅 add/sub）：
-- `add/sub/xor` 多形态 MBA 变换；
+- `add/sub/xor/and/or` 多形态 MBA 变换；
+- `mul` 的 2 幂常量乘法改写（`mul -> shl`）；
 - 常量掩码拆分（`C == (C ^ K) ^ K`）。
 - 基本块切分（basic block splitting）；
 - 伪控制流与条件分支扰动（opaque predicate）；

@@ -31,7 +31,7 @@
 ./scripts/export_ir_ios.sh /tmp/demo.c /tmp/demo_ios.ll
 ```
 
-查看 `/tmp/demo_ios.ll`，应能观察到 `add/sub/xor` 被替换成等价但不同形态的 IR 运算（由 `simple-obf` pass 处理），并在控制流上出现 `obf.split` / `obf.bogus` 等结构。
+查看 `/tmp/demo_ios.ll`，应能观察到 `add/sub/xor/and/or`（以及部分 `mul`）被替换成等价但不同形态的 IR 运算（由 `simple-obf` pass 处理），并在控制流上出现 `obf.split` / `obf.bogus` 等结构。
 
 ### 一键验证脚本（推荐）
 
@@ -43,7 +43,7 @@
 
 1. 用同一 LLVM 的原生 clang 生成输入 IR（不带 pass）
 2. 用同一 LLVM 的 `opt -load-pass-plugin` 生成“带 pass”的 IR
-3. 对比函数级别变换前后指令形态（包含 `add/sub/xor` 的多形态变换）并验证字符串明文被隐藏，输出 `PASS/FAIL`
+3. 对比函数级别变换前后指令形态（包含 `add/sub/xor/and/or` 与部分 `mul` 的变换）并验证字符串明文被隐藏，输出 `PASS/FAIL`
 
 > 脚本内部会使用 `-Xclang -disable-O0-optnone` 生成输入 IR，并通过 `opt -passes='string-obf,function(simple-obf)'` 显式执行 pass（模块级字符串加密 + 函数级算术/控制流混淆），避免验证不稳定。
 

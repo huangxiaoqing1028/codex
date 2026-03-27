@@ -129,6 +129,22 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
     return Builder.CreateSub(Or, And, "obf.mba.xor");
   }
 
+  static Value *createMBAAnd(IRBuilder<> &Builder, Value *A, Value *B) {
+    // A & B == ~(~A | ~B)
+    Value *NotA = Builder.CreateNot(A, "obf.mba.not.a");
+    Value *NotB = Builder.CreateNot(B, "obf.mba.not.b");
+    Value *Or = Builder.CreateOr(NotA, NotB, "obf.mba.or");
+    return Builder.CreateNot(Or, "obf.mba.and");
+  }
+
+  static Value *createMBAOr(IRBuilder<> &Builder, Value *A, Value *B) {
+    // A | B == ~(~A & ~B)
+    Value *NotA = Builder.CreateNot(A, "obf.mba.not.a");
+    Value *NotB = Builder.CreateNot(B, "obf.mba.not.b");
+    Value *And = Builder.CreateAnd(NotA, NotB, "obf.mba.and");
+    return Builder.CreateNot(And, "obf.mba.or");
+  }
+
   static Value *createObfuscatedConst(IRBuilder<> &Builder, APInt C,
                                       uint64_t Seed) {
     // C == (C ^ K) ^ K
@@ -249,7 +265,10 @@ public:
 
         if (BinOp->getOpcode() != Instruction::Add &&
             BinOp->getOpcode() != Instruction::Sub &&
-            BinOp->getOpcode() != Instruction::Xor) {
+            BinOp->getOpcode() != Instruction::Xor &&
+            BinOp->getOpcode() != Instruction::And &&
+            BinOp->getOpcode() != Instruction::Or &&
+            BinOp->getOpcode() != Instruction::Mul) {
           continue;
         }
 
@@ -320,6 +339,38 @@ public:
             Value *Add = Builder.CreateAdd(LHS, RHS, "obf.xor.add");
             NewValue = Builder.CreateSub(Add, TwoAnd, "obf.xor.alt");
           }
+        }
+      } else if (BinOp->getOpcode() == Instruction::And) {
+        if (ConservativeMode) {
+          NewValue = createMBAAnd(Builder, LHS, RHS);
+        } else {
+          NewValue = createMBAAnd(Builder, LHS, RHS);
+        }
+      } else if (BinOp->getOpcode() == Instruction::Or) {
+        if (ConservativeMode) {
+          NewValue = createMBAOr(Builder, LHS, RHS);
+        } else {
+          NewValue = createMBAOr(Builder, LHS, RHS);
+        }
+      } else if (BinOp->getOpcode() == Instruction::Mul) {
+        auto tryPow2 = [&](Value *X, Value *C) -> Value * {
+          auto *CI = dyn_cast<ConstantInt>(C);
+          if (!CI)
+            return nullptr;
+          const APInt &V = CI->getValue();
+          if (!V.isPowerOf2())
+            return nullptr;
+          uint64_t Shift = V.logBase2();
+          return Builder.CreateShl(X, ConstantInt::get(cast<IntegerType>(X->getType()), Shift),
+                                   "obf.mul2shl");
+        };
+        NewValue = tryPow2(LHS, RHS);
+        if (!NewValue)
+          NewValue = tryPow2(RHS, LHS);
+        if (!NewValue) {
+          // Fallback: x * y == (x << 1) * (y >> 1) + parity(x*y) is too intrusive;
+          // keep original when no safe power-of-two pattern.
+          NewValue = nullptr;
         }
       }
 
