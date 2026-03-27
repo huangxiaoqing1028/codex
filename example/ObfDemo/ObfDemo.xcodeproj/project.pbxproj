@@ -20,6 +20,8 @@
 		A00100000000000000000005 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A00100000000000000000006 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		A00100000000000000000007 /* ObfDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ObfDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A00100000000000000000008 /* ObfToolchain.Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = ObfToolchain.Debug.xcconfig; sourceTree = "<group>"; };
+		A00100000000000000000009 /* ObfToolchain.Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = ObfToolchain.Release.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -50,6 +52,8 @@
 				A00100000000000000000003 /* AppDelegate.h */,
 				A00100000000000000000002 /* AppDelegate.m */,
 				A00100000000000000000005 /* Info.plist */,
+				A00100000000000000000008 /* ObfToolchain.Debug.xcconfig */,
+				A00100000000000000000009 /* ObfToolchain.Release.xcconfig */,
 				A00100000000000000000004 /* ObfToolchain.xcconfig */,
 			);
 			name = ObfDemo;
@@ -148,7 +152,7 @@
 /* Begin XCBuildConfiguration section */
 		A00100070000000000000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A00100000000000000000004 /* ObfToolchain.xcconfig */;
+			baseConfigurationReference = A00100000000000000000008 /* ObfToolchain.Debug.xcconfig */;
 				buildSettings = {
 						CLANG_ENABLE_MODULES = YES;
 					CODE_SIGNING_ALLOWED = NO;
@@ -164,7 +168,7 @@
 		};
 		A00100070000000000000002 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A00100000000000000000004 /* ObfToolchain.xcconfig */;
+			baseConfigurationReference = A00100000000000000000009 /* ObfToolchain.Release.xcconfig */;
 				buildSettings = {
 						CLANG_ENABLE_MODULES = YES;
 					CODE_SIGNING_ALLOWED = NO;

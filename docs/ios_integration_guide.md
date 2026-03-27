@@ -89,6 +89,7 @@ pod install
 默认策略：
 - 主 target 走 `my-clang`；
 - Pods target 保持 CocoaPods 默认编译器（不强制改成 `my-clang`）。
+- 示例已将 Target Base Configuration 分为 Debug/Release 两个 xcconfig，并可选包含 Pods 生成的配置，避免 Xcode 中 `Base Configuration` 漏配导致错误。
 
 一键命令行构建：
 

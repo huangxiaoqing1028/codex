@@ -43,6 +43,7 @@ open ObfDemo.xcworkspace
 说明：
 - 主 target 继续走 `ObfToolchain.xcconfig` 中的 `my-clang/my-clang++`；
 - Pods target 保持 CocoaPods 默认编译器配置（不强制改为 `my-clang`）。
+- Target 的 Base Configuration 已拆分为 `ObfToolchain.Debug.xcconfig` / `ObfToolchain.Release.xcconfig`，并通过 `#include?` 自动衔接 Pods 的对应 `.xcconfig`，避免手动配置遗漏。
 
 若遇到：
 
