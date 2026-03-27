@@ -261,6 +261,8 @@ public:
       }
     }
 
+    uint64_t SeedBase = fnv1a64(F.getName());
+    uint64_t SeedIndex = 1;
     for (BinaryOperator *BinOp : Worklist) {
       IRBuilder<> Builder(BinOp);
       Value *LHS = BinOp->getOperand(0);
@@ -272,9 +274,8 @@ public:
           Value *NegRHS = Builder.CreateNeg(RHS, "obf.negrhs");
           NewValue = Builder.CreateSub(LHS, NegRHS, "obf.add2sub");
         } else {
-          uint64_t Seed = fnv1a64(F.getName()) ^
-                          static_cast<uint64_t>(BinOp->getOpcode()) ^
-                          static_cast<uint64_t>(BinOp->getDebugLoc().getLine());
+          uint64_t Seed = SeedBase ^ static_cast<uint64_t>(BinOp->getOpcode()) ^
+                          (SeedIndex++ * 0x9e3779b97f4a7c15ULL);
           if (auto *CI = dyn_cast<ConstantInt>(RHS))
             RHS = createObfuscatedConst(Builder, CI->getValue(), Seed);
           if ((Seed & 1) == 0) {
@@ -289,9 +290,8 @@ public:
           Value *NegRHS = Builder.CreateNeg(RHS, "obf.negrhs");
           NewValue = Builder.CreateAdd(LHS, NegRHS, "obf.sub2add");
         } else {
-          uint64_t Seed = fnv1a64(F.getName()) ^
-                          static_cast<uint64_t>(BinOp->getOpcode()) ^
-                          static_cast<uint64_t>(BinOp->getDebugLoc().getLine());
+          uint64_t Seed = SeedBase ^ static_cast<uint64_t>(BinOp->getOpcode()) ^
+                          (SeedIndex++ * 0x9e3779b97f4a7c15ULL);
           if (auto *CI = dyn_cast<ConstantInt>(RHS))
             RHS = createObfuscatedConst(Builder, CI->getValue(), Seed);
           if ((Seed & 1) == 0) {
@@ -306,9 +306,8 @@ public:
         if (ConservativeMode) {
           NewValue = createMBAXor(Builder, LHS, RHS);
         } else {
-          uint64_t Seed = fnv1a64(F.getName()) ^
-                          static_cast<uint64_t>(BinOp->getOpcode()) ^
-                          static_cast<uint64_t>(BinOp->getDebugLoc().getLine());
+          uint64_t Seed = SeedBase ^ static_cast<uint64_t>(BinOp->getOpcode()) ^
+                          (SeedIndex++ * 0x9e3779b97f4a7c15ULL);
           if (auto *CI = dyn_cast<ConstantInt>(RHS))
             RHS = createObfuscatedConst(Builder, CI->getValue(), Seed);
           if ((Seed & 1) == 0) {

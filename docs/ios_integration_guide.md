@@ -72,6 +72,9 @@ pod install
 
 `scripts/build_obfdemo_xcode.sh` 检测到这种不一致时会自动回退为 `.xcodeproj` 构建，并给出警告。
 
+### Q19: `opt -passes='string-obf,function(simple-obf)'` 在 `add` 上崩溃
+若输入 IR 缺少调试行号元数据，旧实现的 seed 逻辑可能触发崩溃。当前版本已改为与 debug line 无关的稳定 seed（函数名 + 指令序号），避免该问题。
+
 ## 2.1) 直接可用的 Xcode 示例工程
 
 仓库已提供可直接打开的 **iOS App 示例**：`example/ObfDemo/ObfDemo.xcodeproj`。
