@@ -1,0 +1,6 @@
+CC = $(SRCROOT)/../../toolchain/my-clang
+CXX = $(SRCROOT)/../../toolchain/my-clang++
+OTHER_CFLAGS[config=Debug] = $(inherited) -O0 -Xclang -disable-O0-optnone
+OTHER_CPLUSPLUSFLAGS[config=Debug] = $(inherited) -O0 -Xclang -disable-O0-optnone
+OTHER_CFLAGS[config=Release] = $(inherited) -O1
+OTHER_CPLUSPLUSFLAGS[config=Release] = $(inherited) -O1
