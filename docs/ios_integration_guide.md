@@ -70,6 +70,13 @@ rm -rf build/obf-pass
 - `CC = $(SRCROOT)/../../toolchain/my-clang`
 - `CXX = $(SRCROOT)/../../toolchain/my-clang++`
 
+示例包含 3 个页面用于验证插件效果：
+- 算术页（`add/sub/xor` 路径）
+- 字符串页（模块级字符串加密路径）
+- Pods 页（AFNetworking 第三方库兼容性）
+
+若要验证 CocoaPods 兼容性，请在 `example/ObfDemo` 下执行 `pod install` 后改用 `ObfDemo.xcworkspace` 打开。
+
 一键命令行构建：
 
 ```bash

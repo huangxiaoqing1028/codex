@@ -1,0 +1,20 @@
+platform :ios, '15.0'
+
+target 'ObfDemo' do
+  use_frameworks! :linkage => :static
+  pod 'AFNetworking', '~> 4.0'
+end
+
+post_install do |installer|
+  repo_root = File.expand_path('../..', __dir__)
+  my_clang = File.join(repo_root, 'toolchain', 'my-clang')
+  my_clangxx = File.join(repo_root, 'toolchain', 'my-clang++')
+
+  installer.pods_project.targets.each do |t|
+    t.build_configurations.each do |config|
+      config.build_settings['CC'] = my_clang
+      config.build_settings['CXX'] = my_clangxx
+      config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
+    end
+  end
+end
