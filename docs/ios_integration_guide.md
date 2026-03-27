@@ -73,9 +73,12 @@ rm -rf build/obf-pass
 示例包含 3 个页面用于验证插件效果：
 - 算术页（`add/sub/xor` 路径）
 - 字符串页（模块级字符串加密路径）
-- 控制流页（条件分支/混合路径）
+- Pods 页（AFNetworking 第三方库兼容性）
 
-当前示例优先验证主 target；CocoaPods target 暂不纳入 `my-clang` 示例流程。
+若要启用 Pods 验证，请在 `example/ObfDemo` 下执行 `pod install` 后改用 `ObfDemo.xcworkspace` 打开。
+默认策略：
+- 主 target 走 `my-clang`；
+- Pods target 保持 CocoaPods 默认编译器（不强制改成 `my-clang`）。
 
 一键命令行构建：
 

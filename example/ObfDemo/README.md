@@ -15,7 +15,7 @@
 
 - **算术**：触发 `add/sub/xor` 相关路径，便于配合导出 IR 或 Build Log 对照。
 - **字符串**：展示运行时读取的 `OBF_DEMO_SECRET_LITERAL`，用于验证模块级字符串加密流程。
-- **控制流**：触发条件分支/混合路径，便于对照 IR 中控制流相关变化。
+- **Pods**：验证 CocoaPods 第三方库（AFNetworking）可用，同时主 target 继续使用 `my-clang`。
 
 > 工程已预置验证参数：Release 使用 `-O1`；Debug 保持 `-O0` 同时附带 `-Xclang -disable-O0-optnone`。iOS 示例要求 LLVM 15+（支持更新版本如 LLVM 22；`bootstrap_my_clang.sh` 在 macOS 上会对低版本直接报错）。
 
@@ -31,4 +31,15 @@ xcodebuild \
   build
 ```
 
-> 当前示例仅覆盖主 target；CocoaPods target 暂不纳入 `my-clang` 验证流程。
+## CocoaPods 兼容性验证
+
+在 `example/ObfDemo` 下执行：
+
+```bash
+pod install
+open ObfDemo.xcworkspace
+```
+
+说明：
+- 主 target 继续走 `ObfToolchain.xcconfig` 中的 `my-clang/my-clang++`；
+- Pods target 保持 CocoaPods 默认编译器配置（不强制改为 `my-clang`）。
