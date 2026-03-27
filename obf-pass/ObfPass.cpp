@@ -511,6 +511,14 @@ public:
       Changed |= perturbBranches(F);
     }
 
+    // Reduce the chance of later optimization passes canonicalizing obfuscation
+    // patterns immediately after this pass.
+    if (Changed) {
+      F.removeFnAttr(Attribute::AlwaysInline);
+      F.addFnAttr(Attribute::NoInline);
+      F.addFnAttr(Attribute::OptimizeNone);
+    }
+
     return Changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
   }
 };
