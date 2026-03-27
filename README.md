@@ -30,7 +30,7 @@
 
 > iOS/simulator 目标默认使用 conservative 模式（优先稳定性），会保留字符串加密与安全算术替换，并跳过高风险 CFG 激进变换。
 > wrapper 会校验插件构建 LLVM 与当前 clang 主版本是否一致（避免 ABI 不匹配导致崩溃）。
-> iOS 示例附带 CocoaPods 场景（AFNetworking），可验证第三方库 target 也能兼容 `my-clang`。
+> iOS 示例当前以主 target 验证为主；CocoaPods target 暂不纳入默认 `my-clang` 流程。
 
 调试日志版本编译器（用于在 Xcode 构建日志里观察最终 `-fpass-plugin` 命令）：
 - `toolchain/my-clang-verbose`

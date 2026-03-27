@@ -1,16 +1,19 @@
 #import "AppDelegate.h"
 
-#if __has_include(<AFNetworking/AFNetworking.h>)
-#import <AFNetworking/AFNetworking.h>
-#define OBF_HAS_AFNETWORKING 1
-#else
-#define OBF_HAS_AFNETWORKING 0
-#endif
-
 static int obf_add(int a, int b) { return a + b; }
 static int obf_sub(int a, int b) { return a - b; }
 static int obf_xor(int a, int b) { return a ^ b; }
 static const char *obf_secret(void) { return "OBF_DEMO_SECRET_LITERAL"; }
+
+static int obf_mix_flow(int x) {
+    int y = obf_add(x, 7);
+    if ((obf_xor(y, 3) & 1) == 0) {
+        y = obf_sub(y, 2);
+    } else {
+        y = obf_add(y, 2);
+    }
+    return obf_xor(y, 0x5A);
+}
 
 @interface ArithmeticViewController : UIViewController
 @end
@@ -61,38 +64,26 @@ static const char *obf_secret(void) { return "OBF_DEMO_SECRET_LITERAL"; }
 }
 @end
 
-@interface PodsViewController : UIViewController
+@interface FlowViewController : UIViewController
 @end
 
-@implementation PodsViewController
+@implementation FlowViewController
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.title = @"Pods";
+    self.title = @"Flow";
     self.view.backgroundColor = [UIColor systemBackgroundColor];
+
+    int flowValue = obf_mix_flow(11);
 
     UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(20, 120, 340, 30)];
     title.font = [UIFont boldSystemFontOfSize:20];
-    title.text = @"CocoaPods + my-clang 兼容性";
+    title.text = @"控制流路径验证";
     [self.view addSubview:title];
 
-    UILabel *detail = [[UILabel alloc] initWithFrame:CGRectMake(20, 170, 340, 200)];
+    UILabel *detail = [[UILabel alloc] initWithFrame:CGRectMake(20, 170, 340, 140)];
     detail.numberOfLines = 0;
-#if OBF_HAS_AFNETWORKING
-    detail.text = @"AFNetworking 已集成。\n说明 Pod target 与主 target 都可使用 my-clang 编译。\n(可在 Build Log 搜索 my-clang / -fpass-plugin 验证)";
-#else
-    detail.text = @"未检测到 AFNetworking 头文件。\n请在 example/ObfDemo 下执行: pod install\n并使用 ObfDemo.xcworkspace 打开工程。";
-#endif
+    detail.text = [NSString stringWithFormat:@"mix_flow(11)=%d\n可在 IR/Build Log 中对照 basic block 与分支变换。", flowValue];
     [self.view addSubview:detail];
-
-#if OBF_HAS_AFNETWORKING
-    AFHTTPSessionManager *manager = [AFHTTPSessionManager manager];
-    manager.responseSerializer = [AFHTTPResponseSerializer serializer];
-    [manager GET:@"https://httpbin.org/get" parameters:nil headers:nil progress:nil success:^(__unused NSURLSessionDataTask * _Nonnull task, __unused id  _Nullable responseObject) {
-        detail.text = [detail.text stringByAppendingString:@"\n\n网络请求成功（AFNetworking 正常工作）。"];
-    } failure:^(__unused NSURLSessionDataTask * _Nullable task, __unused NSError * _Nonnull error) {
-        detail.text = [detail.text stringByAppendingString:@"\n\n网络请求失败（但 Pod 编译与链接已验证）。"];
-    }];
-#endif
 }
 @end
 
@@ -103,7 +94,7 @@ static const char *obf_secret(void) { return "OBF_DEMO_SECRET_LITERAL"; }
 
     ArithmeticViewController *vc1 = [ArithmeticViewController new];
     StringViewController *vc2 = [StringViewController new];
-    PodsViewController *vc3 = [PodsViewController new];
+    FlowViewController *vc3 = [FlowViewController new];
 
     UINavigationController *n1 = [[UINavigationController alloc] initWithRootViewController:vc1];
     UINavigationController *n2 = [[UINavigationController alloc] initWithRootViewController:vc2];
@@ -111,7 +102,7 @@ static const char *obf_secret(void) { return "OBF_DEMO_SECRET_LITERAL"; }
 
     n1.tabBarItem.title = @"算术";
     n2.tabBarItem.title = @"字符串";
-    n3.tabBarItem.title = @"Pods";
+    n3.tabBarItem.title = @"控制流";
 
     UITabBarController *tab = [UITabBarController new];
     tab.viewControllers = @[n1, n2, n3];
