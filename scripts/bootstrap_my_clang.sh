@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${ROOT_DIR}/build"
 PASS_BUILD_DIR="${BUILD_DIR}/obf-pass"
+TOOLCHAIN_DIR="${ROOT_DIR}/toolchain"
 
 mkdir -p "${PASS_BUILD_DIR}"
 
@@ -120,5 +121,13 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
 fi
 
 echo "[bootstrap] done"
+for wrapper in my-clang my-clang++ my-clang-verbose my-clang++-verbose; do
+  if [[ -f "${TOOLCHAIN_DIR}/${wrapper}" ]]; then
+    chmod +x "${TOOLCHAIN_DIR}/${wrapper}"
+  else
+    echo "[bootstrap] warning: missing wrapper script: ${TOOLCHAIN_DIR}/${wrapper}" >&2
+  fi
+done
+echo "[bootstrap] note: wrapper scripts are tracked under ${TOOLCHAIN_DIR} (bootstrap does not generate them)"
 echo "[bootstrap] wrapper clang: ${ROOT_DIR}/toolchain/my-clang"
 echo "[bootstrap] wrapper clang++: ${ROOT_DIR}/toolchain/my-clang++"

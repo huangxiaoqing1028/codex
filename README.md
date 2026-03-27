@@ -36,3 +36,5 @@
 调试日志版本编译器（用于在 Xcode 构建日志里观察最终 `-fpass-plugin` 命令）：
 - `toolchain/my-clang-verbose`
 - `toolchain/my-clang++-verbose`
+
+> `toolchain/my-clang*` 是仓库内跟踪文件，不是 bootstrap 动态生成；`bootstrap_my_clang.sh` 会确保其可执行权限。

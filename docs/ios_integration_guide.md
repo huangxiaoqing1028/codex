@@ -152,6 +152,10 @@ CXX = /绝对路径/到/仓库/toolchain/my-clang++
 ./scripts/bootstrap_my_clang.sh
 ```
 
+### Q1.1: `toolchain/my-clang` 是怎么生成的？执行 bootstrap 后没生成
+`toolchain/my-clang*` 是仓库内自带脚本（受版本管理），不是在 bootstrap 时动态生成。
+`./scripts/bootstrap_my_clang.sh` 负责构建插件与写入 `build/obf-pass/*` 元数据，并会自动修正 wrapper 的可执行权限。
+
 ### Q2: 提示 `llvm-config not found`
 安装并导出 PATH：
 
