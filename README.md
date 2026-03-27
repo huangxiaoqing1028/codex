@@ -38,4 +38,3 @@
 - `toolchain/my-clang++-verbose`
 
 > `toolchain/my-clang*` 是仓库内跟踪文件，不是 bootstrap 动态生成；`bootstrap_my_clang.sh` 会确保其可执行权限。
-> wrapper 会自动跳过 PCH/header 编译阶段的插件注入（只对源码编译单元注入）。

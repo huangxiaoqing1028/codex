@@ -41,36 +41,6 @@ fi
 if [[ "${MY_CLANG_DISABLE_PLUGIN:-0}" == "1" ]]; then
   CMD=("${CLANGXX_BIN}" "$@")
 else
-  SKIP_PLUGIN_FOR_PCH=0
-  PREV_IS_X=0
-  for arg in "$@"; do
-    if [[ "${PREV_IS_X}" == "1" ]]; then
-      case "${arg}" in
-        c-header|c++-header|objective-c-header|objective-c++-header)
-          SKIP_PLUGIN_FOR_PCH=1
-          ;;
-      esac
-      PREV_IS_X=0
-      continue
-    fi
-    case "${arg}" in
-      -x)
-        PREV_IS_X=1
-        ;;
-      -emit-pch|-include-pch|-pch-through-header|*.pch)
-        SKIP_PLUGIN_FOR_PCH=1
-        ;;
-    esac
-  done
-
-  if [[ "${SKIP_PLUGIN_FOR_PCH}" == "1" ]]; then
-    CMD=("${CLANGXX_BIN}" "$@")
-    if [[ "${IS_VERBOSE}" == "1" ]]; then
-      echo "[my-clang++] skip plugin injection for PCH/header compile" >&2
-    fi
-    exec "${CMD[@]}"
-  fi
-
   if [[ -f "${VERSION_FILE}" ]]; then
     BUILT_LLVM_VERSION="$(cat "${VERSION_FILE}")"
     BUILT_LLVM_MAJOR="${BUILT_LLVM_VERSION%%.*}"
