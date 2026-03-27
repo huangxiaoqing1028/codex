@@ -43,3 +43,15 @@ open ObfDemo.xcworkspace
 说明：
 - 主 target 继续走 `ObfToolchain.xcconfig` 中的 `my-clang/my-clang++`；
 - Pods target 保持 CocoaPods 默认编译器配置（不强制改为 `my-clang`）。
+
+若遇到：
+
+```text
+The sandbox is not in sync with the Podfile.lock
+```
+
+请在 `example/ObfDemo` 下执行一次：
+
+```bash
+pod install
+```

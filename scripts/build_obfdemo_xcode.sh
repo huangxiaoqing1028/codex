@@ -10,7 +10,19 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 1
 fi
 
+PODFILE_LOCK="${ROOT_DIR}/example/ObfDemo/Podfile.lock"
+PODS_MANIFEST_LOCK="${ROOT_DIR}/example/ObfDemo/Pods/Manifest.lock"
+USE_WORKSPACE=0
 if [[ -d "${WORKSPACE}" ]]; then
+  if [[ -f "${PODFILE_LOCK}" && -f "${PODS_MANIFEST_LOCK}" ]] && cmp -s "${PODFILE_LOCK}" "${PODS_MANIFEST_LOCK}"; then
+    USE_WORKSPACE=1
+  else
+    echo "[obfdemo] warning: CocoaPods sandbox not in sync (run: cd example/ObfDemo && pod install)." >&2
+    echo "[obfdemo] warning: fallback to project build without Pods integration." >&2
+  fi
+fi
+
+if [[ "${USE_WORKSPACE}" == "1" ]]; then
   xcodebuild \
     -workspace "${WORKSPACE}" \
     -scheme ObfDemo \
