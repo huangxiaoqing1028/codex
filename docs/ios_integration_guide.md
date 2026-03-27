@@ -31,7 +31,7 @@
 ./scripts/export_ir_ios.sh /tmp/demo.c /tmp/demo_ios.ll
 ```
 
-查看 `/tmp/demo_ios.ll`，应能观察到 `add/sub/xor/and/or`（以及部分 `mul`）被替换成等价但不同形态的 IR 运算（由 `simple-obf` pass 处理），并在控制流上出现 `obf.split` / `obf.bogus` 等结构。
+查看 `/tmp/demo_ios.ll`，应能观察到 `add/sub/xor/and/or`（以及部分 `mul`）被替换成等价但不同形态的 IR 运算（由 `simple-obf` pass 处理），并在控制流上出现状态机调度式 `obf.fla.*` 结构。
 
 ### 一键验证脚本（推荐）
 
@@ -43,9 +43,17 @@
 
 1. 用同一 LLVM 的原生 clang 生成输入 IR（不带 pass）
 2. 用同一 LLVM 的 `opt -load-pass-plugin` 生成“带 pass”的 IR
-3. 对比函数级别变换前后指令形态（包含 `add/sub/xor/and/or` 与部分 `mul` 的变换）并验证字符串明文被隐藏，输出 `PASS/FAIL`
+3. 对比函数级别变换前后指令形态（包含 `add/sub/xor/and/or` 与部分 `mul` 的变换、FLA 以及 BCF 的 clone+junk 结构）并验证字符串明文被隐藏，输出 `PASS/FAIL`
 
 > 脚本内部会使用 `-Xclang -disable-O0-optnone` 生成输入 IR，并通过 `opt -passes='string-obf,function(simple-obf)'` 显式执行 pass（模块级字符串加密 + 函数级算术/控制流混淆），避免验证不稳定。
+
+可选随机化种子：
+
+```bash
+OBF_SEED=20260327 ./scripts/verify_pass.sh
+```
+
+设置不同 `OBF_SEED` 可使同一源码编译得到不同混淆形态。
 
 > 兼容性说明：在 `apple-ios` / `ios-simulator` 目标下，`simple-obf` 默认启用 conservative 模式（保留字符串加密与安全算术替换，关闭高风险 CFG/调用间接化步骤）以避免部分 LLVM 22 组合下的前端崩溃。
 

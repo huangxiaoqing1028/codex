@@ -12,8 +12,12 @@
 #include "llvm/Passes/PassPlugin.h"
 #endif
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/TargetParser/Triple.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
+#include <algorithm>
+#include <cstdlib>
+#include <random>
 
 using namespace llvm;
 
@@ -25,6 +29,16 @@ static uint64_t fnv1a64(StringRef S) {
     H *= 1099511628211ULL;
   }
   return H;
+}
+
+static uint64_t getEnvSeedOrDefault(StringRef Name, uint64_t Fallback) {
+  if (const char *V = std::getenv("OBF_SEED")) {
+    char *End = nullptr;
+    unsigned long long Parsed = std::strtoull(V, &End, 10);
+    if (End && *End == '\0')
+      return static_cast<uint64_t>(Parsed);
+  }
+  return fnv1a64(Name) ^ Fallback;
 }
 
 class StringEncryptionPass : public PassInfoMixin<StringEncryptionPass> {
@@ -237,7 +251,13 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
       Function *Fn = Src->getParent();
       BasicBlock *Bogus = BasicBlock::Create(Fn->getContext(), "obf.bogus", Fn, Target);
       IRBuilder<> BogusBuilder(Bogus);
-      BogusBuilder.CreateUnreachable();
+      // Inject junk arithmetic in cloned bogus path, then merge back to target.
+      Value *A = BogusBuilder.getInt32(0x13579BDF);
+      Value *B = BogusBuilder.getInt32(0x2468ACE0);
+      Value *X = BogusBuilder.CreateXor(A, B, "obf.bcf.junk.x");
+      Value *Y = BogusBuilder.CreateAdd(X, BogusBuilder.getInt32(7), "obf.bcf.junk.y");
+      (void)BogusBuilder.CreateSub(Y, BogusBuilder.getInt32(7), "obf.bcf.junk.z");
+      BogusBuilder.CreateBr(Target);
 
       Value *Opaque = createOpaqueTrue(Builder, Builder.getTrue());
       BranchInst::Create(Target, Bogus, Opaque, BI->getIterator());
@@ -245,6 +265,108 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
       Changed = true;
     }
     return Changed;
+  }
+
+  static bool flattenControlFlow(Function &F) {
+    if (F.size() < 3)
+      return false;
+
+    for (BasicBlock &BB : F) {
+      for (Instruction &I : BB) {
+        if (isa<PHINode>(&I))
+          return false;
+      }
+    }
+
+    BasicBlock *Entry = &F.getEntryBlock();
+    auto *EntryBr = dyn_cast<BranchInst>(Entry->getTerminator());
+    if (!EntryBr)
+      return false;
+    if (EntryBr->isConditional() &&
+        (EntryBr->getSuccessor(0) == Entry || EntryBr->getSuccessor(1) == Entry))
+      return false;
+
+    SmallVector<BasicBlock *, 16> Blocks;
+    for (BasicBlock &BB : F) {
+      if (&BB != Entry)
+        Blocks.push_back(&BB);
+    }
+
+    if (Blocks.empty())
+      return false;
+
+    std::mt19937_64 RNG(getEnvSeedOrDefault(F.getName(), 0xF1A77EULL));
+    SmallVector<uint32_t, 16> IDs;
+    IDs.reserve(Blocks.size());
+    for (size_t I = 0; I < Blocks.size(); ++I)
+      IDs.push_back(static_cast<uint32_t>(I + 1));
+    std::shuffle(IDs.begin(), IDs.end(), RNG);
+
+    DenseMap<BasicBlock *, uint32_t> BlockID;
+    for (size_t I = 0; I < Blocks.size(); ++I)
+      BlockID[Blocks[I]] = IDs[I];
+
+    for (BasicBlock *BB : Blocks) {
+      auto *BI = dyn_cast<BranchInst>(BB->getTerminator());
+      if (!BI)
+        continue;
+      for (unsigned I = 0; I < BI->getNumSuccessors(); ++I) {
+        if (BI->getSuccessor(I) == Entry)
+          return false;
+      }
+    }
+
+    IRBuilder<> EntryBuilder(&*Entry->getFirstInsertionPt());
+    AllocaInst *State =
+        EntryBuilder.CreateAlloca(EntryBuilder.getInt32Ty(), nullptr, "obf.fla.state");
+    BasicBlock *Dispatcher =
+        BasicBlock::Create(F.getContext(), "obf.fla.dispatcher", &F);
+
+    auto rewriteBranchToState = [&](BranchInst *BI, IRBuilder<> &Builder) -> bool {
+      if (BI->isUnconditional()) {
+        BasicBlock *Succ = BI->getSuccessor(0);
+        auto It = BlockID.find(Succ);
+        if (It == BlockID.end())
+          return false;
+        Builder.CreateStore(Builder.getInt32(It->second), State);
+        Builder.CreateBr(Dispatcher);
+        BI->eraseFromParent();
+        return true;
+      }
+
+      BasicBlock *T = BI->getSuccessor(0);
+      BasicBlock *Fls = BI->getSuccessor(1);
+      auto ItT = BlockID.find(T);
+      auto ItF = BlockID.find(Fls);
+      if (ItT == BlockID.end() || ItF == BlockID.end())
+        return false;
+      Value *Sel = Builder.CreateSelect(BI->getCondition(), Builder.getInt32(ItT->second),
+                                        Builder.getInt32(ItF->second), "obf.fla.next");
+      Builder.CreateStore(Sel, State);
+      Builder.CreateBr(Dispatcher);
+      BI->eraseFromParent();
+      return true;
+    };
+
+    if (!rewriteBranchToState(EntryBr, EntryBuilder))
+      return false;
+
+    for (BasicBlock *BB : Blocks) {
+      auto *BI = dyn_cast<BranchInst>(BB->getTerminator());
+      if (!BI)
+        continue;
+      IRBuilder<> B(BI);
+      if (!rewriteBranchToState(BI, B))
+        return false;
+    }
+
+    IRBuilder<> DB(Dispatcher);
+    LoadInst *Cur = DB.CreateLoad(DB.getInt32Ty(), State, "obf.fla.cur");
+    SwitchInst *SW = DB.CreateSwitch(Cur, Blocks.front(), Blocks.size());
+    for (BasicBlock *BB : Blocks)
+      SW->addCase(DB.getInt32(BlockID[BB]), BB);
+
+    return true;
   }
 
 public:
@@ -383,6 +505,7 @@ public:
 
     // Additional control/data obfuscation layers.
     if (!ConservativeMode) {
+      Changed |= flattenControlFlow(F);
       Changed |= indirectifyDirectCalls(F);
       Changed |= splitBasicBlocks(F);
       Changed |= perturbBranches(F);

@@ -23,11 +23,13 @@
 - `add/sub/xor/and/or` 多形态 MBA 变换；
 - `mul` 的 2 幂常量乘法改写（`mul -> shl`）；
 - 常量掩码拆分（`C == (C ^ K) ^ K`）。
+- 状态机调度式 FLA（对可 flatten 的函数启用）；
 - 基本块切分（basic block splitting）；
-- 伪控制流与条件分支扰动（opaque predicate）；
+- 伪控制流与条件分支扰动（opaque predicate + clone bogus block + junk inst）；
 - 直接调用间接化（call indirection）。
 - 完整模块级字符串加密（全局字符串 XOR 编码 + 全局构造器运行时解码）。
   - 出于稳定性考虑，仅处理私有 C 字面量字符串（`.str*`），跳过 ObjC/runtime 元数据字符串。
+  - 支持 `OBF_SEED` 随机种子：同源码可多次编译得到不同变换形态。
 
 > iOS/simulator 目标默认使用 conservative 模式（优先稳定性），会保留字符串加密与安全算术替换，并跳过高风险 CFG 激进变换。
 > wrapper 会校验插件构建 LLVM 与当前 clang 主版本是否一致（避免 ABI 不匹配导致崩溃）。
