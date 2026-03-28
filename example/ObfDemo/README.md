@@ -43,7 +43,15 @@ build
 脚本会：
 - 调用 `xcodebuild clean build` 收集编译命令；
 - 对每个源码导出 plain/with-pass IR；
-- 统计命中特征分组并输出报告到 `verify_xcode_pass_ir_report/`。
+- 统计命中特征分组并输出报告到 `verify_xcode_pass_ir_report/`（含 `report.md` / `threshold_alerts.txt`）。
+
+示例（启用阈值告警）：
+
+```bash
+./scripts/verify_obfdemo_pass_hits.py \
+  --threshold-default 0.30 \
+  --group-threshold control_flow_non_conservative=0.10
+```
 
 ## CocoaPods 兼容性验证
 

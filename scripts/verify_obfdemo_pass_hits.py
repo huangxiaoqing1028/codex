@@ -345,6 +345,8 @@ def write_reports(report_dir: Path, cfg: Dict, results: List[Dict]):
     pass_hit_txt = report_dir / "pass_hit_files.txt"
     failed_txt = report_dir / "failed_files.txt"
     all_diff_txt = report_dir / "all_diffs.txt"
+    markdown_report = report_dir / "report.md"
+    threshold_alerts_txt = report_dir / "threshold_alerts.txt"
 
     total = len(results)
     success = sum(1 for r in results if r["success"])
@@ -370,6 +372,7 @@ def write_reports(report_dir: Path, cfg: Dict, results: List[Dict]):
         "hit_feature": len(hit),
         "failed": len(failed),
         "feature_counter": counter,
+        "feature_rate": {k: (counter[k] / success if success else 0.0) for k in counter},
         "results": results,
     }
     write_text(summary_json, json.dumps(summary, ensure_ascii=False, indent=2))
@@ -419,6 +422,86 @@ def write_reports(report_dir: Path, cfg: Dict, results: List[Dict]):
             chunks += ["=" * 100, r["source"], "=" * 100, read_text(p), ""]
     write_text(all_diff_txt, "\n".join(chunks))
 
+    default_threshold = float(cfg.get("threshold_default", 0.0))
+    group_thresholds: Dict[str, float] = cfg.get("group_thresholds", {})
+    alerts: List[str] = []
+    for group, count in counter.items():
+        rate = (count / success) if success else 0.0
+        threshold = group_thresholds.get(group, default_threshold)
+        if threshold > 0 and rate < threshold:
+            alerts.append(
+                f"{group}: {rate:.1%} < threshold {threshold:.1%} ({count}/{success})"
+            )
+    write_text(threshold_alerts_txt, "\n".join(alerts) + ("\n" if alerts else ""))
+
+    md: List[str] = []
+    md.append("# ObfDemo Pass Hit Report")
+    md.append("")
+    md.append("## Build Context")
+    md.append("")
+    md.append(f"- Workspace: `{cfg['workspace']}`")
+    md.append(f"- Project: `{cfg['project']}`")
+    md.append(f"- Scheme: `{cfg['scheme']}`")
+    md.append(f"- Configuration: `{cfg['configuration']}`")
+    md.append(f"- SDK: `{cfg['sdk']}`")
+    md.append(f"- Destination: `{cfg['destination']}`")
+    md.append("")
+    md.append("## Summary")
+    md.append("")
+    md.append("| Metric | Value |")
+    md.append("|---|---:|")
+    md.append(f"| Total files | {total} |")
+    md.append(f"| Success | {success} |")
+    md.append(f"| Changed | {len(changed)} |")
+    md.append(f"| Hit feature | {len(hit)} |")
+    md.append(f"| Failed | {len(failed)} |")
+    md.append("")
+    md.append("## Feature Hit Rate")
+    md.append("")
+    md.append("| Feature Group | Hits | Rate | Threshold | Status |")
+    md.append("|---|---:|---:|---:|---|")
+    for group in PASS_GROUPS.keys():
+        count = counter[group]
+        rate = (count / success) if success else 0.0
+        threshold = group_thresholds.get(group, default_threshold)
+        if threshold > 0 and rate < threshold:
+            status = "🔴 ALERT"
+        else:
+            status = "🟢 OK"
+        md.append(
+            f"| `{group}` | {count}/{success} | {rate:.1%} | {threshold:.1%} | {status} |"
+        )
+    md.append("")
+    if alerts:
+        md.append("## Threshold Alerts")
+        md.append("")
+        for a in alerts:
+            md.append(f"- 🔴 {a}")
+        md.append("")
+    else:
+        md.append("## Threshold Alerts")
+        md.append("")
+        md.append("- 🟢 No alert.")
+        md.append("")
+
+    md.append("## Files Changed by Pass")
+    md.append("")
+    for r in changed[:200]:
+        md.append(f"- `{r['source']}`")
+    if not changed:
+        md.append("- (none)")
+    md.append("")
+
+    md.append("## Files Hit Feature Groups")
+    md.append("")
+    for r in hit[:200]:
+        groups = sorted(set(r["with_group_hits"].keys()) | set(r["diff_group_hits"].keys()))
+        md.append(f"- `{r['source']}` → {', '.join(groups) if groups else '(none)'}")
+    if not hit:
+        md.append("- (none)")
+    md.append("")
+    write_text(markdown_report, "\n".join(md))
+
     print("\n[OK]", summary_json)
     print("[OK]", summary_txt)
     print("[OK]", feature_txt)
@@ -426,6 +509,8 @@ def write_reports(report_dir: Path, cfg: Dict, results: List[Dict]):
     print("[OK]", pass_hit_txt)
     print("[OK]", failed_txt)
     print("[OK]", all_diff_txt)
+    print("[OK]", markdown_report)
+    print("[OK]", threshold_alerts_txt)
 
 
 
@@ -442,6 +527,18 @@ def main():
     parser.add_argument("--report-dir", default=str(root / "verify_xcode_pass_ir_report"))
     parser.add_argument("--include", action="append", default=[])
     parser.add_argument("--exclude", action="append", default=[])
+    parser.add_argument(
+        "--threshold-default",
+        type=float,
+        default=0.0,
+        help="默认命中率阈值（0~1）。0 表示不告警。",
+    )
+    parser.add_argument(
+        "--group-threshold",
+        action="append",
+        default=[],
+        help="按组设置阈值，格式: group=0.35，可重复传参。",
+    )
     args = parser.parse_args()
 
     workspace = Path(args.workspace)
@@ -512,7 +609,17 @@ def main():
         "destination": args.destination,
         "plugin": str(plugin),
         "report_dir": str(report_dir),
+        "threshold_default": args.threshold_default,
+        "group_thresholds": {},
     }
+    for item in args.group_threshold:
+        if "=" not in item:
+            raise ValueError(f"--group-threshold 格式错误: {item}")
+        group, raw = item.split("=", 1)
+        group = group.strip()
+        if group not in PASS_GROUPS:
+            raise ValueError(f"未知分组: {group}, 可选: {', '.join(PASS_GROUPS.keys())}")
+        cfg["group_thresholds"][group] = float(raw.strip())
     write_reports(report_dir, cfg, results)
 
 
