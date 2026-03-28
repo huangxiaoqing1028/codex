@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BUILD_DIR="${ROOT_DIR}/build"
+PASS_BUILD_DIR="${BUILD_DIR}/obf-pass"
+TOOLCHAIN_DIR="${ROOT_DIR}/toolchain"
+
+mkdir -p "${PASS_BUILD_DIR}"
+
+if ! command -v cmake >/dev/null 2>&1; then
+  echo "[bootstrap] cmake not found. Install: brew install cmake" >&2
+  exit 1
+fi
+
+LLVM_CONFIG_BIN="${LLVM_CONFIG:-}"
+if [[ -z "${LLVM_CONFIG_BIN}" ]]; then
+  # Prefer newer Homebrew LLVM first (works for llvm@22 packaging as well).
+  for v in 22 21 20 19 18 17 16 15 14; do
+    if [[ -x "/opt/homebrew/opt/llvm@${v}/bin/llvm-config" ]]; then
+      LLVM_CONFIG_BIN="/opt/homebrew/opt/llvm@${v}/bin/llvm-config"
+      break
+    elif [[ -x "/usr/local/opt/llvm@${v}/bin/llvm-config" ]]; then
+      LLVM_CONFIG_BIN="/usr/local/opt/llvm@${v}/bin/llvm-config"
+      break
+    fi
+  done
+
+  if [[ -z "${LLVM_CONFIG_BIN}" ]] && command -v llvm-config >/dev/null 2>&1; then
+    LLVM_CONFIG_BIN="$(command -v llvm-config)"
+  fi
+fi
+
+if [[ -z "${LLVM_CONFIG_BIN}" ]]; then
+  echo "[bootstrap] llvm-config not found. Install: brew install llvm@22 (or any llvm@15+)" >&2
+  exit 1
+fi
+
+LLVM_VERSION="$("${LLVM_CONFIG_BIN}" --version)"
+LLVM_BINDIR="$("${LLVM_CONFIG_BIN}" --bindir)"
+echo "[bootstrap] using LLVM ${LLVM_VERSION}"
+echo "[bootstrap] llvm-config: ${LLVM_CONFIG_BIN}"
+echo "[bootstrap] llvm bindir: ${LLVM_BINDIR}"
+
+if [[ "${LLVM_VERSION%%.*}" -lt 14 ]]; then
+  echo "[bootstrap] error: LLVM ${LLVM_VERSION} is too old. Please use llvm@14+." >&2
+  exit 1
+fi
+
+if [[ "$(uname -s)" == "Darwin" && "${LLVM_VERSION%%.*}" -lt 15 ]]; then
+  echo "[bootstrap] error: LLVM ${LLVM_VERSION} is not supported for iOS demo builds." >&2
+  echo "[bootstrap] error: install llvm@15+ (or newer) and rerun bootstrap." >&2
+  exit 1
+elif [[ "${LLVM_VERSION%%.*}" -lt 15 ]]; then
+  echo "[bootstrap] warning: LLVM ${LLVM_VERSION} may fail on newer Apple SDK targets." >&2
+  echo "[bootstrap] warning: prefer llvm@15+ when building iOS demos." >&2
+fi
+
+cmake_args=(
+  -S "${ROOT_DIR}/obf-pass"
+  -B "${PASS_BUILD_DIR}"
+  -DLLVM_DIR="$("${LLVM_CONFIG_BIN}" --cmakedir)"
+)
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  if ! command -v xcrun >/dev/null 2>&1; then
+    echo "[bootstrap] xcrun not found. Please install Xcode 15 command line tools." >&2
+    exit 1
+  fi
+
+  XCODE_CLANG="$(xcrun --find clang)"
+  XCODE_CLANGXX="$(xcrun --find clang++)"
+  XCODE_LD="$(xcrun --find ld)"
+  XCODE_AR="$(xcrun --find ar)"
+  XCODE_RANLIB="$(xcrun --find ranlib)"
+  SDK_PATH="$(xcrun --sdk macosx --show-sdk-path)"
+
+  echo "[bootstrap] using Apple clang: ${XCODE_CLANGXX}"
+  echo "[bootstrap] using Apple ld: ${XCODE_LD}"
+
+  cmake_args+=(
+    -DCMAKE_C_COMPILER="${XCODE_CLANG}"
+    -DCMAKE_CXX_COMPILER="${XCODE_CLANGXX}"
+    -DCMAKE_LINKER="${XCODE_LD}"
+    -DCMAKE_AR="${XCODE_AR}"
+    -DCMAKE_RANLIB="${XCODE_RANLIB}"
+    -DCMAKE_OSX_SYSROOT="${SDK_PATH}"
+  )
+fi
+
+# Avoid polluted host env flags causing xcrun/ld failures.
+unset CC CXX LD CFLAGS CXXFLAGS CPPFLAGS LDFLAGS SDKROOT MACOSX_DEPLOYMENT_TARGET
+
+cmake "${cmake_args[@]}"
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  JOBS="$(sysctl -n hw.logicalcpu)"
+else
+  JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)"
+fi
+
+cmake --build "${PASS_BUILD_DIR}" -j"${JOBS}"
+
+cat > "${PASS_BUILD_DIR}/llvm-bindir.txt" <<EOF
+${LLVM_BINDIR}
+EOF
+
+cat > "${PASS_BUILD_DIR}/llvm-version.txt" <<EOF
+${LLVM_VERSION}
+EOF
+
+cp "${ROOT_DIR}/demo/demo.c" /tmp/demo.c
+echo "[bootstrap] demo source: /tmp/demo.c"
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  if "${ROOT_DIR}/scripts/export_ir_ios.sh" /tmp/demo.c /tmp/demo_ios.ll; then
+    echo "[bootstrap] demo iOS IR: /tmp/demo_ios.ll"
+  else
+    echo "[bootstrap] warning: failed to export /tmp/demo_ios.ll (check iOS simulator SDK)." >&2
+  fi
+fi
+
+echo "[bootstrap] done"
+for wrapper in my-clang my-clang++ my-clang-verbose my-clang++-verbose; do
+  if [[ -f "${TOOLCHAIN_DIR}/${wrapper}" ]]; then
+    chmod +x "${TOOLCHAIN_DIR}/${wrapper}"
+  else
+    echo "[bootstrap] warning: missing wrapper script: ${TOOLCHAIN_DIR}/${wrapper}" >&2
+  fi
+done
+echo "[bootstrap] note: wrapper scripts are tracked under ${TOOLCHAIN_DIR} (bootstrap does not generate them)"
+echo "[bootstrap] wrapper clang: ${ROOT_DIR}/toolchain/my-clang"
+echo "[bootstrap] wrapper clang++: ${ROOT_DIR}/toolchain/my-clang++"

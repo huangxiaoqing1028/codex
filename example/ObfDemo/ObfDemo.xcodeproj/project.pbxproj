@@ -1,0 +1,242 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A00100010000000000000001 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = A00100000000000000000001 /* main.m */; };
+		A00100010000000000000002 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = A00100000000000000000002 /* AppDelegate.m */; };
+		A00100010000000000000003 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A00100000000000000000006 /* UIKit.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A00100000000000000000001 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		A00100000000000000000002 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		A00100000000000000000003 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+		A00100000000000000000004 /* ObfToolchain.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = ObfToolchain.xcconfig; sourceTree = "<group>"; };
+		A00100000000000000000005 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A00100000000000000000006 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		A00100000000000000000007 /* ObfDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ObfDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A00100000000000000000008 /* ObfToolchain.Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = ObfToolchain.Debug.xcconfig; sourceTree = "<group>"; };
+		A00100000000000000000009 /* ObfToolchain.Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = ObfToolchain.Release.xcconfig; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A00100030000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00100010000000000000003 /* UIKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A00100020000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				A00100020000000000000002 /* ObfDemo */,
+				A00100020000000000000004 /* Frameworks */,
+				A00100020000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A00100020000000000000002 /* ObfDemo */ = {
+			isa = PBXGroup;
+			children = (
+				A00100000000000000000001 /* main.m */,
+				A00100000000000000000003 /* AppDelegate.h */,
+				A00100000000000000000002 /* AppDelegate.m */,
+				A00100000000000000000005 /* Info.plist */,
+				A00100000000000000000008 /* ObfToolchain.Debug.xcconfig */,
+				A00100000000000000000009 /* ObfToolchain.Release.xcconfig */,
+				A00100000000000000000004 /* ObfToolchain.xcconfig */,
+			);
+			name = ObfDemo;
+			sourceTree = "<group>";
+		};
+		A00100020000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A00100000000000000000007 /* ObfDemo.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A00100020000000000000004 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				A00100000000000000000006 /* UIKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A00100040000000000000001 /* ObfDemo */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00100050000000000000002 /* Build configuration list for PBXNativeTarget "ObfDemo" */;
+			buildPhases = (
+				A00100030000000000000002 /* Sources */,
+				A00100030000000000000001 /* Frameworks */,
+				A00100030000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ObfDemo;
+			productName = ObfDemo;
+			productReference = A00100000000000000000007 /* ObfDemo.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A00100060000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					A00100040000000000000001 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = A00100050000000000000001 /* Build configuration list for PBXProject "ObfDemo" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A00100020000000000000001;
+			productRefGroup = A00100020000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A00100040000000000000001 /* ObfDemo */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A00100030000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A00100030000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00100010000000000000001 /* main.m in Sources */,
+				A00100010000000000000002 /* AppDelegate.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A00100070000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A00100000000000000000008 /* ObfToolchain.Debug.xcconfig */;
+				buildSettings = {
+						CLANG_ENABLE_MODULES = YES;
+					CODE_SIGNING_ALLOWED = NO;
+					GCC_OPTIMIZATION_LEVEL = 0;
+					INFOPLIST_FILE = Info.plist;
+					IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+					PRODUCT_NAME = "$(TARGET_NAME)";
+					PRODUCT_BUNDLE_IDENTIFIER = com.example.ObfDemo;
+					SDKROOT = iphoneos;
+					TARGETED_DEVICE_FAMILY = "1,2";
+				};
+			name = Debug;
+		};
+		A00100070000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A00100000000000000000009 /* ObfToolchain.Release.xcconfig */;
+				buildSettings = {
+						CLANG_ENABLE_MODULES = YES;
+					CODE_SIGNING_ALLOWED = NO;
+					GCC_OPTIMIZATION_LEVEL = s;
+					INFOPLIST_FILE = Info.plist;
+					IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+					PRODUCT_NAME = "$(TARGET_NAME)";
+					PRODUCT_BUNDLE_IDENTIFIER = com.example.ObfDemo;
+					SDKROOT = iphoneos;
+					TARGETED_DEVICE_FAMILY = "1,2";
+				};
+			name = Release;
+		};
+		A00100070000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+			};
+			name = Debug;
+		};
+		A00100070000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_OPTIMIZATION_LEVEL = s;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				SDKROOT = iphoneos;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A00100050000000000000001 /* Build configuration list for PBXProject "ObfDemo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A00100070000000000000003 /* Debug */,
+				A00100070000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A00100050000000000000002 /* Build configuration list for PBXNativeTarget "ObfDemo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A00100070000000000000001 /* Debug */,
+				A00100070000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A00100060000000000000001 /* Project object */;
+}

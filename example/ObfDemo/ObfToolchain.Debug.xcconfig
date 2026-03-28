@@ -1,0 +1,2 @@
+#include? "Pods/Target Support Files/Pods-ObfDemo/Pods-ObfDemo.debug.xcconfig"
+#include "ObfToolchain.xcconfig"
