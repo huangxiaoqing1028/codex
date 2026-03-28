@@ -172,7 +172,8 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
   static Value *createObfuscatedConst(IRBuilder<> &Builder, APInt C,
                                       uint64_t Seed) {
     // C == (C ^ K) ^ K
-    APInt K = APInt(C.getBitWidth(), Seed).zextOrTrunc(C.getBitWidth());
+    APInt K = APInt(C.getBitWidth(), Seed, /*isSigned=*/false,
+                    /*implicitTrunc=*/true);
     if (K.isZero())
       K = APInt(C.getBitWidth(), 0xA5A5A5A5ULL).zextOrTrunc(C.getBitWidth());
     Constant *CK = ConstantInt::get(Builder.getContext(), K);
@@ -381,6 +382,9 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
 
 public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
+    if (F.getName() == "__obf_decode_all_strings")
+      return PreservedAnalyses::all();
+
     bool Changed = false;
     llvm::Triple TT(F.getParent()->getTargetTriple());
     const bool IsAppleMobile = TT.isiOS() || TT.isTvOS() || TT.isWatchOS();
