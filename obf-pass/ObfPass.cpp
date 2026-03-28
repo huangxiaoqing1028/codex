@@ -302,6 +302,9 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
     }
 
     BasicBlock *Entry = &F.getEntryBlock();
+    auto *EntryBr = dyn_cast<BranchInst>(Entry->getTerminator());
+    if (!EntryBr)
+      return false;
     if (EntryBr->isConditional() &&
         (EntryBr->getSuccessor(0) == Entry || EntryBr->getSuccessor(1) == Entry))
       return false;
@@ -313,10 +316,6 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
     }
 
     if (Blocks.empty())
-      return false;
-
-    auto *EntryBr = dyn_cast<BranchInst>(Entry->getTerminator());
-    if (!EntryBr)
       return false;
 
     for (BasicBlock *BB : Blocks) {
