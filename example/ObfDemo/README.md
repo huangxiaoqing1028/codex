@@ -29,8 +29,21 @@ xcodebuild \
   -configuration Debug \
   -sdk iphonesimulator \
   -destination 'platform=iOS Simulator,name=iPhone 15' \
-  build
+build
 ```
+
+## 全工程命中统计脚本（推荐）
+
+可在仓库根目录执行：
+
+```bash
+./scripts/verify_obfdemo_pass_hits.py
+```
+
+脚本会：
+- 调用 `xcodebuild clean build` 收集编译命令；
+- 对每个源码导出 plain/with-pass IR；
+- 统计命中特征分组并输出报告到 `verify_xcode_pass_ir_report/`。
 
 ## CocoaPods 兼容性验证
 
