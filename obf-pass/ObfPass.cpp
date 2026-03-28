@@ -221,6 +221,8 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
     SmallVector<BasicBlock *, 16> ToSplit;
     for (BasicBlock &BB : F) {
       auto *Term = BB.getTerminator();
+      if (!Term)
+        continue;
       if (!isa<BranchInst>(Term))
         continue;
       if (Term->getNumSuccessors() == 0)
@@ -300,9 +302,6 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
     }
 
     BasicBlock *Entry = &F.getEntryBlock();
-    auto *EntryBr = dyn_cast<BranchInst>(Entry->getTerminator());
-    if (!EntryBr)
-      return false;
     if (EntryBr->isConditional() &&
         (EntryBr->getSuccessor(0) == Entry || EntryBr->getSuccessor(1) == Entry))
       return false;
@@ -315,6 +314,16 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
 
     if (Blocks.empty())
       return false;
+
+    auto *EntryBr = dyn_cast<BranchInst>(Entry->getTerminator());
+    if (!EntryBr)
+      return false;
+
+    for (BasicBlock *BB : Blocks) {
+      auto *Term = BB->getTerminator();
+      if (!Term || !isa<BranchInst>(Term))
+        return false;
+    }
 
     std::mt19937_64 RNG(getEnvSeedOrDefault(F.getName(), 0xF1A77EULL));
     SmallVector<uint32_t, 16> IDs;
