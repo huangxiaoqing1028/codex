@@ -214,10 +214,20 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
   }
 
   static bool splitBasicBlocks(Function &F) {
+    if (F.hasPersonalityFn())
+      return false;
+
     bool Changed = false;
     SmallVector<BasicBlock *, 16> ToSplit;
     for (BasicBlock &BB : F) {
-      if (BB.getTerminator()->getNumSuccessors() == 0)
+      auto *Term = BB.getTerminator();
+      if (!isa<BranchInst>(Term))
+        continue;
+      if (Term->getNumSuccessors() == 0)
+        continue;
+      if (BB.isEHPad())
+        continue;
+      if (BB.hasAddressTaken())
         continue;
       if (BB.size() < 6)
         continue;
@@ -520,7 +530,8 @@ public:
     }
 
     // Additional control/data obfuscation layers.
-    if (!ConservativeMode) {
+    const bool SafeForAggressiveCFG = !F.hasPersonalityFn();
+    if (!ConservativeMode && SafeForAggressiveCFG) {
       Changed |= flattenControlFlow(F);
       Changed |= indirectifyDirectCalls(F);
       Changed |= splitBasicBlocks(F);
