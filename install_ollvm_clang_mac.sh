@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# One-click installer for a practical OLLVM clang workflow on macOS (Xcode 15+):
-# 1) Install Homebrew LLVM (clang/opt)
-# 2) Build Hikari obfuscation pass (LLVM new pass manager)
-# 3) Generate a wrapper command `ollvm-clang` for drop-in usage in scripts
+# One-click installer for MaxXor/obfuscator-llvm on macOS (Xcode 15+ host).
+# It builds a standalone obfuscation-enabled clang and installs it to PREFIX/bin/ollvm-clang.
 
 LLVM_MAJOR="${LLVM_MAJOR:-17}"
 PREFIX="${PREFIX:-$HOME/.local/ollvm-clang}"
 JOBS="${JOBS:-$(sysctl -n hw.ncpu)}"
+OLLVM_REPO="${OLLVM_REPO:-https://github.com/MaxXor/obfuscator-llvm.git}"
+OLLVM_REF="${OLLVM_REF:-master}"
+BUILD_TYPE="${BUILD_TYPE:-Release}"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "[x] This script is for macOS only."
@@ -25,44 +26,50 @@ if ! command -v brew >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "[+] Installing llvm@${LLVM_MAJOR} ..."
+echo "[+] Installing build dependencies ..."
 brew install "llvm@${LLVM_MAJOR}" cmake ninja git
 
 LLVM_OPT_PREFIX="$(brew --prefix "llvm@${LLVM_MAJOR}")"
-LLVM_BIN="${LLVM_OPT_PREFIX}/bin"
-LLVM_CMAKE_DIR="${LLVM_OPT_PREFIX}/lib/cmake/llvm"
-
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "${TMP_DIR}"' EXIT
 
-echo "[+] Cloning llvm-pass-hikari ..."
-git clone --depth=1 https://github.com/lich4/llvm-pass-hikari.git "${TMP_DIR}/llvm-pass-hikari"
+echo "[+] Cloning ${OLLVM_REPO} (${OLLVM_REF}) ..."
+git clone --depth=1 --branch "${OLLVM_REF}" "${OLLVM_REPO}" "${TMP_DIR}/obfuscator-llvm"
+
+if [[ ! -d "${TMP_DIR}/obfuscator-llvm/llvm" ]]; then
+  echo "[x] Unexpected repository layout: missing llvm/ directory"
+  exit 1
+fi
 
 mkdir -p "${TMP_DIR}/build"
 cd "${TMP_DIR}/build"
 
-echo "[+] Building Hikari pass against llvm@${LLVM_MAJOR} ..."
+echo "[+] Configuring and building obfuscator-llvm clang (this can take a while) ..."
 cmake -G Ninja \
-  -DLLVM_DIR="${LLVM_CMAKE_DIR}" \
-  ../llvm-pass-hikari/obfuscator
-ninja -j"${JOBS}"
+  -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+  -DCMAKE_PREFIX_PATH="${LLVM_OPT_PREFIX}" \
+  -DLLVM_ENABLE_PROJECTS="clang" \
+  -DLLVM_TARGETS_TO_BUILD="X86;AArch64" \
+  ../obfuscator-llvm/llvm
+ninja -j"${JOBS}" clang
 
-mkdir -p "${PREFIX}/bin" "${PREFIX}/lib"
-cp -f "${TMP_DIR}/build/Hikari.dylib" "${PREFIX}/lib/Hikari.dylib"
+mkdir -p "${PREFIX}/bin"
+cp -f "${TMP_DIR}/build/bin/clang" "${PREFIX}/bin/ollvm-clang"
+chmod +x "${PREFIX}/bin/ollvm-clang"
 
-cat > "${PREFIX}/bin/ollvm-clang" <<WRAP
+cat > "${PREFIX}/bin/ollvm-clang-example" <<'USAGE'
 #!/usr/bin/env bash
 set -euo pipefail
-SDK_PATH="$(xcrun --sdk macosx --show-sdk-path)"
-exec "${LLVM_BIN}/clang" -isysroot "${SDK_PATH}" -fpass-plugin="${PREFIX}/lib/Hikari.dylib" "$@"
-WRAP
-
-chmod +x "${PREFIX}/bin/ollvm-clang"
+# Example usage (adjust flags based on your fork's pass options):
+#   ollvm-clang -mllvm -fla -mllvm -bcf -mllvm -sub hello.c -o hello
+exec "$(dirname "$0")/ollvm-clang" "$@"
+USAGE
+chmod +x "${PREFIX}/bin/ollvm-clang-example"
 
 echo ""
 echo "[✓] Installed."
-echo "    clang wrapper: ${PREFIX}/bin/ollvm-clang"
-echo "    pass dylib:    ${PREFIX}/lib/Hikari.dylib"
+echo "    compiler: ${PREFIX}/bin/ollvm-clang"
+echo "    example:  ${PREFIX}/bin/ollvm-clang-example"
 echo ""
-echo "Usage:"
-echo "    ${PREFIX}/bin/ollvm-clang hello.c -o hello"
+echo "Try:"
+echo "    ${PREFIX}/bin/ollvm-clang -mllvm -fla -mllvm -bcf -mllvm -sub test.c -o test"
