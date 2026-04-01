@@ -4,6 +4,8 @@ This project now contains a complete, production-style iOS app structure:
 
 - `AppDelegate` is kept lean and only configures app bootstrap.
 - `BaseConverterViewController` owns premium UI and conversion logic.
+- `Assets.xcassets` includes standard `AppIcon` and `AccentColor` catalogs.
+- `LaunchScreen.storyboard` is configured through `Info.plist`.
 - English-only UX copy across the product surface.
 - Input sanitization and user-facing validation feedback.
 
