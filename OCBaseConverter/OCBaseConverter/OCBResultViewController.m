@@ -28,6 +28,15 @@
 - (void)buildUI {
     self.view.backgroundColor = [UIColor colorWithRed:0.08 green:0.08 blue:0.12 alpha:1];
 
+    UIButton *backButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    backButton.translatesAutoresizingMaskIntoConstraints = NO;
+    [backButton setTitle:@"← Back" forState:UIControlStateNormal];
+    [backButton setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
+    backButton.titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightSemibold];
+    backButton.backgroundColor = [UIColor colorWithWhite:1 alpha:0.10];
+    backButton.layer.cornerRadius = 10;
+    [backButton addTarget:self action:@selector(backTapped) forControlEvents:UIControlEventTouchUpInside];
+
     UILabel *titleLabel = [[UILabel alloc] init];
     titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     titleLabel.text = @"Conversion Result";
@@ -80,6 +89,7 @@
     copyButton.layer.cornerRadius = 12;
     [copyButton addTarget:self action:@selector(copyTapped) forControlEvents:UIControlEventTouchUpInside];
 
+    [self.view addSubview:backButton];
     [self.view addSubview:titleLabel];
     [self.view addSubview:mappingLabel];
     [self.view addSubview:glassCard];
@@ -91,7 +101,12 @@
     [glassCard addSubview:outputValueLabel];
 
     [NSLayoutConstraint activateConstraints:@[
-        [titleLabel.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:24],
+        [backButton.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
+        [backButton.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:8],
+        [backButton.widthAnchor constraintEqualToConstant:88],
+        [backButton.heightAnchor constraintEqualToConstant:36],
+
+        [titleLabel.topAnchor constraintEqualToAnchor:backButton.bottomAnchor constant:16],
         [titleLabel.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
         [titleLabel.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
 
@@ -125,6 +140,10 @@
         [copyButton.trailingAnchor constraintEqualToAnchor:glassCard.trailingAnchor],
         [copyButton.heightAnchor constraintEqualToConstant:52]
     ]];
+}
+
+- (void)backTapped {
+    [self.navigationController popViewControllerAnimated:YES];
 }
 
 - (void)copyTapped {
