@@ -10,6 +10,8 @@ Objective-C iOS complete Xcode project for base conversion with premium English 
 
 ## Features
 - Convert between Binary / Octal / Decimal / Hex.
+- Result is displayed on a dedicated next screen.
+- One-tap **Copy Result** button on result page.
 - Stylish dark gradient UI with polished App-like layout.
-- Input validation and clear error prompts.
+- Swap bases and clear input quickly.
 - Pure Objective-C UIKit implementation.

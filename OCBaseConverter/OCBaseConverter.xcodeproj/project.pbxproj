@@ -11,6 +11,7 @@
 	A10000000000000000000002 /* OCBAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000013 /* OCBAppDelegate.m */; };
 	A10000000000000000000003 /* OCBViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000015 /* OCBViewController.m */; };
 	A10000000000000000000004 /* OCBBaseConverter.m in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000017 /* OCBBaseConverter.m */; };
+	A10000000000000000000005 /* OCBResultViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001A /* OCBResultViewController.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,6 +24,8 @@
 	A10000000000000000000016 /* OCBBaseConverter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OCBBaseConverter.h; sourceTree = "<group>"; };
 	A10000000000000000000017 /* OCBBaseConverter.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = OCBBaseConverter.m; sourceTree = "<group>"; };
 	A10000000000000000000018 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+	A10000000000000000000019 /* OCBResultViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OCBResultViewController.h; sourceTree = "<group>"; };
+	A1000000000000000000001A /* OCBResultViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = OCBResultViewController.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -54,6 +57,8 @@
 			A10000000000000000000015 /* OCBViewController.m */,
 			A10000000000000000000016 /* OCBBaseConverter.h */,
 			A10000000000000000000017 /* OCBBaseConverter.m */,
+			A10000000000000000000019 /* OCBResultViewController.h */,
+			A1000000000000000000001A /* OCBResultViewController.m */,
 			A10000000000000000000018 /* Info.plist */,
 		);
 		path = OCBaseConverter;
@@ -127,6 +132,7 @@
 			A10000000000000000000002 /* OCBAppDelegate.m in Sources */,
 			A10000000000000000000003 /* OCBViewController.m in Sources */,
 			A10000000000000000000004 /* OCBBaseConverter.m in Sources */,
+				A10000000000000000000005 /* OCBResultViewController.m in Sources */,
 		);
 		runOnlyForDeploymentPostprocessing = 0;
 	};
