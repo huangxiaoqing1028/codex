@@ -10,6 +10,8 @@
 		A00100010000000000000001 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = A00100000000000000000001 /* main.m */; };
 		A00100010000000000000002 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = A00100000000000000000002 /* AppDelegate.m */; };
 		A00100010000000000000003 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A00100000000000000000006 /* UIKit.framework */; };
+		A00100010000000000000004 /* BaseConverterViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A00100000000000000000010 /* BaseConverterViewController.m */; };
+		A00100010000000000000005 /* APPSTORE_RELEASE_CHECKLIST.md in Resources */ = {isa = PBXBuildFile; fileRef = A00100000000000000000012 /* APPSTORE_RELEASE_CHECKLIST.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,6 +24,9 @@
 		A00100000000000000000007 /* ObfDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ObfDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A00100000000000000000008 /* ObfToolchain.Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = ObfToolchain.Debug.xcconfig; sourceTree = "<group>"; };
 		A00100000000000000000009 /* ObfToolchain.Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = ObfToolchain.Release.xcconfig; sourceTree = "<group>"; };
+		A00100000000000000000010 /* BaseConverterViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BaseConverterViewController.m; sourceTree = "<group>"; };
+		A00100000000000000000011 /* BaseConverterViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BaseConverterViewController.h; sourceTree = "<group>"; };
+		A00100000000000000000012 /* APPSTORE_RELEASE_CHECKLIST.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = APPSTORE_RELEASE_CHECKLIST.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -51,7 +56,10 @@
 				A00100000000000000000001 /* main.m */,
 				A00100000000000000000003 /* AppDelegate.h */,
 				A00100000000000000000002 /* AppDelegate.m */,
+				A00100000000000000000011 /* BaseConverterViewController.h */,
+				A00100000000000000000010 /* BaseConverterViewController.m */,
 				A00100000000000000000005 /* Info.plist */,
+				A00100000000000000000012 /* APPSTORE_RELEASE_CHECKLIST.md */,
 				A00100000000000000000008 /* ObfToolchain.Debug.xcconfig */,
 				A00100000000000000000009 /* ObfToolchain.Release.xcconfig */,
 				A00100000000000000000004 /* ObfToolchain.xcconfig */,
@@ -132,6 +140,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A00100010000000000000005 /* APPSTORE_RELEASE_CHECKLIST.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -144,6 +153,7 @@
 			files = (
 				A00100010000000000000001 /* main.m in Sources */,
 				A00100010000000000000002 /* AppDelegate.m in Sources */,
+				A00100010000000000000004 /* BaseConverterViewController.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
