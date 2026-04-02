@@ -63,7 +63,6 @@ static bool shouldObfuscateFunction(const Function &F) {
 
   std::string Name = F.getName().str();
 
-  // Skip risky runtime/compiler generated helpers.
   if (Name.find("block_invoke") != std::string::npos ||
       Name.find("destruct") != std::string::npos ||
       Name.find("cxx") != std::string::npos ||
@@ -108,6 +107,22 @@ static void logPassHit(Function &F) {
   }
 }
 
+static void verifyFunctionOrDie(Function &F, const char *Stage) {
+  if (verifyFunction(F, &errs())) {
+    errs() << "[SimpleObfPass] verifier failed after stage: "
+           << Stage << " in function: " << F.getName() << "\n";
+    report_fatal_error("Broken IR after SimpleObfPass");
+  }
+}
+
+static void verifyModuleOrDie(Module &M, const char *Stage) {
+  if (verifyModule(M, &errs())) {
+    errs() << "[SimpleObfPass] module verifier failed after stage: "
+           << Stage << "\n";
+    report_fatal_error("Broken module after SimpleObfPass");
+  }
+}
+
 class StringEncryptionPass : public PassInfoMixin<StringEncryptionPass> {
 public:
   PreservedAnalyses run(Module &M, ModuleAnalysisManager &) {
@@ -125,7 +140,6 @@ public:
         continue;
       if (!GV.hasGlobalUnnamedAddr())
         continue;
-      // Keep ObjC/runtime metadata untouched; only obfuscate plain C literals.
       if (!GV.getName().starts_with(".str"))
         continue;
       if (!GV.getValueType()->isArrayTy())
@@ -190,15 +204,144 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
     return Name.starts_with("\x01-[") || Name.starts_with("\x01+[");
   }
 
+  static bool isStructurallySafeForCFGObf(Function &F) {
+    if (F.isDeclaration() || F.empty())
+      return false;
+    if (F.hasPersonalityFn())
+      return false;
+
+    StringRef N = F.getName();
+    if (isObjCMethodName(N))
+      return false;
+    if (N.contains("block") || N.contains("Block"))
+      return false;
+    if (N.contains("destruct") || N.contains(".cxx_"))
+      return false;
+    if (N.startswith("objc_") || N.startswith("_objc_"))
+      return false;
+    if (N.startswith("_dispatch"))
+      return false;
+
+    unsigned BBCount = 0;
+    unsigned CallCount = 0;
+    unsigned RetCount = 0;
+    bool HasPHI = false;
+    bool HasInvoke = false;
+    bool HasSwitch = false;
+
+    for (BasicBlock &BB : F) {
+      ++BBCount;
+      for (Instruction &I : BB) {
+        if (isa<PHINode>(&I))
+          HasPHI = true;
+        if (isa<InvokeInst>(&I))
+          HasInvoke = true;
+        if (isa<SwitchInst>(&I))
+          HasSwitch = true;
+        if (isa<CallBase>(&I))
+          ++CallCount;
+        if (isa<ReturnInst>(&I))
+          ++RetCount;
+      }
+    }
+
+    if (HasPHI || HasInvoke || HasSwitch)
+      return false;
+    if (RetCount != 1)
+      return false;
+    if (BBCount < 3 || BBCount > 40)
+      return false;
+    if (CallCount > 12)
+      return false;
+
+    return true;
+  }
+
+  static bool canFlattenFunction(Function &F) {
+    if (!isStructurallySafeForCFGObf(F))
+      return false;
+
+    BasicBlock *Entry = &F.getEntryBlock();
+    auto *EntryBr = dyn_cast<BranchInst>(Entry->getTerminator());
+    if (!EntryBr)
+      return false;
+
+    for (BasicBlock &BB : F) {
+      auto *BI = dyn_cast<BranchInst>(BB.getTerminator());
+      if (!BI)
+        return false;
+      for (unsigned I = 0; I < BI->getNumSuccessors(); ++I) {
+        if (BI->getSuccessor(I) == Entry)
+          return false;
+      }
+    }
+    return true;
+  }
+
+  static bool canIndirectifyFunction(Function &F) {
+    if (F.isDeclaration() || F.empty())
+      return false;
+
+    StringRef N = F.getName();
+    if (isObjCMethodName(N))
+      return false;
+    if (N.contains("block") || N.contains("Block"))
+      return false;
+    if (N.contains("destruct") || N.contains(".cxx_"))
+      return false;
+    if (N.startswith("objc_") || N.startswith("_objc_"))
+      return false;
+    if (N.startswith("_dispatch"))
+      return false;
+
+    return true;
+  }
+
+  static bool isSafeBlockForSplitOrBCF(BasicBlock &BB) {
+    auto *Term = BB.getTerminator();
+    if (!Term)
+      return false;
+    if (!isa<BranchInst>(Term))
+      return false;
+    if (BB.isEHPad() || BB.hasAddressTaken())
+      return false;
+    if (BB.size() < 8)
+      return false;
+    if (!BB.hasNPredecessors(1))
+      return false;
+
+    for (Instruction &I : BB) {
+      if (isa<PHINode>(&I))
+        return false;
+      if (isa<InvokeInst>(&I))
+        return false;
+      if (isa<LandingPadInst>(&I))
+        return false;
+      if (isa<CallBase>(&I))
+        return false;
+    }
+
+    return true;
+  }
+
+  static bool canUseExperimentalCFG(Function &F) {
+    if (!isStructurallySafeForCFGObf(F))
+      return false;
+
+    for (BasicBlock &BB : F) {
+      if (isSafeBlockForSplitOrBCF(BB))
+        return true;
+    }
+    return false;
+  }
+
   static Value *createOpaqueTrue(IRBuilder<> &Builder, Value *Cond) {
-    // cond == (((zext(cond) ^ 1) == 0))
     Value *AsInt = Builder.CreateZExt(Cond, Builder.getInt8Ty(), "obf.cond.zext");
     Value *Flip = Builder.CreateXor(AsInt, Builder.getInt8(1), "obf.cond.flip");
     return Builder.CreateICmpEQ(Flip, Builder.getInt8(0), "obf.cond.opaque");
   }
 
   static Value *createMBAAdd(IRBuilder<> &Builder, Value *A, Value *B) {
-    // A + B == (A ^ B) + ((A & B) << 1)
     Value *Xor = Builder.CreateXor(A, B, "obf.mba.xor");
     Value *And = Builder.CreateAnd(A, B, "obf.mba.and");
     Value *Carry = Builder.CreateShl(
@@ -208,14 +351,12 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
   }
 
   static Value *createMBAXor(IRBuilder<> &Builder, Value *A, Value *B) {
-    // A ^ B == (A | B) - (A & B)
     Value *Or = Builder.CreateOr(A, B, "obf.mba.or");
     Value *And = Builder.CreateAnd(A, B, "obf.mba.and");
     return Builder.CreateSub(Or, And, "obf.mba.xor");
   }
 
   static Value *createMBAAnd(IRBuilder<> &Builder, Value *A, Value *B) {
-    // A & B == ~(~A | ~B)
     Value *NotA = Builder.CreateNot(A, "obf.mba.not.a");
     Value *NotB = Builder.CreateNot(B, "obf.mba.not.b");
     Value *Or = Builder.CreateOr(NotA, NotB, "obf.mba.or");
@@ -223,7 +364,6 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
   }
 
   static Value *createMBAOr(IRBuilder<> &Builder, Value *A, Value *B) {
-    // A | B == ~(~A & ~B)
     Value *NotA = Builder.CreateNot(A, "obf.mba.not.a");
     Value *NotB = Builder.CreateNot(B, "obf.mba.not.b");
     Value *And = Builder.CreateAnd(NotA, NotB, "obf.mba.and");
@@ -232,12 +372,9 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
 
   static Value *createObfuscatedConst(IRBuilder<> &Builder, APInt C,
                                       uint64_t Seed) {
-    // C == (C ^ K) ^ K
-    APInt K = APInt(C.getBitWidth(), Seed, /*isSigned=*/false,
-                    /*implicitTrunc=*/true);
+    APInt K = APInt(C.getBitWidth(), Seed, false, true);
     if (K.isZero())
-      K = APInt(C.getBitWidth(), 0xA5A5A5A5ULL, /*isSigned=*/false,
-                /*implicitTrunc=*/true);
+      K = APInt(C.getBitWidth(), 0xA5A5A5A5ULL, false, true);
     Constant *CK = ConstantInt::get(Builder.getContext(), K);
     Constant *Masked = ConstantInt::get(Builder.getContext(), C ^ K);
     Value *Tmp = Builder.CreateXor(Masked, CK, "obf.const.masked");
@@ -245,9 +382,7 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
   }
 
   static bool indirectifyDirectCalls(Function &F) {
-    // ObjC method bodies are fragile under aggressive call operand rewriting
-    // (can trigger downstream CFG/simplify issues in some pipelines).
-    if (isObjCMethodName(F.getName()))
+    if (!canIndirectifyFunction(F))
       return false;
 
     bool Changed = false;
@@ -257,11 +392,20 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
         auto *CI = dyn_cast<CallInst>(&I);
         if (!CI)
           continue;
-        if (CI->isInlineAsm())
+        if (CI->isInlineAsm() || CI->isMustTailCall())
           continue;
         Function *Callee = CI->getCalledFunction();
-        if (!Callee || Callee->isIntrinsic())
+        if (!Callee || Callee->isIntrinsic() || Callee->isVarArg())
           continue;
+
+        StringRef CN = Callee->getName();
+        if (CN.startswith("objc_") || CN.startswith("_objc_"))
+          continue;
+        if (CN.startswith("_dispatch"))
+          continue;
+        if (CN.contains("block") || CN.contains("Block"))
+          continue;
+
         Calls.push_back(CI);
       }
     }
@@ -273,7 +417,8 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
       AllocaInst *Slot =
           EntryBuilder.CreateAlloca(Callee->getType(), nullptr, "obf.callee.slot");
       Builder.CreateStore(Callee, Slot);
-      Value *Loaded = Builder.CreateLoad(Callee->getType(), Slot, "obf.callee");
+      LoadInst *Loaded = Builder.CreateLoad(Callee->getType(), Slot, "obf.callee");
+      Loaded->setVolatile(true);
       CI->setCalledOperand(Loaded);
       Changed = true;
     }
@@ -287,18 +432,7 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
     bool Changed = false;
     SmallVector<BasicBlock *, 16> ToSplit;
     for (BasicBlock &BB : F) {
-      auto *Term = BB.getTerminator();
-      if (!Term)
-        continue;
-      if (!isa<BranchInst>(Term))
-        continue;
-      if (Term->getNumSuccessors() == 0)
-        continue;
-      if (BB.isEHPad())
-        continue;
-      if (BB.hasAddressTaken())
-        continue;
-      if (BB.size() < 6)
+      if (!isSafeBlockForSplitOrBCF(BB))
         continue;
       ToSplit.push_back(&BB);
     }
@@ -327,13 +461,12 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
     }
 
     for (BranchInst *BI : Branches) {
+      if (!isSafeBlockForSplitOrBCF(*BI->getParent()))
+        continue;
+
       IRBuilder<> Builder(BI);
       if (BI->isConditional()) {
-        Value *Cond = BI->getCondition();
-        Value *ObfCond = createOpaqueTrue(Builder, Cond);
-        BI->setCondition(ObfCond);
-        Changed = true;
-        continue;
+        continue; // 稳定增强版先不改 conditional branch 的 condition
       }
 
       BasicBlock *Src = BI->getParent();
@@ -347,7 +480,6 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
       Function *Fn = Src->getParent();
       BasicBlock *Bogus = BasicBlock::Create(Fn->getContext(), "obf.bogus", Fn, Target);
       IRBuilder<> BogusBuilder(Bogus);
-      // Inject junk arithmetic in cloned bogus path, then merge back to target.
       Value *A = BogusBuilder.getInt32(0x13579BDF);
       Value *B = BogusBuilder.getInt32(0x2468ACE0);
       Value *X = BogusBuilder.CreateXor(A, B, "obf.bcf.junk.x");
@@ -517,8 +649,6 @@ public:
     llvm::Triple TT(F.getParent()->getTargetTriple());
     const bool IsAppleMobile = TT.isiOS() || TT.isTvOS() || TT.isWatchOS();
     const bool IsSimulator = TT.isSimulatorEnvironment();
-    // Force obfuscation by default on eligible target functions (including
-    // real-device builds). Keep env override for explicit fallback control.
     (void)IsAppleMobile;
     (void)IsSimulator;
     const bool ConservativeDefault = false;
@@ -638,8 +768,6 @@ public:
         if (!NewValue)
           NewValue = tryPow2(RHS, LHS);
         if (!NewValue) {
-          // Fallback: x * y == (x << 1) * (y >> 1) + parity(x*y) is too intrusive;
-          // keep original when no safe power-of-two pattern.
           NewValue = nullptr;
         }
       }
@@ -652,9 +780,6 @@ public:
       }
     }
 
-    // Additional control/data obfuscation layers.
-    // Structural CFG passes are not pattern-matching transforms and should run
-    // whenever the function is structurally safe to rewrite.
     const bool SafeForAggressiveCFG = !F.hasPersonalityFn();
     const bool EnableStructuralCFG =
         getEnvBoolOrDefault("OBF_ENABLE_STRUCTURAL_CFG", true);
@@ -666,15 +791,31 @@ public:
         getEnvBoolOrDefault("OBF_ENABLE_EXPERIMENTAL_CFG", true);
     const bool HasPHI = hasPHINodes(F);
     const bool IsObjCMethod = isObjCMethodName(F.getName());
-    if (EnableStructuralCFG && SafeForAggressiveCFG && !IsObjCMethod) {
-      if (EnableFLA)
+    const bool StructurallySafe = isStructurallySafeForCFGObf(F);
+
+    if (EnableStructuralCFG && SafeForAggressiveCFG && StructurallySafe) {
+      if (EnableFLA && canFlattenFunction(F)) {
         FlattenChanged = flattenControlFlow(F);
-      if (EnableCallIndirect)
-        IndirectCallChanged = indirectifyDirectCalls(F);
-      if (ExperimentalCFG && !HasPHI) {
-        SplitChanged = splitBasicBlocks(F);
-        BranchPerturbChanged = perturbBranches(F);
+        if (FlattenChanged)
+          verifyFunctionOrDie(F, "flatten");
       }
+
+      if (EnableCallIndirect && canIndirectifyFunction(F)) {
+        IndirectCallChanged = indirectifyDirectCalls(F);
+        if (IndirectCallChanged)
+          verifyFunctionOrDie(F, "call_indirect");
+      }
+
+      if (ExperimentalCFG && canUseExperimentalCFG(F)) {
+        SplitChanged = splitBasicBlocks(F);
+        if (SplitChanged)
+          verifyFunctionOrDie(F, "split");
+
+        BranchPerturbChanged = perturbBranches(F);
+        if (BranchPerturbChanged)
+          verifyFunctionOrDie(F, "bcf");
+      }
+
       Changed |= FlattenChanged || IndirectCallChanged || SplitChanged ||
                  BranchPerturbChanged;
     }
@@ -706,10 +847,8 @@ public:
              << " conservative=" << (ConservativeMode ? 1 : 0) << "\n";
     }
 
-    if (Changed && verifyFunction(F, &errs())) {
-      errs() << "[SimpleObfPass] verifier failed, function may be unsafe: "
-             << F.getName() << "\n";
-    }
+    if (Changed)
+      verifyModuleOrDie(*F.getParent(), "SimpleObfPass");
 
     return Changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
   }
