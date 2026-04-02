@@ -257,6 +257,7 @@ MY_CLANG_VERBOSE=1 ./toolchain/my-clang -c /tmp/demo.c -o /tmp/demo.o
 - 最终执行的 clang 完整命令（含 `-fpass-plugin=...`）
 
 > `MY_CLANG_VERBOSE` 只要是非空且不为 `0` 都会开启；即使 plugin 缺失也会先打印 plugin 目标路径，便于排查。
+> 如需统计“本次构建有多少源码命中 pass”，可设置 `OBF_HIT_LOG=/tmp/obf_pass_hits.log`；`scripts/build_obfdemo_xcode.sh` 会在构建结束后打印命中的源码文件数。
 
 如果在 Xcode 里也想看到同样输出，推荐临时把编译器切到 verbose wrapper：
 

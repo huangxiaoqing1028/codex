@@ -13,11 +13,15 @@
 #endif
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Triple.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 #include <algorithm>
 #include <cstdlib>
+#include <fstream>
+#include <mutex>
 #include <random>
+#include <unordered_set>
 
 using namespace llvm;
 
@@ -49,6 +53,35 @@ static bool getEnvBoolOrDefault(const char *Name, bool Fallback) {
            StringRef(V).equals_insensitive("false") ||
            StringRef(V).equals_insensitive("off") ||
            StringRef(V).equals_insensitive("no"));
+}
+
+static void logPassHit(Function &F) {
+  static std::mutex LogMu;
+  static std::unordered_set<std::string> EmittedModules;
+
+  Module *M = F.getParent();
+  std::string ModuleName = "<unknown>";
+  if (M) {
+    if (!M->getSourceFileName().empty())
+      ModuleName = M->getSourceFileName().str();
+    else if (!M->getModuleIdentifier().empty())
+      ModuleName = M->getModuleIdentifier().str();
+  }
+
+  std::lock_guard<std::mutex> Lock(LogMu);
+  if (!EmittedModules.insert(ModuleName).second)
+    return;
+
+  if (getEnvBoolOrDefault("OBF_HIT_STDERR", true)) {
+    errs() << "[simple-obf] HIT module: " << ModuleName << "\n";
+  }
+
+  if (const char *LogPath = std::getenv("OBF_HIT_LOG")) {
+    std::ofstream OS(LogPath, std::ios::app);
+    if (OS.is_open()) {
+      OS << "HIT\t" << ModuleName << "\n";
+    }
+  }
 }
 
 class StringEncryptionPass : public PassInfoMixin<StringEncryptionPass> {
@@ -546,6 +579,9 @@ public:
       Changed |= splitBasicBlocks(F);
       Changed |= perturbBranches(F);
     }
+
+    if (Changed)
+      logPassHit(F);
 
     return Changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
   }
