@@ -217,9 +217,9 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
       return false;
     if (N.contains("destruct") || N.contains(".cxx_"))
       return false;
-    if (N.startswith("objc_") || N.startswith("_objc_"))
+    if (N.starts_with("objc_") || N.starts_with("_objc_"))
       return false;
-    if (N.startswith("_dispatch"))
+    if (N.starts_with("_dispatch"))
       return false;
 
     unsigned BBCount = 0;
@@ -289,9 +289,9 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
       return false;
     if (N.contains("destruct") || N.contains(".cxx_"))
       return false;
-    if (N.startswith("objc_") || N.startswith("_objc_"))
+    if (N.starts_with("objc_") || N.starts_with("_objc_"))
       return false;
-    if (N.startswith("_dispatch"))
+    if (N.starts_with("_dispatch"))
       return false;
 
     return true;
@@ -399,9 +399,9 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
           continue;
 
         StringRef CN = Callee->getName();
-        if (CN.startswith("objc_") || CN.startswith("_objc_"))
+        if (CN.starts_with("objc_") || CN.starts_with("_objc_"))
           continue;
-        if (CN.startswith("_dispatch"))
+        if (CN.starts_with("_dispatch"))
           continue;
         if (CN.contains("block") || CN.contains("Block"))
           continue;
