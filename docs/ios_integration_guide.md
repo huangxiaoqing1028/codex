@@ -56,11 +56,11 @@ OBF_SEED=20260327 ./scripts/verify_pass.sh
 设置不同 `OBF_SEED` 可使同一源码编译得到不同混淆形态。
 若通过 `my-clang` / `my-clang++` 构建且未显式设置 `OBF_SEED`，wrapper 默认会自动生成随机 `OBF_SEED`（每次编译形态不同）；可设置 `MY_CLANG_AUTO_SEED=0` 关闭。
 
-> 兼容性说明：`simple-obf` 在 iOS **真机/模拟器**默认启用稳定规则（字符串 + 算术混淆）；高风险 CFG 变换需显式开启。
+> 兼容性说明：`simple-obf` 在 iOS **真机/模拟器**默认启用完整规则（字符串 + 算术 + CFG 混淆）；对不安全函数会自动收敛策略。
 > 可用 `OBF_CONSERVATIVE_MODE=1/0` 显式覆盖 conservative 策略。
 > 结构型 CFG 混淆（FLA/split/bogus/call indirection）默认在“函数结构安全”时启用，不依赖算术命中；可用 `OBF_ENABLE_STRUCTURAL_CFG=0` 关闭。
 > 稳定性保护：ObjC 方法符号（`-[...]` / `+[...]`）默认跳过 call indirection，仅执行其它结构混淆，降低 SimplifyCFG 阶段崩溃风险。
-> 稳定性保护：高风险 CFG 变换默认关闭，需显式开启：`OBF_ENABLE_FLA=1`、`OBF_ENABLE_CALL_INDIRECT=1`、`OBF_ENABLE_EXPERIMENTAL_CFG=1`（split/bogus）。
+> 稳定性保护：开启状态下也会做安全过滤（例如含 PHI 的函数跳过 split/bogus，并补全 PHI incoming），降低 SimplifyCFG 崩溃风险；也可手动开关：`OBF_ENABLE_FLA`、`OBF_ENABLE_CALL_INDIRECT`、`OBF_ENABLE_EXPERIMENTAL_CFG`。
 
 ### Q16: 这次崩溃是不是 clang 与 pass 插件 ABI 不匹配？
 有这个可能。当前 wrapper 已增加主版本校验：会读取 `build/obf-pass/llvm-version.txt`，并与实际执行的 `clang --version` 主版本比对；不一致时直接报错退出，避免继续注入插件导致 crash。

@@ -31,11 +31,11 @@
   - 出于稳定性考虑，仅处理私有 C 字面量字符串（`.str*`），跳过 ObjC/runtime 元数据字符串。
   - 支持 `OBF_SEED` 随机种子：同源码可多次编译得到不同变换形态。
 
-> iOS **真机/模拟器**默认启用稳定规则（字符串 + 算术混淆）；高风险 CFG 变换需显式开关开启。
+> iOS **真机/模拟器**默认启用完整规则（字符串 + 算术 + CFG 混淆）；对不安全函数会自动收敛策略。
 > 可通过 `OBF_CONSERVATIVE_MODE=1/0` 显式覆盖 conservative 策略。
 > 结构型 CFG 混淆（FLA/split/bogus/call indirection）默认会在“函数结构安全”时启用，不依赖算术匹配；可用 `OBF_ENABLE_STRUCTURAL_CFG=0` 关闭。
 > 稳定性保护：ObjC 方法符号（`-[...]` / `+[...]`）默认跳过 call indirection，仅保留其它结构混淆，避免后续优化阶段（如 SimplifyCFG）崩溃。
-> 稳定性保护：高风险 CFG 变换默认关闭，需显式开启：`OBF_ENABLE_FLA=1`、`OBF_ENABLE_CALL_INDIRECT=1`、`OBF_ENABLE_EXPERIMENTAL_CFG=1`（split/bogus）。
+> 稳定性保护：开启状态下也会做安全过滤（例如含 PHI 的函数跳过 split/bogus，并对 PHI 前驱补全 incoming），降低 SimplifyCFG 崩溃风险；也可手动开关：`OBF_ENABLE_FLA`、`OBF_ENABLE_CALL_INDIRECT`、`OBF_ENABLE_EXPERIMENTAL_CFG`。
 > `my-clang` / `my-clang++` 默认会在未设置 `OBF_SEED` 时自动注入随机种子（每次编译形态不同）；可用 `MY_CLANG_AUTO_SEED=0` 关闭。
 > `my-clang` / `my-clang++` 在插件开启时会自动补 `-Xclang -disable-O0-optnone`（可用 `MY_CLANG_KEEP_OPTNONE=1` 关闭）。
 > wrapper 仅在“真实编译动作”注入插件，并默认跳过 PCH 构建；第三方过滤只基于 `-c` 后的源码路径（不会因 `-I/-F` 搜索路径误判）。

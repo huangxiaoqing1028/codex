@@ -338,6 +338,12 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
 
       BasicBlock *Src = BI->getParent();
       BasicBlock *Target = BI->getSuccessor(0);
+      bool HasPHI = false;
+      for (Instruction &I : *Target) {
+        if (!isa<PHINode>(I))
+          break;
+        HasPHI = true;
+      }
       Function *Fn = Src->getParent();
       BasicBlock *Bogus = BasicBlock::Create(Fn->getContext(), "obf.bogus", Fn, Target);
       IRBuilder<> BogusBuilder(Bogus);
@@ -351,10 +357,29 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
 
       Value *Opaque = createOpaqueTrue(Builder, Builder.getTrue());
       BranchInst::Create(Target, Bogus, Opaque, BI->getIterator());
+      if (HasPHI) {
+        for (Instruction &I : *Target) {
+          auto *PN = dyn_cast<PHINode>(&I);
+          if (!PN)
+            break;
+          int SrcIdx = PN->getBasicBlockIndex(Src);
+          if (SrcIdx < 0)
+            continue;
+          PN->addIncoming(PN->getIncomingValue(SrcIdx), Bogus);
+        }
+      }
       BI->eraseFromParent();
       Changed = true;
     }
     return Changed;
+  }
+
+  static bool hasPHINodes(const Function &F) {
+    for (const BasicBlock &BB : F)
+      for (const Instruction &I : BB)
+        if (isa<PHINode>(I))
+          return true;
+    return false;
   }
 
   static bool flattenControlFlow(Function &F) {
@@ -634,18 +659,19 @@ public:
     const bool EnableStructuralCFG =
         getEnvBoolOrDefault("OBF_ENABLE_STRUCTURAL_CFG", true);
     const bool EnableFLA =
-        getEnvBoolOrDefault("OBF_ENABLE_FLA", false);
+        getEnvBoolOrDefault("OBF_ENABLE_FLA", true);
     const bool EnableCallIndirect =
-        getEnvBoolOrDefault("OBF_ENABLE_CALL_INDIRECT", false);
+        getEnvBoolOrDefault("OBF_ENABLE_CALL_INDIRECT", true);
     const bool ExperimentalCFG =
-        getEnvBoolOrDefault("OBF_ENABLE_EXPERIMENTAL_CFG", false);
+        getEnvBoolOrDefault("OBF_ENABLE_EXPERIMENTAL_CFG", true);
+    const bool HasPHI = hasPHINodes(F);
     const bool IsObjCMethod = isObjCMethodName(F.getName());
     if (EnableStructuralCFG && SafeForAggressiveCFG && !IsObjCMethod) {
       if (EnableFLA)
         FlattenChanged = flattenControlFlow(F);
       if (EnableCallIndirect)
         IndirectCallChanged = indirectifyDirectCalls(F);
-      if (ExperimentalCFG) {
+      if (ExperimentalCFG && !HasPHI) {
         SplitChanged = splitBasicBlocks(F);
         BranchPerturbChanged = perturbBranches(F);
       }
@@ -673,6 +699,7 @@ public:
              << " structural_cfg="
              << (EnableStructuralCFG ? 1 : 0)
              << " objc_method=" << (IsObjCMethod ? 1 : 0)
+             << " has_phi=" << (HasPHI ? 1 : 0)
              << " fla_en=" << (EnableFLA ? 1 : 0)
              << " calli_en=" << (EnableCallIndirect ? 1 : 0)
              << " exp_cfg=" << (ExperimentalCFG ? 1 : 0)
