@@ -40,6 +40,7 @@
 > 可通过 `OBF_HIT_LOG=/tmp/obf_pass_hits.log` 收集“命中 pass 的源码文件”日志；`scripts/build_obfdemo_xcode.sh` 会在构建后自动汇总命中文件数。
 > 可通过 `OBF_TRACE_FUNC=1` 打开函数级 trace（stderr 输出 `running on function: ...`）。
 > iOS 示例支持 CocoaPods（AFNetworking）；默认仅主 target 使用 `my-clang`，Pods target 保持默认编译器配置。
+> 当 `OBF_TRACE_FUNC=1` 且函数发生变换时，会额外输出 `changed function` 摘要（arith_rewrites/fla/call_indirect/split/bcf 等命中信息）。
 
 调试日志版本编译器（用于在 Xcode 构建日志里观察最终 `-fpass-plugin` 命令）：
 - `toolchain/my-clang-verbose`

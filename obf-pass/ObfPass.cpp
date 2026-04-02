@@ -434,7 +434,8 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
 
 public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
-    if (getEnvBoolOrDefault("OBF_TRACE_FUNC", false)) {
+    const bool TraceFunc = getEnvBoolOrDefault("OBF_TRACE_FUNC", false);
+    if (TraceFunc) {
       errs() << "[SimpleObfPass] running on function: " << F.getName() << "\n";
     }
 
@@ -442,6 +443,11 @@ public:
       return PreservedAnalyses::all();
 
     bool Changed = false;
+    unsigned ArithRewriteCount = 0;
+    bool FlattenChanged = false;
+    bool IndirectCallChanged = false;
+    bool SplitChanged = false;
+    bool BranchPerturbChanged = false;
     llvm::Triple TT(F.getParent()->getTargetTriple());
     const bool IsAppleMobile = TT.isiOS() || TT.isTvOS() || TT.isWatchOS();
     const bool IsSimulator = TT.isSimulatorEnvironment();
@@ -572,20 +578,33 @@ public:
         BinOp->replaceAllUsesWith(NewValue);
         BinOp->eraseFromParent();
         Changed = true;
+        ++ArithRewriteCount;
       }
     }
 
     // Additional control/data obfuscation layers.
     const bool SafeForAggressiveCFG = !F.hasPersonalityFn();
     if (!ConservativeMode && SafeForAggressiveCFG) {
-      Changed |= flattenControlFlow(F);
-      Changed |= indirectifyDirectCalls(F);
-      Changed |= splitBasicBlocks(F);
-      Changed |= perturbBranches(F);
+      FlattenChanged = flattenControlFlow(F);
+      IndirectCallChanged = indirectifyDirectCalls(F);
+      SplitChanged = splitBasicBlocks(F);
+      BranchPerturbChanged = perturbBranches(F);
+      Changed |= FlattenChanged || IndirectCallChanged || SplitChanged ||
+                 BranchPerturbChanged;
     }
 
     if (Changed)
       logPassHit(F);
+
+    if (TraceFunc && Changed) {
+      errs() << "[SimpleObfPass] changed function: " << F.getName()
+             << " | arith_rewrites=" << ArithRewriteCount
+             << " fla=" << (FlattenChanged ? 1 : 0)
+             << " call_indirect=" << (IndirectCallChanged ? 1 : 0)
+             << " split=" << (SplitChanged ? 1 : 0)
+             << " bcf=" << (BranchPerturbChanged ? 1 : 0)
+             << " conservative=" << (ConservativeMode ? 1 : 0) << "\n";
+    }
 
     return Changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
   }
