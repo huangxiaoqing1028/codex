@@ -56,7 +56,7 @@ OBF_SEED=20260327 ./scripts/verify_pass.sh
 设置不同 `OBF_SEED` 可使同一源码编译得到不同混淆形态。
 若通过 `my-clang` / `my-clang++` 构建且未显式设置 `OBF_SEED`，wrapper 默认会自动生成随机 `OBF_SEED`（每次编译形态不同）；可设置 `MY_CLANG_AUTO_SEED=0` 关闭。
 
-> 兼容性说明：`simple-obf` 在 iOS **真机**目标默认启用 conservative 模式（保留字符串加密与安全算术替换，关闭高风险 CFG/调用间接化步骤）；在 iOS Simulator 默认启用完整规则，便于验证 pass 命中。
+> 兼容性说明：`simple-obf` 在 iOS **真机/模拟器**默认都启用完整规则（对满足条件的函数强制混淆）；如需回退保守策略可手动开启 conservative。
 > 可用 `OBF_CONSERVATIVE_MODE=1/0` 显式覆盖 conservative 策略。
 > 结构型 CFG 混淆（FLA/split/bogus/call indirection）默认在“函数结构安全”时启用，不依赖算术命中；可用 `OBF_ENABLE_STRUCTURAL_CFG=0` 关闭。
 

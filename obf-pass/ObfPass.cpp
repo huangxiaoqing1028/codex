@@ -482,7 +482,11 @@ public:
     llvm::Triple TT(F.getParent()->getTargetTriple());
     const bool IsAppleMobile = TT.isiOS() || TT.isTvOS() || TT.isWatchOS();
     const bool IsSimulator = TT.isSimulatorEnvironment();
-    const bool ConservativeDefault = IsAppleMobile && !IsSimulator;
+    // Force obfuscation by default on eligible target functions (including
+    // real-device builds). Keep env override for explicit fallback control.
+    (void)IsAppleMobile;
+    (void)IsSimulator;
+    const bool ConservativeDefault = false;
     const bool ConservativeMode =
         getEnvBoolOrDefault("OBF_CONSERVATIVE_MODE", ConservativeDefault);
     SmallVector<BinaryOperator *, 32> Worklist;

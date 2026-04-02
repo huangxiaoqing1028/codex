@@ -31,7 +31,7 @@
   - 出于稳定性考虑，仅处理私有 C 字面量字符串（`.str*`），跳过 ObjC/runtime 元数据字符串。
   - 支持 `OBF_SEED` 随机种子：同源码可多次编译得到不同变换形态。
 
-> iOS **真机**目标默认使用 conservative 模式（优先稳定性）；iOS Simulator 默认启用完整规则，便于在 `my-clang` 下验证 pass 命中。
+> iOS **真机/模拟器**默认都启用完整规则（对满足条件的函数强制混淆）；如需回退稳定模式可手动开启 conservative。
 > 可通过 `OBF_CONSERVATIVE_MODE=1/0` 显式覆盖 conservative 策略。
 > 结构型 CFG 混淆（FLA/split/bogus/call indirection）默认会在“函数结构安全”时启用，不依赖算术匹配；可用 `OBF_ENABLE_STRUCTURAL_CFG=0` 关闭。
 > `my-clang` / `my-clang++` 默认会在未设置 `OBF_SEED` 时自动注入随机种子（每次编译形态不同）；可用 `MY_CLANG_AUTO_SEED=0` 关闭。
