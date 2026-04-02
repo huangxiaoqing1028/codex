@@ -434,6 +434,10 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
 
 public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
+    if (getEnvBoolOrDefault("OBF_TRACE_FUNC", false)) {
+      errs() << "[SimpleObfPass] running on function: " << F.getName() << "\n";
+    }
+
     if (F.getName() == "__obf_decode_all_strings")
       return PreservedAnalyses::all();
 

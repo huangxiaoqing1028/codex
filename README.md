@@ -38,6 +38,7 @@
 > wrapper 仅在“真实编译动作”注入插件，并默认跳过 PCH 构建；第三方过滤只基于 `-c` 后的源码路径（不会因 `-I/-F` 搜索路径误判）。
 > wrapper 会校验插件构建 LLVM 与当前 clang 主版本是否一致（避免 ABI 不匹配导致崩溃）。
 > 可通过 `OBF_HIT_LOG=/tmp/obf_pass_hits.log` 收集“命中 pass 的源码文件”日志；`scripts/build_obfdemo_xcode.sh` 会在构建后自动汇总命中文件数。
+> 可通过 `OBF_TRACE_FUNC=1` 打开函数级 trace（stderr 输出 `running on function: ...`）。
 > iOS 示例支持 CocoaPods（AFNetworking）；默认仅主 target 使用 `my-clang`，Pods target 保持默认编译器配置。
 
 调试日志版本编译器（用于在 Xcode 构建日志里观察最终 `-fpass-plugin` 命令）：
