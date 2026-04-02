@@ -16,8 +16,8 @@ fi
 should_inject_plugin() {
   local is_compile=0
   local is_pch=0
-  local next_is_lang=0
-  local prev_arg=""
+  local src=""
+  local prev=""
 
   for arg in "$@"; do
     # 必须是编译动作
@@ -30,26 +30,17 @@ should_inject_plugin() {
       is_pch=1
     fi
 
-    if [[ "$arg" == "-x" ]]; then
-      next_is_lang=1
-      prev_arg="$arg"
-      continue
-    fi
-
-    if [[ "$next_is_lang" == "1" ]]; then
-      if [[ "$arg" == "objective-c-header" ]]; then
-        is_pch=1
-      fi
-      next_is_lang=0
+    if [[ "$prev" == "-c" ]]; then
+      src="$arg"
     fi
 
     if [[ "$arg" == *.pch ]]; then
-      if [[ "$prev_arg" != "-include" ]]; then
+      if [[ "$prev" != "-include" ]]; then
         is_pch=1
       fi
     fi
 
-    prev_arg="$arg"
+    prev="$arg"
   done
 
   if [[ "$is_compile" != "1" ]]; then
@@ -62,14 +53,14 @@ should_inject_plugin() {
     return 1
   fi
 
-  for arg in "$@"; do
-    case "$arg" in
-      *Pods*|*ThirdPartyLibrary*|*Vendor*|*Frameworks*|*Carthage*|*SourcePackages*)
-        [[ "${IS_VERBOSE}" == "1" ]] && echo "[my-clang++] skip plugin: third-party ($arg)" >&2
-        return 1
-        ;;
-    esac
-  done
+  [[ -n "$src" ]] || return 1
+
+  case "$src" in
+    *"/Pods/"*|*"/Carthage/"*|*"/SourcePackages/"*|*"/ThirdPartyLibrary/"*|*"/Vendor/"*|*"/Frameworks/"*)
+      [[ "${IS_VERBOSE}" == "1" ]] && echo "[my-clang++] skip plugin: third-party source ($src)" >&2
+      return 1
+      ;;
+  esac
 
   return 0
 }
