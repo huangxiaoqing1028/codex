@@ -62,17 +62,16 @@ static bool shouldObfuscateFunction(const Function &F) {
 
   std::string Name = F.getName().str();
 
-  // Only obfuscate Objective-C methods.
-  if (!(StringRef(Name).starts_with("\01-[") || StringRef(Name).starts_with("\01+[")))
-    return false;
-
   // Skip risky runtime/compiler generated helpers.
   if (Name.find("block_invoke") != std::string::npos ||
       Name.find("destruct") != std::string::npos ||
       Name.find("cxx") != std::string::npos ||
+      Name.find(".cxx_") != std::string::npos ||
+      Name.find("objc_msgSend") != std::string::npos ||
       StringRef(Name).starts_with("_dispatch") ||
       StringRef(Name).starts_with("objc_") ||
-      StringRef(Name).starts_with("_objc_")) {
+      StringRef(Name).starts_with("_objc_") ||
+      StringRef(Name).starts_with("___lldb_unnamed_symbol")) {
     return false;
   }
 
@@ -466,7 +465,7 @@ public:
     if (!shouldObfuscateFunction(F)) {
       if (TraceFunc) {
         errs() << "[SimpleObfPass] skip function: " << F.getName()
-               << " | reason=filter_non_objc_or_risky\n";
+               << " | reason=filter_runtime_or_risky\n";
       }
       return PreservedAnalyses::all();
     }
