@@ -146,4 +146,27 @@ if [[ "${IS_VERBOSE}" == "1" ]]; then
   echo "[my-clang] exec: ${CMD[*]}" >&2
 fi
 
+if [[ "${IS_VERBOSE}" == "1" && "${INJECT_PLUGIN}" == "1" ]]; then
+  TMP_LOG="$(mktemp -t my-clang-pass.XXXXXX)"
+  cleanup() {
+    rm -f "${TMP_LOG}"
+  }
+  trap cleanup EXIT
+
+  set +e
+  "${CMD[@]}" 2> >(tee "${TMP_LOG}" >&2)
+  STATUS=$?
+  set -e
+
+  CHANGED_COUNT="$(rg -c '^\[SimpleObfPass\] changed function:' "${TMP_LOG}" 2>/dev/null || true)"
+  if [[ -n "${CHANGED_COUNT}" && "${CHANGED_COUNT}" != "0" ]]; then
+    echo "[my-clang] pass change summary: ${CHANGED_COUNT} function(s) modified" >&2
+    rg '^\[SimpleObfPass\] changed function:' "${TMP_LOG}" >&2 || true
+  else
+    echo "[my-clang] pass change summary: no function-level changes reported" >&2
+  fi
+
+  exit "${STATUS}"
+fi
+
 exec "${CMD[@]}"
