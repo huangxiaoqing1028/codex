@@ -1,17 +1,26 @@
-# OCBaseConverter
+# Base Converter Apps (iOS + Android)
 
-Objective-C iOS complete Xcode project for base conversion with premium English UI.
+This repository now includes:
 
-## Open & Run on Real Device
-1. Open `OCBaseConverter/OCBaseConverter.xcodeproj` in Xcode.
-2. Set your Team in **Signing & Capabilities**.
-3. Connect iPhone and select your device.
-4. Run (⌘R).
+- `OCBaseConverter/` (Objective-C iOS app)
+- `AndroidBaseConverter/` (Kotlin Android app for Google Play)
 
-## Features
-- Convert between Binary / Octal / Decimal / Hex.
-- Result is displayed on a dedicated next screen.
-- One-tap **Copy Result** button on result page.
-- Stylish dark gradient UI with polished App-like layout.
-- Swap bases and clear input quickly.
-- Pure Objective-C UIKit implementation.
+## Android (Google Play Ready Baseline)
+
+### Run directly
+1. Open `AndroidBaseConverter` with Android Studio (Giraffe+ recommended).
+2. Let Gradle sync.
+3. Run `app` on emulator or physical Android device.
+
+### Core features
+- Premium dark gradient UI (English copy).
+- Binary / Octal / Decimal / Hex conversion.
+- Swap From/To bases and clear input.
+- Dedicated result page.
+- One-tap result copy to clipboard.
+- Back button on result page.
+
+### For Play Store release
+- Replace launcher icon.
+- Add privacy policy URL and app listing assets.
+- Enable release signing and create AAB from `Build > Generate Signed Bundle / APK`.
