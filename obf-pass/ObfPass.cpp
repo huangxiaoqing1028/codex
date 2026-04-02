@@ -185,6 +185,10 @@ public:
 };
 
 class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
+  static bool isObjCMethodName(StringRef Name) {
+    return Name.starts_with("\x01-[") || Name.starts_with("\x01+[");
+  }
+
   static Value *createOpaqueTrue(IRBuilder<> &Builder, Value *Cond) {
     // cond == (((zext(cond) ^ 1) == 0))
     Value *AsInt = Builder.CreateZExt(Cond, Builder.getInt8Ty(), "obf.cond.zext");
@@ -240,6 +244,11 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
   }
 
   static bool indirectifyDirectCalls(Function &F) {
+    // ObjC method bodies are fragile under aggressive call operand rewriting
+    // (can trigger downstream CFG/simplify issues in some pipelines).
+    if (isObjCMethodName(F.getName()))
+      return false;
+
     bool Changed = false;
     SmallVector<CallInst *, 16> Calls;
     for (BasicBlock &BB : F) {

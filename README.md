@@ -34,6 +34,7 @@
 > iOS **真机/模拟器**默认都启用完整规则（对满足条件的函数强制混淆）；如需回退稳定模式可手动开启 conservative。
 > 可通过 `OBF_CONSERVATIVE_MODE=1/0` 显式覆盖 conservative 策略。
 > 结构型 CFG 混淆（FLA/split/bogus/call indirection）默认会在“函数结构安全”时启用，不依赖算术匹配；可用 `OBF_ENABLE_STRUCTURAL_CFG=0` 关闭。
+> 稳定性保护：ObjC 方法符号（`-[...]` / `+[...]`）默认跳过 call indirection，仅保留其它结构混淆，避免后续优化阶段（如 SimplifyCFG）崩溃。
 > `my-clang` / `my-clang++` 默认会在未设置 `OBF_SEED` 时自动注入随机种子（每次编译形态不同）；可用 `MY_CLANG_AUTO_SEED=0` 关闭。
 > `my-clang` / `my-clang++` 在插件开启时会自动补 `-Xclang -disable-O0-optnone`（可用 `MY_CLANG_KEEP_OPTNONE=1` 关闭）。
 > wrapper 仅在“真实编译动作”注入插件，并默认跳过 PCH 构建；第三方过滤只基于 `-c` 后的源码路径（不会因 `-I/-F` 搜索路径误判）。
