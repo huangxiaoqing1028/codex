@@ -175,7 +175,8 @@ class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
     APInt K = APInt(C.getBitWidth(), Seed, /*isSigned=*/false,
                     /*implicitTrunc=*/true);
     if (K.isZero())
-      K = APInt(C.getBitWidth(), 0xA5A5A5A5ULL).zextOrTrunc(C.getBitWidth());
+      K = APInt(C.getBitWidth(), 0xA5A5A5A5ULL, /*isSigned=*/false,
+                /*implicitTrunc=*/true);
     Constant *CK = ConstantInt::get(Builder.getContext(), K);
     Constant *Masked = ConstantInt::get(Builder.getContext(), C ^ K);
     Value *Tmp = Builder.CreateXor(Masked, CK, "obf.const.masked");
