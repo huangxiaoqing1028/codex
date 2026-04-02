@@ -33,6 +33,7 @@
 
 > iOS **真机**目标默认使用 conservative 模式（优先稳定性）；iOS Simulator 默认启用完整规则，便于在 `my-clang` 下验证 pass 命中。
 > 可通过 `OBF_CONSERVATIVE_MODE=1/0` 显式覆盖 conservative 策略。
+> 结构型 CFG 混淆（FLA/split/bogus/call indirection）默认会在“函数结构安全”时启用，不依赖算术匹配；可用 `OBF_ENABLE_STRUCTURAL_CFG=0` 关闭。
 > `my-clang` / `my-clang++` 默认会在未设置 `OBF_SEED` 时自动注入随机种子（每次编译形态不同）；可用 `MY_CLANG_AUTO_SEED=0` 关闭。
 > `my-clang` / `my-clang++` 在插件开启时会自动补 `-Xclang -disable-O0-optnone`（可用 `MY_CLANG_KEEP_OPTNONE=1` 关闭）。
 > wrapper 仅在“真实编译动作”注入插件，并默认跳过 PCH 构建；第三方过滤只基于 `-c` 后的源码路径（不会因 `-I/-F` 搜索路径误判）。

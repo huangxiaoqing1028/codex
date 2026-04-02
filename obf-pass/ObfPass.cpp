@@ -614,8 +614,12 @@ public:
     }
 
     // Additional control/data obfuscation layers.
+    // Structural CFG passes are not pattern-matching transforms and should run
+    // whenever the function is structurally safe to rewrite.
     const bool SafeForAggressiveCFG = !F.hasPersonalityFn();
-    if (!ConservativeMode && SafeForAggressiveCFG) {
+    const bool EnableStructuralCFG =
+        getEnvBoolOrDefault("OBF_ENABLE_STRUCTURAL_CFG", true);
+    if (EnableStructuralCFG && SafeForAggressiveCFG) {
       FlattenChanged = flattenControlFlow(F);
       IndirectCallChanged = indirectifyDirectCalls(F);
       SplitChanged = splitBasicBlocks(F);
@@ -634,6 +638,12 @@ public:
              << " call_indirect=" << (IndirectCallChanged ? 1 : 0)
              << " split=" << (SplitChanged ? 1 : 0)
              << " bcf=" << (BranchPerturbChanged ? 1 : 0)
+             << " conservative=" << (ConservativeMode ? 1 : 0) << "\n";
+    } else if (TraceFunc && !Changed) {
+      errs() << "[SimpleObfPass] no-change function: " << F.getName()
+             << " | safe_cfg=" << (SafeForAggressiveCFG ? 1 : 0)
+             << " structural_cfg="
+             << (EnableStructuralCFG ? 1 : 0)
              << " conservative=" << (ConservativeMode ? 1 : 0) << "\n";
     }
 

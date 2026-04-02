@@ -58,6 +58,7 @@ OBF_SEED=20260327 ./scripts/verify_pass.sh
 
 > 兼容性说明：`simple-obf` 在 iOS **真机**目标默认启用 conservative 模式（保留字符串加密与安全算术替换，关闭高风险 CFG/调用间接化步骤）；在 iOS Simulator 默认启用完整规则，便于验证 pass 命中。
 > 可用 `OBF_CONSERVATIVE_MODE=1/0` 显式覆盖 conservative 策略。
+> 结构型 CFG 混淆（FLA/split/bogus/call indirection）默认在“函数结构安全”时启用，不依赖算术命中；可用 `OBF_ENABLE_STRUCTURAL_CFG=0` 关闭。
 
 ### Q16: 这次崩溃是不是 clang 与 pass 插件 ABI 不匹配？
 有这个可能。当前 wrapper 已增加主版本校验：会读取 `build/obf-pass/llvm-version.txt`，并与实际执行的 `clang --version` 主版本比对；不一致时直接报错退出，避免继续注入插件导致 crash。
