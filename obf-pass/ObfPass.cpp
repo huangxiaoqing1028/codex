@@ -632,11 +632,16 @@ public:
     const bool SafeForAggressiveCFG = !F.hasPersonalityFn();
     const bool EnableStructuralCFG =
         getEnvBoolOrDefault("OBF_ENABLE_STRUCTURAL_CFG", true);
-    if (EnableStructuralCFG && SafeForAggressiveCFG) {
+    const bool ExperimentalCFG =
+        getEnvBoolOrDefault("OBF_ENABLE_EXPERIMENTAL_CFG", false);
+    const bool IsObjCMethod = isObjCMethodName(F.getName());
+    if (EnableStructuralCFG && SafeForAggressiveCFG && !IsObjCMethod) {
       FlattenChanged = flattenControlFlow(F);
       IndirectCallChanged = indirectifyDirectCalls(F);
-      SplitChanged = splitBasicBlocks(F);
-      BranchPerturbChanged = perturbBranches(F);
+      if (ExperimentalCFG) {
+        SplitChanged = splitBasicBlocks(F);
+        BranchPerturbChanged = perturbBranches(F);
+      }
       Changed |= FlattenChanged || IndirectCallChanged || SplitChanged ||
                  BranchPerturbChanged;
     }
@@ -651,12 +656,15 @@ public:
              << " call_indirect=" << (IndirectCallChanged ? 1 : 0)
              << " split=" << (SplitChanged ? 1 : 0)
              << " bcf=" << (BranchPerturbChanged ? 1 : 0)
+             << " exp_cfg=" << (ExperimentalCFG ? 1 : 0)
              << " conservative=" << (ConservativeMode ? 1 : 0) << "\n";
     } else if (TraceFunc && !Changed) {
       errs() << "[SimpleObfPass] no-change function: " << F.getName()
              << " | safe_cfg=" << (SafeForAggressiveCFG ? 1 : 0)
              << " structural_cfg="
              << (EnableStructuralCFG ? 1 : 0)
+             << " objc_method=" << (IsObjCMethod ? 1 : 0)
+             << " exp_cfg=" << (ExperimentalCFG ? 1 : 0)
              << " conservative=" << (ConservativeMode ? 1 : 0) << "\n";
     }
 
