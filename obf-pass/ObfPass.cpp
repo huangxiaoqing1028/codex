@@ -21,6 +21,7 @@
 #include <fstream>
 #include <mutex>
 #include <random>
+#include <string>
 #include <unordered_set>
 
 using namespace llvm;
@@ -53,6 +54,29 @@ static bool getEnvBoolOrDefault(const char *Name, bool Fallback) {
            StringRef(V).equals_insensitive("false") ||
            StringRef(V).equals_insensitive("off") ||
            StringRef(V).equals_insensitive("no"));
+}
+
+static bool shouldObfuscateFunction(const Function &F) {
+  if (F.isDeclaration() || F.empty())
+    return false;
+
+  std::string Name = F.getName().str();
+
+  // Only obfuscate Objective-C methods.
+  if (!(StringRef(Name).starts_with("\01-[") || StringRef(Name).starts_with("\01+[")))
+    return false;
+
+  // Skip risky runtime/compiler generated helpers.
+  if (Name.find("block_invoke") != std::string::npos ||
+      Name.find("destruct") != std::string::npos ||
+      Name.find("cxx") != std::string::npos ||
+      StringRef(Name).starts_with("_dispatch") ||
+      StringRef(Name).starts_with("objc_") ||
+      StringRef(Name).starts_with("_objc_")) {
+    return false;
+  }
+
+  return true;
 }
 
 static void logPassHit(Function &F) {
@@ -437,6 +461,14 @@ public:
     const bool TraceFunc = getEnvBoolOrDefault("OBF_TRACE_FUNC", false);
     if (TraceFunc) {
       errs() << "[SimpleObfPass] running on function: " << F.getName() << "\n";
+    }
+
+    if (!shouldObfuscateFunction(F)) {
+      if (TraceFunc) {
+        errs() << "[SimpleObfPass] skip function: " << F.getName()
+               << " | reason=filter_non_objc_or_risky\n";
+      }
+      return PreservedAnalyses::all();
     }
 
     if (F.getName() == "__obf_decode_all_strings")
