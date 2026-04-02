@@ -5,6 +5,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/Passes/PassBuilder.h"
 #if __has_include("llvm/Plugins/PassPlugin.h")
 #include "llvm/Plugins/PassPlugin.h"
@@ -632,12 +633,18 @@ public:
     const bool SafeForAggressiveCFG = !F.hasPersonalityFn();
     const bool EnableStructuralCFG =
         getEnvBoolOrDefault("OBF_ENABLE_STRUCTURAL_CFG", true);
+    const bool EnableFLA =
+        getEnvBoolOrDefault("OBF_ENABLE_FLA", false);
+    const bool EnableCallIndirect =
+        getEnvBoolOrDefault("OBF_ENABLE_CALL_INDIRECT", false);
     const bool ExperimentalCFG =
         getEnvBoolOrDefault("OBF_ENABLE_EXPERIMENTAL_CFG", false);
     const bool IsObjCMethod = isObjCMethodName(F.getName());
     if (EnableStructuralCFG && SafeForAggressiveCFG && !IsObjCMethod) {
-      FlattenChanged = flattenControlFlow(F);
-      IndirectCallChanged = indirectifyDirectCalls(F);
+      if (EnableFLA)
+        FlattenChanged = flattenControlFlow(F);
+      if (EnableCallIndirect)
+        IndirectCallChanged = indirectifyDirectCalls(F);
       if (ExperimentalCFG) {
         SplitChanged = splitBasicBlocks(F);
         BranchPerturbChanged = perturbBranches(F);
@@ -656,6 +663,8 @@ public:
              << " call_indirect=" << (IndirectCallChanged ? 1 : 0)
              << " split=" << (SplitChanged ? 1 : 0)
              << " bcf=" << (BranchPerturbChanged ? 1 : 0)
+             << " fla_en=" << (EnableFLA ? 1 : 0)
+             << " calli_en=" << (EnableCallIndirect ? 1 : 0)
              << " exp_cfg=" << (ExperimentalCFG ? 1 : 0)
              << " conservative=" << (ConservativeMode ? 1 : 0) << "\n";
     } else if (TraceFunc && !Changed) {
@@ -664,8 +673,15 @@ public:
              << " structural_cfg="
              << (EnableStructuralCFG ? 1 : 0)
              << " objc_method=" << (IsObjCMethod ? 1 : 0)
+             << " fla_en=" << (EnableFLA ? 1 : 0)
+             << " calli_en=" << (EnableCallIndirect ? 1 : 0)
              << " exp_cfg=" << (ExperimentalCFG ? 1 : 0)
              << " conservative=" << (ConservativeMode ? 1 : 0) << "\n";
+    }
+
+    if (Changed && verifyFunction(F, &errs())) {
+      errs() << "[SimpleObfPass] verifier failed, function may be unsafe: "
+             << F.getName() << "\n";
     }
 
     return Changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
