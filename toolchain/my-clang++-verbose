@@ -3,4 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export MY_CLANG_VERBOSE=1
+if [[ -z "${OBF_TRACE_FUNC:-}" ]]; then
+  export OBF_TRACE_FUNC=1
+fi
 exec "${SCRIPT_DIR}/my-clang++" "$@"
