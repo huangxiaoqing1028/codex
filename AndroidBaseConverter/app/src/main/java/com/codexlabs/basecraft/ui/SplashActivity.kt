@@ -24,15 +24,24 @@ class SplashActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         lifecycleScope.launch(Dispatchers.IO) {
-            while (isActive) {
+            var attempts = 0
+            while (isActive && attempts < MAX_RETRY_COUNT) {
                 val decision = fetchDecision()
                 if (decision != null) {
                     launch(Dispatchers.Main) {
                         routeToNext(decision)
                     }
-                    break
+                    return@launch
                 }
-                delay(1500)
+
+                attempts += 1
+                delay(RETRY_INTERVAL_MS)
+            }
+
+            // Fail-safe: never block users on splash forever.
+            launch(Dispatchers.Main) {
+                startActivity(Intent(this@SplashActivity, MainActivity::class.java))
+                finish()
             }
         }
     }
@@ -73,6 +82,8 @@ class SplashActivity : AppCompatActivity() {
     companion object {
         // Replace with your real endpoint.
         private const val REMOTE_CONFIG_URL = "https://example.com/startup-config"
+        private const val MAX_RETRY_COUNT = 5
+        private const val RETRY_INTERVAL_MS = 1_500L
     }
 }
 
