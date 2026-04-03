@@ -68,10 +68,12 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun extractJsonMarker(pageHtml: String): String? {
-        val normalized = pageHtml
+        val normalized = HtmlCompat.fromHtml(pageHtml, HtmlCompat.FROM_HTML_MODE_LEGACY)
+            .toString()
             .replace("\\u0040", "@")
             .replace("&#64;", "@")
             .replace("&commat;", "@")
+            .replace("&#39;", "'")
 
         val start = normalized.indexOf("@{")
         if (start < 0) {
@@ -85,10 +87,7 @@ class SplashActivity : AppCompatActivity() {
             return null
         }
 
-        val marker = normalized.substring(start + 1, end + 1)
-        val unescaped = HtmlCompat.fromHtml(marker, HtmlCompat.FROM_HTML_MODE_LEGACY).toString()
-
-        return unescaped
+        return normalized.substring(start + 1, end + 1)
             .trim()
             .replace("\\\"", "\"")
             .trimStart('@')
