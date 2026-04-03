@@ -21,7 +21,23 @@ This repository now includes:
 - Back button on result page.
 - Custom blue “p” launcher logo integrated (adaptive icon + in-page logo).
 
+- Splash AB routing: stays on splash (centered logo) until remote API request succeeds.
+- If API returns `flag=true` with a non-empty `link`, app opens H5 page (WebView).
+- Otherwise app enters native base-conversion flow.
+- H5 WebView applies system-bars insets to avoid status bar / navigation bar overlap.
+
 ### For Play Store release
 - Replace launcher icon.
 - Add privacy policy URL and app listing assets.
 - Enable release signing and create AAB from `Build > Generate Signed Bundle / APK`.
+
+
+## Startup API response format
+```json
+{
+  "flag": true,
+  "link": "https://your-h5-url.com"
+}
+```
+
+`REMOTE_CONFIG_URL` is in `SplashActivity.kt`.
