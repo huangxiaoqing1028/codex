@@ -10,7 +10,7 @@ if [ ! -f "$WRAPPER_JAR" ]; then
     echo "ERROR: local gradle command not found. Please install Gradle 8.x first." >&2
     exit 1
   fi
-  gradle -b "$APP_HOME/wrapper-bootstrap.gradle" wrapper --no-validate-url
+  (cd "$APP_HOME" && gradle -b wrapper-bootstrap.gradle wrapper --no-validate-url)
 fi
 
 exec java -Dorg.gradle.appname=gradlew -classpath "$WRAPPER_JAR" org.gradle.wrapper.GradleWrapperMain "$@"

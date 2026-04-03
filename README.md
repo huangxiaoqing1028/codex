@@ -14,7 +14,7 @@ This repository now includes:
 
 If first run says wrapper jar missing, run:
 ```bash
-cd AndroidBaseConverter
+cd /absolute/path/to/AndroidBaseConverter
 gradle -b wrapper-bootstrap.gradle wrapper --no-validate-url
 ```
 

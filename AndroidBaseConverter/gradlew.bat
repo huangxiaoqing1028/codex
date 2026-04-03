@@ -11,7 +11,9 @@ IF NOT EXIST "%WRAPPER_JAR%" (
     ECHO ERROR: local gradle command not found. Please install Gradle 8.x first.
     EXIT /B 1
   )
-  gradle -b "%APP_HOME%wrapper-bootstrap.gradle" wrapper --no-validate-url
+  pushd "%APP_HOME%"
+  gradle -b wrapper-bootstrap.gradle wrapper --no-validate-url
+  popd
 )
 
 java -Dorg.gradle.appname=gradlew -classpath "%WRAPPER_JAR%" org.gradle.wrapper.GradleWrapperMain %*
