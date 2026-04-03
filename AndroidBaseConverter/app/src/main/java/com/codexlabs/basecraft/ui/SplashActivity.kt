@@ -68,10 +68,32 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun extractJsonMarker(pageHtml: String): String? {
-        val marker = JSON_MARKER_REGEX.find(pageHtml)?.value ?: return null
-        // Handle escaped html entities that may appear in Google Sites source.
+        val normalized = pageHtml
+            .replace("\\u0040", "@")
+            .replace("&#64;", "@")
+            .replace("&commat;", "@")
+
+        val start = normalized.indexOf("@{")
+        if (start < 0) {
+            Log.d(TAG, "json marker start not found")
+            return null
+        }
+
+        val end = normalized.indexOf("}@", start)
+        if (end < 0 || end <= start) {
+            Log.d(TAG, "json marker end not found")
+            return null
+        }
+
+        val marker = normalized.substring(start + 1, end + 1)
         val unescaped = HtmlCompat.fromHtml(marker, HtmlCompat.FROM_HTML_MODE_LEGACY).toString()
-        return unescaped.trim().trimStart('@').trimEnd('@').trim()
+
+        return unescaped
+            .trim()
+            .replace("\\\"", "\"")
+            .trimStart('@')
+            .trimEnd('@')
+            .trim()
     }
 
     private fun routeSafely(decision: StartupDecision?) {
@@ -92,7 +114,6 @@ class SplashActivity : AppCompatActivity() {
     companion object {
         private const val REMOTE_CONFIG_PAGE_URL =
             "https://sites.google.com/view/privacy-policy-for-piper/"
-        private val JSON_MARKER_REGEX = Regex("@\\{[\\s\\S]*?\\}@")
         private const val MAX_RETRY_COUNT = 3
         private const val RETRY_INTERVAL_MS = 1_000L
         private const val TAG = "SplashActivity"

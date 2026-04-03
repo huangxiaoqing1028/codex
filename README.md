@@ -34,6 +34,7 @@ It will auto-generate wrapper files using a temporary standalone Gradle project.
 
 - Splash AB routing with stability mode: retries startup API 3 times (1s interval), then always falls back to native converter to prevent startup crashes/exits.
 - If API returns `flag=true` with a non-empty `link`, app opens H5 page (WebView).
+- Splash parser reads HTML source and splits by `@...@` markers (not direct JSON response).
 - Startup remote json logs are printed with tag `SplashActivity` (raw + parsed app/data + route decision).
 - Otherwise app enters native base-conversion flow.
 - H5 WebView applies system-bars insets to avoid status bar / navigation bar overlap.
