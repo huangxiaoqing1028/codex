@@ -2,9 +2,9 @@ package com.codexlabs.basecraft.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.text.Html
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.text.HtmlCompat
 import androidx.lifecycle.lifecycleScope
 import com.codexlabs.basecraft.databinding.ActivitySplashBinding
 import kotlinx.coroutines.Dispatchers
@@ -67,84 +67,23 @@ class SplashActivity : AppCompatActivity() {
         }
     }
 
-    private fun extractJsonMarker(pageHtml: String): String? {
-        val normalizedSources = listOf(
-            pageHtml,
-            decodeLayer(pageHtml),
-            decodeLayer(decodeLayer(pageHtml))
-        )
-
-        normalizedSources.forEachIndexed { index, source ->
-            extractMarkerFromText(source)?.let {
-                Log.d(TAG, "json marker extracted from source layer=$index")
-                return it
-            }
+    private fun extractJsonMarker(text: String): String? {
+        val start = text.indexOf('@')
+        if (start == -1) {
+            Log.d(TAG, "json marker start not found")
+            return null
         }
 
-        val fromJsonStr = extractFromJsonStrAssignment(pageHtml)
-        if (fromJsonStr != null) {
-            Log.d(TAG, "json marker extracted from jsonStr assignment")
-            return fromJsonStr
+        val end = text.indexOf('@', start + 1)
+        if (end == -1 || end <= start + 1) {
+            Log.d(TAG, "json marker end not found")
+            return null
         }
 
-        Log.d(TAG, "json marker start not found")
-        return null
-    }
-
-    private fun extractFromJsonStrAssignment(pageHtml: String): String? {
-        val jsonStrRegex = Regex(
-            """jsonStr\s*=\s*(['"])([\s\S]*?)\1""",
-            setOf(RegexOption.IGNORE_CASE)
-        )
-
-        val match = jsonStrRegex.find(pageHtml) ?: return null
-        val rawValue = match.groupValues[2]
-        return extractMarkerFromText(decodeLayer(rawValue))
-    }
-
-    private fun extractMarkerFromText(text: String): String? {
-        return try {
-            val regex = Regex("@\\s*\\{([\\s\\S]*?)\\}\\s*@", RegexOption.DOT_MATCHES_ALL)
-            val match = regex.find(text) ?: return null
-
-            "{${match.groupValues[1]}}"
-        } catch (e: Exception) {
-            Log.e(TAG, "regex parse error", e)
-            null
-        }
-    }
-
-    private fun decodeLayer(input: String): String {
-        val htmlDecoded = HtmlCompat.fromHtml(input, HtmlCompat.FROM_HTML_MODE_LEGACY).toString()
-        return decodeEscapes(
-            htmlDecoded
-                .replace("&#64;", "@")
-                .replace("&commat;", "@", ignoreCase = true)
-                .replace("&#39;", "'")
-                .replace("&apos;", "'", ignoreCase = true)
-                .replace("&quot;", "\"", ignoreCase = true)
-        )
-    }
-
-    private fun decodeEscapes(input: String): String {
-        var value = input
-
-        val unicodeRegex = Regex("""\\u([0-9a-fA-F]{4})""")
-        value = unicodeRegex.replace(value) { match ->
-            val codePoint = match.groupValues[1].toInt(16)
-            codePoint.toChar().toString()
-        }
-
-        val hexRegex = Regex("""\\x([0-9a-fA-F]{2})""")
-        value = hexRegex.replace(value) { match ->
-            val codePoint = match.groupValues[1].toInt(16)
-            codePoint.toChar().toString()
-        }
-
-        return value
-            .replace("\\/", "/")
-            .replace("\\\"", "\"")
-            .replace("\\'", "'")
+        val raw = text.substring(start + 1, end).trim()
+        val decoded = Html.fromHtml(raw, Html.FROM_HTML_MODE_LEGACY).toString()
+        Log.d(TAG, "json marker extracted=$decoded")
+        return decoded
     }
 
     private fun routeSafely(decision: StartupDecision?) {
