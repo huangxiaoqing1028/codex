@@ -14,6 +14,8 @@ This repository now includes:
 
 > Toolchain pin: AGP **8.1.1** + Gradle **8.0** for Android Studio compatibility.
 
+> If `./gradlew` reports a Gradle 9.x incompatibility, install/use Gradle 8.x (`gradle8`).
+
 ### Core features
 - Premium dark gradient UI (English copy).
 - Binary / Octal / Decimal / Hex conversion.

@@ -1,7 +1,26 @@
 #!/bin/sh
-if command -v gradle >/dev/null 2>&1; then
-  exec gradle "$@"
-else
-  echo "Gradle is not installed. Please install Gradle or open with Android Studio." >&2
-  exit 1
+set -e
+
+run_gradle() {
+  exec "$1" "$@"
+}
+
+if command -v gradle8 >/dev/null 2>&1; then
+  exec gradle8 "$@"
 fi
+
+if command -v gradle >/dev/null 2>&1; then
+  GRADLE_VERSION=$(gradle --version | awk '/Gradle /{print $2; exit}')
+  GRADLE_MAJOR=$(echo "$GRADLE_VERSION" | cut -d'.' -f1)
+
+  if [ "$GRADLE_MAJOR" -ge 9 ]; then
+    echo "ERROR: Detected Gradle $GRADLE_VERSION, but this project requires Gradle 8.x with AGP 8.1.1." >&2
+    echo "Please install Gradle 8 (e.g. 'brew install gradle@8') and ensure 'gradle8' is available in PATH." >&2
+    exit 1
+  fi
+
+  exec gradle "$@"
+fi
+
+echo "ERROR: Gradle is not installed. Install Gradle 8.x or use Android Studio." >&2
+exit 1
