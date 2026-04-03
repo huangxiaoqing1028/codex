@@ -12,6 +12,8 @@ This repository now includes:
 2. Let Gradle sync.
 3. Run `app` on emulator or physical Android device.
 
+> Toolchain pin: AGP **8.1.1** + Gradle **8.0** for Android Studio compatibility.
+
 ### Core features
 - Premium dark gradient UI (English copy).
 - Binary / Octal / Decimal / Hex conversion.
