@@ -19,6 +19,7 @@ This repository now includes:
 - Dedicated result page.
 - One-tap result copy to clipboard.
 - Back button on result page.
+- Custom blue “p” launcher logo integrated (adaptive icon + in-page logo).
 
 ### For Play Store release
 - Replace launcher icon.
