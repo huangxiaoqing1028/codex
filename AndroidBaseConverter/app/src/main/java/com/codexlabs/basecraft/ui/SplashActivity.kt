@@ -68,19 +68,19 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun extractJsonMarker(text: String): String? {
-        val start = text.indexOf('@')
+        val start = text.indexOf("@<")
         if (start == -1) {
             Log.d(TAG, "json marker start not found")
             return null
         }
 
-        val end = text.indexOf('@', start + 1)
-        if (end == -1 || end <= start + 1) {
+        val end = text.indexOf("@>", start + 2)
+        if (end == -1 || end <= start + 2) {
             Log.d(TAG, "json marker end not found")
             return null
         }
 
-        val raw = text.substring(start + 1, end).trim()
+        val raw = text.substring(start + 2, end).trim()
         val decoded = Html.fromHtml(raw, Html.FROM_HTML_MODE_LEGACY).toString()
         Log.d(TAG, "json marker extracted=$decoded")
         return decoded
