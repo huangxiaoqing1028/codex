@@ -29,6 +29,15 @@ This repository now includes:
 - Otherwise app enters native base-conversion flow.
 - H5 WebView applies system-bars insets to avoid status bar / navigation bar overlap.
 
+
+### Android SDK location (fix for "SDK location not found")
+If Android Studio reports **SDK location not found**, set one of these:
+1. `ANDROID_HOME` / `ANDROID_SDK_ROOT` environment variable.
+2. `AndroidBaseConverter/local.properties` with:
+   `sdk.dir=/Users/yourname/Library/Android/sdk`
+
+A template file is included: `AndroidBaseConverter/local.properties.example`.
+
 ### For Play Store release
 - Replace launcher icon.
 - Add privacy policy URL and app listing assets.
