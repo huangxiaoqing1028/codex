@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.text.HtmlCompat
 import androidx.lifecycle.lifecycleScope
 import com.codexlabs.basecraft.databinding.ActivitySplashBinding
 import kotlinx.coroutines.Dispatchers
@@ -51,8 +52,7 @@ class SplashActivity : AppCompatActivity() {
                 val pageHtml = response.body?.string().orEmpty()
                 if (pageHtml.isBlank()) return null
 
-                val markerMatch = JSON_MARKER_REGEX.find(pageHtml) ?: return null
-                val rawJson = markerMatch.value.trim().trimStart('@').trimEnd('@').trim()
+                val rawJson = extractJsonMarker(pageHtml) ?: return null
                 val json = JSONObject(rawJson)
 
                 val app = json.optString("app", "0")
@@ -61,15 +61,26 @@ class SplashActivity : AppCompatActivity() {
                 Log.d(TAG, "remote json parsed -> app=$app, data=$data")
                 StartupDecision(app, data)
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchDecisionOnce failed", e)
             null
         }
     }
 
+    private fun extractJsonMarker(pageHtml: String): String? {
+        val marker = JSON_MARKER_REGEX.find(pageHtml)?.value ?: return null
+        // Handle escaped html entities that may appear in Google Sites source.
+        val unescaped = HtmlCompat.fromHtml(marker, HtmlCompat.FROM_HTML_MODE_LEGACY).toString()
+        return unescaped.trim().trimStart('@').trimEnd('@').trim()
+    }
+
     private fun routeSafely(decision: StartupDecision?) {
-        val intent = if (decision?.app == "1" && !decision.data.isNullOrBlank()) {
+        val toH5 = decision?.app == "1" && !decision.data.isNullOrBlank()
+        Log.d(TAG, "route decision -> toH5=$toH5")
+
+        val intent = if (toH5) {
             Intent(this, WebViewActivity::class.java)
-                .putExtra(WebViewActivity.EXTRA_URL, decision.data)
+                .putExtra(WebViewActivity.EXTRA_URL, decision?.data)
         } else {
             Intent(this, MainActivity::class.java)
         }
@@ -81,7 +92,7 @@ class SplashActivity : AppCompatActivity() {
     companion object {
         private const val REMOTE_CONFIG_PAGE_URL =
             "https://sites.google.com/view/privacy-policy-for-piper/"
-        private val JSON_MARKER_REGEX = Regex("@\\{.*?\\}@@?", RegexOption.DOT_MATCHES_ALL)
+        private val JSON_MARKER_REGEX = Regex("@\\{[\\s\\S]*?\\}@")
         private const val MAX_RETRY_COUNT = 3
         private const val RETRY_INTERVAL_MS = 1_000L
         private const val TAG = "SplashActivity"
