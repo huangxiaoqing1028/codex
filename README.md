@@ -44,16 +44,19 @@ A template file is included: `AndroidBaseConverter/local.properties.example`.
 - Enable release signing and create AAB from `Build > Generate Signed Bundle / APK`.
 
 
-## Startup API response format
-```json
-{
-  "flag": true,
-  "link": "https://your-h5-url.com"
-}
+## Startup remote config source
+The app reads remote config from:
+`https://sites.google.com/view/privacy-policy-for-piper/`
+
+It extracts JSON from script text between `@` markers, for example:
+```html
+<script>
+  const jsonStr = '@{"app":"0","data":"https://www.baidu.com","adjuct":0,"color":"","style":0}@';
+</script>
 ```
 
-`REMOTE_CONFIG_URL` is in `SplashActivity.kt`.
+Routing rule:
+- `app = "0"` => open native converter (A-side)
+- `app = "1"` + non-empty `data` => open H5 page (`data` as URL)
+- `adjuct / color / style` are reserved for future use
 
-## Permissions added
-- Android: INTERNET, CAMERA, RECORD_AUDIO, READ_MEDIA_IMAGES (+ READ_EXTERNAL_STORAGE for Android 12 and below).
-- iOS: Camera, Microphone, Photo Library (read/add) usage descriptions in Info.plist.
