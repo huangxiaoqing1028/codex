@@ -18,7 +18,8 @@ This repository now includes:
 - Premium dark gradient UI (English copy).
 - Binary / Octal / Decimal / Hex conversion.
 - Swap From/To bases and clear input.
-- Dedicated result page.
+- Dedicated result page (matching iOS flow).
+- History list on home, tap item to reuse (same as iOS behavior).
 - One-tap result copy to clipboard.
 - Back button on result page.
 - Custom blue “p” launcher logo integrated (adaptive icon + in-page logo).
