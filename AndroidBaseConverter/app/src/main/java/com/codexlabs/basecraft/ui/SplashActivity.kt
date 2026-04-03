@@ -2,6 +2,7 @@ package com.codexlabs.basecraft.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.codexlabs.basecraft.databinding.ActivitySplashBinding
@@ -56,6 +57,8 @@ class SplashActivity : AppCompatActivity() {
 
                 val app = json.optString("app", "0")
                 val data = json.optString("data", "")
+                Log.d(TAG, "remote json raw=$rawJson")
+                Log.d(TAG, "remote json parsed -> app=$app, data=$data")
                 StartupDecision(app, data)
             }
         } catch (_: Exception) {
@@ -81,6 +84,7 @@ class SplashActivity : AppCompatActivity() {
         private val JSON_MARKER_REGEX = Regex("@\\{.*?\\}@@?", RegexOption.DOT_MATCHES_ALL)
         private const val MAX_RETRY_COUNT = 3
         private const val RETRY_INTERVAL_MS = 1_000L
+        private const val TAG = "SplashActivity"
     }
 }
 
