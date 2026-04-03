@@ -32,7 +32,7 @@ It will auto-generate wrapper files using a temporary standalone Gradle project.
 - Back button on result page.
 - Custom blue “p” launcher logo integrated (adaptive icon + in-page logo).
 
-- Splash AB routing with fail-safe: retries startup API up to 5 times (1.5s interval); if still failing, app falls back to native converter to avoid splash lock.
+- Splash AB routing with stability mode: retries startup API 3 times (1s interval), then always falls back to native converter to prevent startup crashes/exits.
 - If API returns `flag=true` with a non-empty `link`, app opens H5 page (WebView).
 - Otherwise app enters native base-conversion flow.
 - H5 WebView applies system-bars insets to avoid status bar / navigation bar overlap.
