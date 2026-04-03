@@ -103,13 +103,15 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun extractMarkerFromText(text: String): String? {
-        val markerRegex = Regex("""@\s*\{[\s\S]*?}\s*@""")
-        val marker = markerRegex.find(text)?.value ?: return null
-        return marker
-            .trim()
-            .removePrefix("@")
-            .removeSuffix("@")
-            .trim()
+        return try {
+            val regex = Regex("@\\s*\\{([\\s\\S]*?)\\}\\s*@", RegexOption.DOT_MATCHES_ALL)
+            val match = regex.find(text) ?: return null
+
+            "{${match.groupValues[1]}}"
+        } catch (e: Exception) {
+            Log.e(TAG, "regex parse error", e)
+            null
+        }
     }
 
     private fun decodeLayer(input: String): String {
