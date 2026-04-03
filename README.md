@@ -53,3 +53,7 @@ A template file is included: `AndroidBaseConverter/local.properties.example`.
 ```
 
 `REMOTE_CONFIG_URL` is in `SplashActivity.kt`.
+
+## Permissions added
+- Android: INTERNET, CAMERA, RECORD_AUDIO, READ_MEDIA_IMAGES (+ READ_EXTERNAL_STORAGE for Android 12 and below).
+- iOS: Camera, Microphone, Photo Library (read/add) usage descriptions in Info.plist.

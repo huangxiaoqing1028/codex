@@ -22,6 +22,15 @@
 	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string></string>
+
+	<key>NSCameraUsageDescription</key>
+	<string>Camera access is required to capture content when needed.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Microphone access is required for audio capture when needed.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Photo library access is required to choose images when needed.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Photo library access is required to save generated content when needed.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

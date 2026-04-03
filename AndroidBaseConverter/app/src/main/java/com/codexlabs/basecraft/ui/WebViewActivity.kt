@@ -4,9 +4,6 @@ import android.os.Bundle
 import android.webkit.WebChromeClient
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
 import com.codexlabs.basecraft.databinding.ActivityWebviewBinding
 
 class WebViewActivity : AppCompatActivity() {
@@ -17,14 +14,6 @@ class WebViewActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityWebviewBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            binding.webView.setPadding(0, systemBars.top, 0, systemBars.bottom)
-            insets
-        }
 
         val targetUrl = intent.getStringExtra(EXTRA_URL).orEmpty()
 
