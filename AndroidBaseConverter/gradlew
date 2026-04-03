@@ -2,7 +2,18 @@
 set -e
 
 APP_HOME=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-WRAPPER_JAR="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+WRAPPER_DIR="$APP_HOME/gradle/wrapper"
+WRAPPER_JAR="$WRAPPER_DIR/gradle-wrapper.jar"
+
+# Prefer JDK 17 for Gradle/AGP compatibility.
+if [ -x /usr/libexec/java_home ]; then
+  J17=$(/usr/libexec/java_home -v 17 2>/dev/null || true)
+  if [ -n "$J17" ]; then
+    export JAVA_HOME="$J17"
+    export PATH="$JAVA_HOME/bin:$PATH"
+  fi
+fi
+
 
 if [ ! -f "$WRAPPER_JAR" ]; then
   echo "gradle-wrapper.jar not found, bootstrapping wrapper via local Gradle..."
@@ -10,7 +21,25 @@ if [ ! -f "$WRAPPER_JAR" ]; then
     echo "ERROR: local gradle command not found. Please install Gradle 8.x first." >&2
     exit 1
   fi
-  (cd "$APP_HOME" && gradle -b wrapper-bootstrap.gradle wrapper --no-validate-url)
+
+  BOOT_DIR="$APP_HOME/.wrapper-bootstrap"
+  mkdir -p "$BOOT_DIR"
+  cat > "$BOOT_DIR/settings.gradle" <<'GS'
+rootProject.name = 'wrapperBootstrap'
+GS
+  cat > "$BOOT_DIR/build.gradle" <<'GB'
+task wrapper(type: Wrapper) {
+    gradleVersion = '8.0'
+    distributionType = Wrapper.DistributionType.BIN
+    validateDistributionUrl = false
+}
+GB
+
+  gradle -p "$BOOT_DIR" wrapper
+  mkdir -p "$WRAPPER_DIR"
+  cp "$BOOT_DIR/gradle/wrapper/gradle-wrapper.jar" "$WRAPPER_JAR"
+  cp "$BOOT_DIR/gradle/wrapper/gradle-wrapper.properties" "$WRAPPER_DIR/gradle-wrapper.properties"
+  rm -rf "$BOOT_DIR"
 fi
 
 exec java -Dorg.gradle.appname=gradlew -classpath "$WRAPPER_JAR" org.gradle.wrapper.GradleWrapperMain "$@"

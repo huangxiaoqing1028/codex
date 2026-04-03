@@ -12,13 +12,11 @@ This repository now includes:
 2. Let Gradle sync.
 3. Run `app` on emulator or physical Android device.
 
-If first run says wrapper jar missing, run:
-```bash
-cd /absolute/path/to/AndroidBaseConverter
-gradle -b wrapper-bootstrap.gradle wrapper --no-validate-url
-```
+If first run says wrapper jar missing, just run `./gradlew` once.
+It will auto-generate wrapper files using a temporary standalone Gradle project.
 
 > Toolchain pin: AGP **8.1.1** + Gradle **8.0** for Android Studio compatibility.
+> Use **JDK 17** (higher JDK versions can break Gradle/AGP bootstrap).
 
 > This project uses Gradle 8.0 wrapper.
 > `gradle-wrapper.jar` is intentionally gitignored; `./gradlew` will auto-bootstrap it via local `gradle` on first run.
