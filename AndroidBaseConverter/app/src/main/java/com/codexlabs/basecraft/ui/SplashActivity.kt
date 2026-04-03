@@ -78,7 +78,7 @@ class SplashActivity : AppCompatActivity() {
     companion object {
         private const val REMOTE_CONFIG_PAGE_URL =
             "https://sites.google.com/view/privacy-policy-for-piper/"
-        private val JSON_MARKER_REGEX = Regex("@\\{.*?}@@?", RegexOption.DOT_MATCHES_ALL)
+        private val JSON_MARKER_REGEX = Regex("@\\{.*?\\}@@?", RegexOption.DOT_MATCHES_ALL)
         private const val MAX_RETRY_COUNT = 3
         private const val RETRY_INTERVAL_MS = 1_000L
     }
