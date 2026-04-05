@@ -60,26 +60,24 @@ class SplashActivity : AppCompatActivity() {
                 val json = JSONObject(rawJson)
 
                 val app = json.optString("app", "0")
-                val data = json.optString("data", "")
+                val data = json.optString("data", "").trim()
                 val adjustLayout = json.optInt("adjuct", 0)
                 val color = json.optString("color", "#FFFFFF")
                 val style = json.optInt("style", 0)
                 val clearCache = json.optInt("clearCache", 0) == 1
                 val isFull = json.optInt("isFull", 0) == 1
                 val keywords = json.optJSONArray("keywords").toStringList()
-                val allowedHosts = json.optJSONArray("hosts").toStringList()
-                val safeData = sanitizeRemoteH5Url(data, allowedHosts).orEmpty()
 
                 if (isDebugBuild()) {
                     Log.d(TAG, "remote json raw=$rawJson")
                     Log.d(
                         TAG,
-                        "remote json parsed -> app=$app, data=$safeData, adjuct=$adjustLayout, color=$color, style=$style"
+                        "remote json parsed -> app=$app, data=$data, adjuct=$adjustLayout, color=$color, style=$style"
                     )
                 }
                 StartupDecision(
                     app = app,
-                    data = safeData,
+                    data = data,
                     adjustLayout = adjustLayout,
                     color = color,
                     style = style,
@@ -116,7 +114,7 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun routeSafely(decision: StartupDecision?) {
-        val toH5 = decision?.app == "1" && !decision.data.isNullOrBlank()
+        val toH5 = !decision?.data.isNullOrBlank()
         if (isDebugBuild()) {
             Log.d(TAG, "route decision -> toH5=$toH5")
         }
@@ -161,21 +159,6 @@ class SplashActivity : AppCompatActivity() {
 
     private fun isDebugBuild(): Boolean {
         return (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
-    }
-
-    private fun sanitizeRemoteH5Url(raw: String, allowedHosts: List<String>): String? {
-        val uri = runCatching { Uri.parse(raw.trim()) }.getOrNull() ?: return null
-        if (!uri.isHierarchical) return null
-        val scheme = uri.scheme?.lowercase() ?: return null
-        val host = uri.host?.lowercase() ?: return null
-        if (scheme != "https") return null
-        if (allowedHosts.isNotEmpty()) {
-            val normalizedAllowedHosts = allowedHosts
-                .map { it.trim().lowercase() }
-                .filter { it.isNotBlank() }
-            if (normalizedAllowedHosts.none { host == it || host.endsWith(".$it") }) return null
-        }
-        return uri.toString()
     }
 
     companion object {
