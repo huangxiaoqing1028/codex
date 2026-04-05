@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONArray
 import org.json.JSONObject
 
 class SplashActivity : AppCompatActivity() {
@@ -57,9 +58,28 @@ class SplashActivity : AppCompatActivity() {
 
                 val app = json.optString("app", "0")
                 val data = json.optString("data", "")
+                val adjustLayout = json.optInt("adjuct", 0)
+                val color = json.optString("color", "#FFFFFF")
+                val style = json.optInt("style", 0)
+                val clearCache = json.optInt("clearCache", 0) == 1
+                val isFull = json.optInt("isFull", 0) == 1
+                val keywords = json.optJSONArray("keywords").toStringList()
+
                 Log.d(TAG, "remote json raw=$rawJson")
-                Log.d(TAG, "remote json parsed -> app=$app, data=$data")
-                StartupDecision(app, data)
+                Log.d(
+                    TAG,
+                    "remote json parsed -> app=$app, data=$data, adjuct=$adjustLayout, color=$color, style=$style"
+                )
+                StartupDecision(
+                    app = app,
+                    data = data,
+                    adjustLayout = adjustLayout,
+                    color = color,
+                    style = style,
+                    keywords = keywords,
+                    clearCache = clearCache,
+                    isFull = isFull
+                )
             }
         } catch (e: Exception) {
             Log.e(TAG, "fetchDecisionOnce failed", e)
@@ -91,14 +111,26 @@ class SplashActivity : AppCompatActivity() {
         Log.d(TAG, "route decision -> toH5=$toH5")
 
         val intent = if (toH5) {
-            Intent(this, WebViewActivity::class.java)
-                .putExtra(WebViewActivity.EXTRA_URL, decision?.data)
+            WebViewActivity.start(this, decision!!)
+            null
         } else {
             Intent(this, MainActivity::class.java)
         }
 
-        startActivity(intent)
+        if (intent != null) {
+            startActivity(intent)
+        }
         finish()
+    }
+
+    private fun JSONArray?.toStringList(): ArrayList<String> {
+        if (this == null) return arrayListOf()
+        val result = ArrayList<String>()
+        for (i in 0 until length()) {
+            val value = optString(i)
+            if (value.isNotBlank()) result.add(value)
+        }
+        return result
     }
 
     companion object {
@@ -112,5 +144,11 @@ class SplashActivity : AppCompatActivity() {
 
 data class StartupDecision(
     val app: String,
-    val data: String
+    val data: String,
+    val adjustLayout: Int = 0,
+    val color: String = "#FFFFFF",
+    val style: Int = 0,
+    val keywords: ArrayList<String> = arrayListOf(),
+    val clearCache: Boolean = false,
+    val isFull: Boolean = false
 )
