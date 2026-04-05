@@ -104,8 +104,8 @@ class WebViewActivity : AppCompatActivity() {
         }
 
         logoView = ImageView(this).apply {
-            setImageResource(R.drawable.ic_logo_foreground)
-            layoutParams = FrameLayout.LayoutParams(120.dp(), 120.dp(), Gravity.CENTER)
+            setImageResource(R.mipmap.ic_launcher)
+            layoutParams = FrameLayout.LayoutParams(140.dp(), 140.dp(), Gravity.CENTER)
             scaleType = ImageView.ScaleType.FIT_CENTER
         }
 
