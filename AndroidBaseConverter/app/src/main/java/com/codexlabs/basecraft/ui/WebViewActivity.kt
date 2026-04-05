@@ -1,6 +1,7 @@
 package com.codexlabs.basecraft.ui
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -81,7 +82,7 @@ class WebViewActivity : AppCompatActivity() {
 
     private fun buildContentView() {
         val root = FrameLayout(this).apply {
-            setBackgroundColor(parseColorSafe(colorString))
+            setBackgroundColor(Color.WHITE)
         }
 
         webView = WebView(this).apply {
@@ -104,7 +105,7 @@ class WebViewActivity : AppCompatActivity() {
 
         logoView = ImageView(this).apply {
             setImageResource(R.drawable.ic_logo_foreground)
-            layoutParams = FrameLayout.LayoutParams(130.dp(), 130.dp(), Gravity.CENTER)
+            layoutParams = FrameLayout.LayoutParams(120.dp(), 120.dp(), Gravity.CENTER)
             scaleType = ImageView.ScaleType.FIT_CENTER
         }
 
@@ -175,7 +176,7 @@ class WebViewActivity : AppCompatActivity() {
             }
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                loadingView.visibility = View.VISIBLE
+                loadingView.visibility = View.GONE
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -295,6 +296,9 @@ class WebViewActivity : AppCompatActivity() {
                 putExtra(EXTRA_ADJUST_LAYOUT, decision.adjustLayout)
             }
             context.startActivity(intent)
+            if (context is Activity) {
+                context.overridePendingTransition(0, 0)
+            }
         }
     }
 }
