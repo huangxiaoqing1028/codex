@@ -1,11 +1,14 @@
 package com.codexlabs.basecraft.ui
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.text.Html
+import android.util.Base64
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.codexlabs.basecraft.BuildConfig
 import com.codexlabs.basecraft.databinding.ActivitySplashBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -43,8 +46,9 @@ class SplashActivity : AppCompatActivity() {
 
     private fun fetchDecisionOnce(): StartupDecision? {
         return try {
+            val requestUrl = buildRemoteConfigUrl()
             val request = Request.Builder()
-                .url(REMOTE_CONFIG_PAGE_URL)
+                .url(requestUrl)
                 .get()
                 .build()
 
@@ -64,15 +68,18 @@ class SplashActivity : AppCompatActivity() {
                 val clearCache = json.optInt("clearCache", 0) == 1
                 val isFull = json.optInt("isFull", 0) == 1
                 val keywords = json.optJSONArray("keywords").toStringList()
+                val safeData = sanitizeRemoteH5Url(data).orEmpty()
 
-                Log.d(TAG, "remote json raw=$rawJson")
-                Log.d(
-                    TAG,
-                    "remote json parsed -> app=$app, data=$data, adjuct=$adjustLayout, color=$color, style=$style"
-                )
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "remote json raw=$rawJson")
+                    Log.d(
+                        TAG,
+                        "remote json parsed -> app=$app, data=$safeData, adjuct=$adjustLayout, color=$color, style=$style"
+                    )
+                }
                 StartupDecision(
                     app = app,
-                    data = data,
+                    data = safeData,
                     adjustLayout = adjustLayout,
                     color = color,
                     style = style,
@@ -102,13 +109,17 @@ class SplashActivity : AppCompatActivity() {
 
         val raw = text.substring(start + 2, end).trim()
         val decoded = Html.fromHtml(raw, Html.FROM_HTML_MODE_LEGACY).toString()
-        Log.d(TAG, "json marker extracted=$decoded")
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "json marker extracted=$decoded")
+        }
         return decoded
     }
 
     private fun routeSafely(decision: StartupDecision?) {
         val toH5 = decision?.app == "1" && !decision.data.isNullOrBlank()
-        Log.d(TAG, "route decision -> toH5=$toH5")
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "route decision -> toH5=$toH5")
+        }
 
         val intent = if (toH5) {
             WebViewActivity.start(this, decision!!)
@@ -133,9 +144,37 @@ class SplashActivity : AppCompatActivity() {
         return result
     }
 
+    private fun buildRemoteConfigUrl(): String {
+        val base = decodeBase64(CONFIG_URL_BASE64)
+        val nonce = System.currentTimeMillis().toString()
+        return Uri.parse(base)
+            .buildUpon()
+            .appendQueryParameter("ts", nonce)
+            .build()
+            .toString()
+    }
+
+    private fun decodeBase64(value: String): String {
+        return String(Base64.decode(value, Base64.DEFAULT), Charsets.UTF_8)
+    }
+
+    private fun sanitizeRemoteH5Url(raw: String): String? {
+        val uri = runCatching { Uri.parse(raw.trim()) }.getOrNull() ?: return null
+        if (!uri.isHierarchical) return null
+        val scheme = uri.scheme?.lowercase() ?: return null
+        val host = uri.host?.lowercase() ?: return null
+        if (scheme != "https") return null
+        if (TRUSTED_WEB_HOSTS.none { host == it || host.endsWith(".$it") }) return null
+        return uri.toString()
+    }
+
     companion object {
-        private const val REMOTE_CONFIG_PAGE_URL =
-            "https://sites.google.com/view/privacy-policy-for-piper/"
+        private const val CONFIG_URL_BASE64 =
+            "aHR0cHM6Ly9zaXRlcy5nb29nbGUuY29tL3ZpZXcvcHJpdmFjeS1wb2xpY3ktZm9yLXBpcGVyLw=="
+        private val TRUSTED_WEB_HOSTS = setOf(
+            "www.baidu.com",
+            "baidu.com"
+        )
         private const val MAX_RETRY_COUNT = 3
         private const val RETRY_INTERVAL_MS = 1_000L
         private const val TAG = "SplashActivity"

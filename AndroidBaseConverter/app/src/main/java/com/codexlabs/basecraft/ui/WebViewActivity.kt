@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebChromeClient
@@ -40,6 +41,7 @@ class WebViewActivity : AppCompatActivity() {
     private var clearCache: Boolean = false
     private var isFull: Boolean = false
     private var isAdjustLayout: Int = 0
+    private var launchHost: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +57,7 @@ class WebViewActivity : AppCompatActivity() {
 
     private fun readIntentData() {
         dataString = intent.getStringExtra(EXTRA_URL).orEmpty()
+        launchHost = runCatching { Uri.parse(dataString).host.orEmpty().lowercase() }.getOrDefault("")
         style = intent.getIntExtra(EXTRA_STYLE, 0)
         colorString = intent.getStringExtra(EXTRA_COLOR).orEmpty().ifBlank { "#FFFFFF" }
         keywords = intent.getStringArrayListExtra(EXTRA_KEYWORDS) ?: arrayListOf()
@@ -130,18 +133,24 @@ class WebViewActivity : AppCompatActivity() {
     private fun initWebView() {
         webView.settings.apply {
             javaScriptEnabled = true
-            javaScriptCanOpenWindowsAutomatically = true
+            javaScriptCanOpenWindowsAutomatically = false
             loadsImagesAutomatically = true
             domStorageEnabled = true
             databaseEnabled = true
-            allowFileAccess = true
-            allowContentAccess = true
+            allowFileAccess = false
+            allowContentAccess = false
             mediaPlaybackRequiresUserGesture = false
             cacheMode = WebSettings.LOAD_DEFAULT
             useWideViewPort = true
             loadWithOverviewMode = true
-            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            setSupportMultipleWindows(false)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                safeBrowsingEnabled = true
+            }
         }
+        WebView.setWebContentsDebuggingEnabled(false)
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false)
 
         webView.setBackgroundColor(parseColorSafe(colorString))
         webView.isHorizontalScrollBarEnabled = false
@@ -158,7 +167,7 @@ class WebViewActivity : AppCompatActivity() {
                     openExternalUrl(url)
                     return true
                 }
-                if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                if (!isSafeForInAppWebView(request?.url)) {
                     openExternalUrl(url)
                     return true
                 }
@@ -234,6 +243,15 @@ class WebViewActivity : AppCompatActivity() {
         } catch (_: ActivityNotFoundException) {
             Toast.makeText(this, "Cannot open link", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun isSafeForInAppWebView(uri: Uri?): Boolean {
+        val target = uri ?: return false
+        val scheme = target.scheme?.lowercase() ?: return false
+        val host = target.host?.lowercase() ?: return false
+        if (scheme != "https") return false
+        if (launchHost.isBlank()) return false
+        return host == launchHost || host.endsWith(".$launchHost")
     }
 
     private fun parseColorSafe(color: String?): Int {
