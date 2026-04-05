@@ -68,13 +68,13 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun extractJsonMarker(text: String): String? {
-        val start = text.indexOf("@<")
+        val start = text.indexOf("@@")
         if (start == -1) {
             Log.d(TAG, "json marker start not found")
             return null
         }
 
-        val end = text.indexOf("@>", start + 2)
+        val end = text.indexOf("@@", start + 2)
         if (end == -1 || end <= start + 2) {
             Log.d(TAG, "json marker end not found")
             return null
