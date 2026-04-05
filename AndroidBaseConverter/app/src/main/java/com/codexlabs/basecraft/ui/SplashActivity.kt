@@ -7,6 +7,7 @@ import android.text.Html
 import android.util.Base64
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
 import androidx.lifecycle.lifecycleScope
 import com.codexlabs.basecraft.databinding.ActivitySplashBinding
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +28,7 @@ class SplashActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySplashBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        setupStatusBarWhite()
 
         lifecycleScope.launch {
             val decision = runCatching { fetchDecisionWithRetry() }.getOrNull()
@@ -155,6 +157,11 @@ class SplashActivity : AppCompatActivity() {
 
     private fun decodeBase64(value: String): String {
         return String(Base64.decode(value, Base64.DEFAULT), Charsets.UTF_8)
+    }
+
+    private fun setupStatusBarWhite() {
+        window.statusBarColor = android.graphics.Color.WHITE
+        ViewCompat.getWindowInsetsController(window.decorView)?.isAppearanceLightStatusBars = true
     }
 
     private fun isDebugBuild(): Boolean {

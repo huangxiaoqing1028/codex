@@ -74,8 +74,8 @@ class WebViewActivity : AppCompatActivity() {
     }
 
     private fun setupStatusBarStyle() {
-        window.statusBarColor = parseColorSafe(colorString)
-        ViewCompat.getWindowInsetsController(window.decorView)?.isAppearanceLightStatusBars = style == 0
+        window.statusBarColor = Color.WHITE
+        ViewCompat.getWindowInsetsController(window.decorView)?.isAppearanceLightStatusBars = true
     }
 
     private fun buildContentView() {
