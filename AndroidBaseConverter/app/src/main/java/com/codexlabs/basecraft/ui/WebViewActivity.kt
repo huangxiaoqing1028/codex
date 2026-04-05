@@ -179,13 +179,15 @@ class WebViewActivity : AppCompatActivity() {
                 request: WebResourceRequest?,
                 error: android.webkit.WebResourceError?
             ) {
-                loadingView.visibility = View.GONE
-                logoView?.visibility = View.GONE
-                Toast.makeText(
-                    this@WebViewActivity,
-                    "Network error, please try again",
-                    Toast.LENGTH_SHORT
-                ).show()
+                if (request?.isForMainFrame == true) {
+                    loadingView.visibility = View.GONE
+                    logoView?.visibility = View.GONE
+                    Toast.makeText(
+                        this@WebViewActivity,
+                        "Network error, please try again",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
     }
