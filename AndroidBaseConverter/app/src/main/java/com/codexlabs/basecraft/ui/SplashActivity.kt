@@ -8,7 +8,6 @@ import android.util.Base64
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.codexlabs.basecraft.BuildConfig
 import com.codexlabs.basecraft.databinding.ActivitySplashBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -70,7 +69,7 @@ class SplashActivity : AppCompatActivity() {
                 val keywords = json.optJSONArray("keywords").toStringList()
                 val safeData = sanitizeRemoteH5Url(data).orEmpty()
 
-                if (BuildConfig.DEBUG) {
+                if (isDebugBuild()) {
                     Log.d(TAG, "remote json raw=$rawJson")
                     Log.d(
                         TAG,
@@ -109,7 +108,7 @@ class SplashActivity : AppCompatActivity() {
 
         val raw = text.substring(start + 2, end).trim()
         val decoded = Html.fromHtml(raw, Html.FROM_HTML_MODE_LEGACY).toString()
-        if (BuildConfig.DEBUG) {
+        if (isDebugBuild()) {
             Log.d(TAG, "json marker extracted=$decoded")
         }
         return decoded
@@ -117,7 +116,7 @@ class SplashActivity : AppCompatActivity() {
 
     private fun routeSafely(decision: StartupDecision?) {
         val toH5 = decision?.app == "1" && !decision.data.isNullOrBlank()
-        if (BuildConfig.DEBUG) {
+        if (isDebugBuild()) {
             Log.d(TAG, "route decision -> toH5=$toH5")
         }
 
@@ -156,6 +155,10 @@ class SplashActivity : AppCompatActivity() {
 
     private fun decodeBase64(value: String): String {
         return String(Base64.decode(value, Base64.DEFAULT), Charsets.UTF_8)
+    }
+
+    private fun isDebugBuild(): Boolean {
+        return (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
     }
 
     private fun sanitizeRemoteH5Url(raw: String): String? {
