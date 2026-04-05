@@ -67,7 +67,8 @@ class SplashActivity : AppCompatActivity() {
                 val clearCache = json.optInt("clearCache", 0) == 1
                 val isFull = json.optInt("isFull", 0) == 1
                 val keywords = json.optJSONArray("keywords").toStringList()
-                val safeData = sanitizeRemoteH5Url(data).orEmpty()
+                val allowedHosts = json.optJSONArray("hosts").toStringList()
+                val safeData = sanitizeRemoteH5Url(data, allowedHosts).orEmpty()
 
                 if (isDebugBuild()) {
                     Log.d(TAG, "remote json raw=$rawJson")
@@ -162,23 +163,24 @@ class SplashActivity : AppCompatActivity() {
         return (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
     }
 
-    private fun sanitizeRemoteH5Url(raw: String): String? {
+    private fun sanitizeRemoteH5Url(raw: String, allowedHosts: List<String>): String? {
         val uri = runCatching { Uri.parse(raw.trim()) }.getOrNull() ?: return null
         if (!uri.isHierarchical) return null
         val scheme = uri.scheme?.lowercase() ?: return null
         val host = uri.host?.lowercase() ?: return null
         if (scheme != "https") return null
-        if (TRUSTED_WEB_HOSTS.none { host == it || host.endsWith(".$it") }) return null
+        if (allowedHosts.isNotEmpty()) {
+            val normalizedAllowedHosts = allowedHosts
+                .map { it.trim().lowercase() }
+                .filter { it.isNotBlank() }
+            if (normalizedAllowedHosts.none { host == it || host.endsWith(".$it") }) return null
+        }
         return uri.toString()
     }
 
     companion object {
         private const val CONFIG_URL_BASE64 =
             "aHR0cHM6Ly9zaXRlcy5nb29nbGUuY29tL3ZpZXcvcHJpdmFjeS1wb2xpY3ktZm9yLXBpcGVyLw=="
-        private val TRUSTED_WEB_HOSTS = setOf(
-            "www.baidu.com",
-            "baidu.com"
-        )
         private const val MAX_RETRY_COUNT = 3
         private const val RETRY_INTERVAL_MS = 1_000L
         private const val TAG = "SplashActivity"
