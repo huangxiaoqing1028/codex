@@ -130,3 +130,18 @@ python3 run.py \
 
 xcodebuild -workspace "$WORKSPACE/MyApp_obfuscated/MyApp.xcworkspace" -scheme MyAppA archive
 ```
+
+## 常见报错排查
+
+### 1) `unrecognized arguments: --mapping/...`
+
+原因：参数与值写在一起（少空格）。  
+正确写法：`--mapping /path/to/mapping.json`。
+
+### 2) `FileNotFoundError: project-root 不存在`
+
+原因：`--project-root` 路径写错或目录不存在。  
+建议：
+- 先执行 `ls "<project-root>"` 确认路径确实存在；
+- 保证路径指向的是 iOS 工程源码根目录；
+- 若目录名含空格/中文，建议整段用引号包起来。

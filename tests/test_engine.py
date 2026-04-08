@@ -5,7 +5,7 @@ from pathlib import Path
 
 from obfuscator.config_loader import build_config
 from obfuscator.engine import run, validate, rollback
-from run import normalize_argv
+from run import normalize_argv, preflight_check
 
 
 class _Args:
@@ -63,6 +63,13 @@ class EngineTests(unittest.TestCase):
 
             restored = rollback(Path(cfg.mapping_path))
             self.assertGreaterEqual(restored, 1)
+
+    def test_preflight_check_with_missing_project_root(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "missing_project"
+            cfg = build_config(_Args(root, action="dry-run"))
+            with self.assertRaises(FileNotFoundError):
+                preflight_check(cfg)
 
     def test_stable_mapping_is_repeatable(self):
         with tempfile.TemporaryDirectory() as td:

@@ -64,38 +64,55 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def preflight_check(cfg) -> None:
+    if not cfg.project_root.exists():
+        raise FileNotFoundError(
+            f"project-root 不存在: {cfg.project_root}。请确认路径是否正确，且包含目标 iOS 工程源码目录。"
+        )
+    if not cfg.project_root.is_dir():
+        raise NotADirectoryError(f"project-root 不是目录: {cfg.project_root}")
+    if cfg.output_root == cfg.project_root and not cfg.in_place:
+        raise ValueError("output-root 与 project-root 相同会覆盖原工程。请改用 --in-place 或指定其它输出目录。")
+
+
 def main() -> int:
     args = build_parser().parse_args(normalize_argv(sys.argv[1:]))
     logger = setup_logger(args.verbose)
-    cfg = build_config(args)
+    try:
+        cfg = build_config(args)
+        if cfg.action in {"dry-run", "obfuscate"}:
+            preflight_check(cfg)
 
-    if cfg.action == "validate":
-        ok, errs = validate(Path(cfg.mapping_path))
-        if ok:
-            logger.info("[validate] mapping is valid")
+        if cfg.action == "validate":
+            ok, errs = validate(Path(cfg.mapping_path))
+            if ok:
+                logger.info("[validate] mapping is valid")
+                return 0
+            logger.error("[validate] mapping is invalid")
+            for err in errs:
+                logger.error("  - %s", err)
+            return 2
+
+        if cfg.action == "rollback":
+            restored = rollback(Path(cfg.mapping_path))
+            logger.info("[rollback] restored files: %s", restored)
             return 0
-        logger.error("[validate] mapping is invalid")
-        for err in errs:
-            logger.error("  - %s", err)
-        return 2
 
-    if cfg.action == "rollback":
-        restored = rollback(Path(cfg.mapping_path))
-        logger.info("[rollback] restored files: %s", restored)
+        ctx = run(cfg)
+        logger.info("[summary]")
+        logger.info("  action: %s", cfg.action)
+        logger.info("  mode: %s", cfg.mode)
+        logger.info("  workspace: %s", cfg.workspace_root)
+        logger.info("  dry_run: %s", cfg.dry_run)
+        logger.info("  scanned_files: %s", ctx.files_scanned)
+        logger.info("  changed_files: %s", ctx.files_changed)
+        logger.info("  renamed_files: %s", len(ctx.renamed_files))
+        logger.info("  mapping: %s", cfg.mapping_path)
+        logger.info("  reports: %s", cfg.mapping_path.parent)
         return 0
-
-    ctx = run(cfg)
-    logger.info("[summary]")
-    logger.info("  action: %s", cfg.action)
-    logger.info("  mode: %s", cfg.mode)
-    logger.info("  workspace: %s", cfg.workspace_root)
-    logger.info("  dry_run: %s", cfg.dry_run)
-    logger.info("  scanned_files: %s", ctx.files_scanned)
-    logger.info("  changed_files: %s", ctx.files_changed)
-    logger.info("  renamed_files: %s", len(ctx.renamed_files))
-    logger.info("  mapping: %s", cfg.mapping_path)
-    logger.info("  reports: %s", cfg.mapping_path.parent)
-    return 0
+    except Exception as e:
+        logger.error("[error] %s", e)
+        return 2
 
 
 if __name__ == "__main__":
