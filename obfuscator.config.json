@@ -1,0 +1,15 @@
+{
+  "include_dirs": [
+    "MyApp",
+    "MyAppTests"
+  ],
+  "exclude_dirs": [
+    "Generated",
+    "Fastlane"
+  ],
+  "whitelist": [],
+  "blacklist": [
+    "AppDelegate",
+    "main"
+  ]
+}
