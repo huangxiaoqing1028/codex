@@ -2,6 +2,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
@@ -14,6 +15,7 @@
 #endif
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Triple.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
@@ -24,6 +26,7 @@
 #include <random>
 #include <string>
 #include <unordered_set>
+#include <unordered_map>
 
 using namespace llvm;
 
@@ -200,6 +203,111 @@ public:
 };
 
 class SimpleObfPass : public PassInfoMixin<SimpleObfPass> {
+  static std::string makeRandomHelperName(uint64_t Seed, unsigned Index) {
+    uint64_t V = Seed ^ (0x9e3779b97f4a7c15ULL * (Index + 1));
+    return "__obf_jh_" + utohexstr(V);
+  }
+
+  static Function *createJunkHelper(Module &M, StringRef Name, uint64_t Seed) {
+    LLVMContext &Ctx = M.getContext();
+    FunctionType *FT =
+        FunctionType::get(Type::getVoidTy(Ctx), {Type::getInt64Ty(Ctx)}, false);
+    Function *F = Function::Create(FT, GlobalValue::InternalLinkage, Name, M);
+    F->addFnAttr(Attribute::NoInline);
+    F->addFnAttr(Attribute::OptimizeNone);
+
+    BasicBlock *Entry = BasicBlock::Create(Ctx, "entry", F);
+    IRBuilder<> B(Entry);
+    Argument *Arg = F->arg_begin();
+    Arg->setName("x");
+    Value *A = B.CreateXor(Arg, ConstantInt::get(Type::getInt64Ty(Ctx), Seed), "jh.a");
+    Value *Bv = B.CreateAdd(A, ConstantInt::get(Type::getInt64Ty(Ctx), (Seed >> 7) | 1ULL), "jh.b");
+    Value *C = B.CreateMul(Bv, ConstantInt::get(Type::getInt64Ty(Ctx), 3), "jh.c");
+    AllocaInst *Slot = B.CreateAlloca(Type::getInt64Ty(Ctx), nullptr, "jh.slot");
+    StoreInst *St = B.CreateStore(C, Slot);
+    St->setVolatile(true);
+    LoadInst *Ld = B.CreateLoad(Type::getInt64Ty(Ctx), Slot, "jh.ld");
+    Ld->setVolatile(true);
+    (void)B.CreateXor(Ld, ConstantInt::get(Type::getInt64Ty(Ctx), Seed ^ 0xA5A5A5A5ULL), "jh.out");
+    B.CreateRetVoid();
+    return F;
+  }
+
+  static const SmallVector<Function *, 16> &
+  getOrCreateJunkHelpers(Module &M) {
+    static std::mutex Mu;
+    static std::unordered_map<Module *, SmallVector<Function *, 16>> Pools;
+    std::lock_guard<std::mutex> Lock(Mu);
+    auto It = Pools.find(&M);
+    if (It != Pools.end())
+      return It->second;
+
+    uint64_t Seed = fnv1a64(M.getModuleIdentifier());
+    std::mt19937_64 Rng(Seed);
+    std::uniform_int_distribution<int> CountDist(5, 12);
+    int Count = CountDist(Rng);
+
+    SmallVector<Function *, 16> Created;
+    Created.reserve(Count);
+    for (int I = 0; I < Count; ++I) {
+      std::string Name = makeRandomHelperName(Seed, static_cast<unsigned>(I));
+      if (Function *Existing = M.getFunction(Name)) {
+        Created.push_back(Existing);
+      } else {
+        Created.push_back(createJunkHelper(M, Name, Seed ^ static_cast<uint64_t>(I + 1)));
+      }
+    }
+    auto Res = Pools.emplace(&M, std::move(Created));
+    return Res.first->second;
+  }
+
+  static bool injectJunkCalls(Function &F) {
+    if (F.isDeclaration() || F.empty())
+      return false;
+    if (F.getName().starts_with("__obf_jh_"))
+      return false;
+
+    Module *M = F.getParent();
+    if (!M)
+      return false;
+    const auto &Helpers = getOrCreateJunkHelpers(*M);
+    if (Helpers.empty())
+      return false;
+
+    SmallVector<Instruction *, 32> Sites;
+    for (BasicBlock &BB : F) {
+      for (Instruction &I : BB) {
+        if (isa<PHINode>(&I) || I.isTerminator())
+          continue;
+        if (isa<DbgInfoIntrinsic>(&I))
+          continue;
+        Sites.push_back(&I);
+      }
+    }
+    if (Sites.empty())
+      return false;
+
+    uint64_t Seed = fnv1a64(F.getName());
+    std::mt19937_64 Rng(Seed);
+    int MaxCalls = std::max(1, std::min<int>(static_cast<int>(Sites.size()), 4));
+    std::uniform_int_distribution<int> CountDist(1, MaxCalls);
+    int InjectCount = CountDist(Rng);
+    std::uniform_int_distribution<size_t> SiteDist(0, Sites.size() - 1);
+    std::uniform_int_distribution<size_t> HelperDist(0, Helpers.size() - 1);
+
+    bool Changed = false;
+    for (int I = 0; I < InjectCount; ++I) {
+      Instruction *InsertBefore = Sites[SiteDist(Rng)];
+      Function *Helper = Helpers[HelperDist(Rng)];
+      IRBuilder<> B(InsertBefore);
+      Value *Arg = ConstantInt::get(Type::getInt64Ty(F.getContext()),
+                                    Seed ^ static_cast<uint64_t>(I + 1));
+      B.CreateCall(Helper, {Arg});
+      Changed = true;
+    }
+    return Changed;
+  }
+
   static bool isObjCMethodName(StringRef Name) {
     return Name.starts_with("\x01-[") || Name.starts_with("\x01+[");
   }
@@ -820,6 +928,14 @@ public:
                  BranchPerturbChanged;
     }
 
+    bool JunkHelperChanged = false;
+    if (getEnvBoolOrDefault("OBF_ENABLE_JUNK_HELPERS", true)) {
+      JunkHelperChanged = injectJunkCalls(F);
+      if (JunkHelperChanged)
+        verifyFunctionOrDie(F, "junk_helpers");
+      Changed |= JunkHelperChanged;
+    }
+
     if (Changed)
       logPassHit(F);
 
@@ -830,6 +946,7 @@ public:
              << " call_indirect=" << (IndirectCallChanged ? 1 : 0)
              << " split=" << (SplitChanged ? 1 : 0)
              << " bcf=" << (BranchPerturbChanged ? 1 : 0)
+             << " junk=" << (JunkHelperChanged ? 1 : 0)
              << " fla_en=" << (EnableFLA ? 1 : 0)
              << " calli_en=" << (EnableCallIndirect ? 1 : 0)
              << " exp_cfg=" << (ExperimentalCFG ? 1 : 0)
@@ -841,6 +958,8 @@ public:
              << (EnableStructuralCFG ? 1 : 0)
              << " objc_method=" << (IsObjCMethod ? 1 : 0)
              << " has_phi=" << (HasPHI ? 1 : 0)
+             << " junk_en="
+             << (getEnvBoolOrDefault("OBF_ENABLE_JUNK_HELPERS", true) ? 1 : 0)
              << " fla_en=" << (EnableFLA ? 1 : 0)
              << " calli_en=" << (EnableCallIndirect ? 1 : 0)
              << " exp_cfg=" << (ExperimentalCFG ? 1 : 0)

@@ -61,6 +61,7 @@ OBF_SEED=20260327 ./scripts/verify_pass.sh
 > 结构型 CFG 混淆（FLA/split/bogus/call indirection）默认在“函数结构安全”时启用，不依赖算术命中；可用 `OBF_ENABLE_STRUCTURAL_CFG=0` 关闭。
 > 稳定性保护：ObjC 方法符号（`-[...]` / `+[...]`）默认跳过 call indirection，仅执行其它结构混淆，降低 SimplifyCFG 阶段崩溃风险。
 > 稳定性保护：开启状态下也会做安全过滤（例如含 PHI 的函数跳过 split/bogus，并补全 PHI incoming），降低 SimplifyCFG 崩溃风险；也可手动开关：`OBF_ENABLE_FLA`、`OBF_ENABLE_CALL_INDIRECT`、`OBF_ENABLE_EXPERIMENTAL_CFG`。
+> 增强版 junk helper：默认开启 `OBF_ENABLE_JUNK_HELPERS=1`，每个 module 自动生成 5~12 个 internal C helper（随机命名），并在每个函数随机插入 1~N 次 helper 调用。
 
 ### Q16: 这次崩溃是不是 clang 与 pass 插件 ABI 不匹配？
 有这个可能。当前 wrapper 已增加主版本校验：会读取 `build/obf-pass/llvm-version.txt`，并与实际执行的 `clang --version` 主版本比对；不一致时直接报错退出，避免继续注入插件导致 crash。
