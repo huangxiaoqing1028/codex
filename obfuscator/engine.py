@@ -237,6 +237,69 @@ def _rewrite(text: str, patterns: Sequence[Tuple[re.Pattern, str]]) -> str:
     return out
 
 
+def _replace_word_boundary(text: str, old: str, new: str) -> str:
+    if not old:
+        return text
+    return re.sub(rf"(?<![A-Za-z0-9_]){re.escape(old)}(?![A-Za-z0-9_])", new, text)
+
+
+def _replace_pbxproj_structured(text: str, cfg: ObfConfig) -> str:
+    """
+    对 project.pbxproj 做结构化的安全替换，避免全局盲替换：
+    1) 仅替换带边界的标识符
+    2) 仅替换常见 name/path/productName/PRODUCT_NAME/value 语义位
+    """
+    out = text
+    rename_pairs = [
+        (getattr(cfg, "source_target", ""), getattr(cfg, "rename_target", None)),
+        (getattr(cfg, "source_project", ""), getattr(cfg, "rename_project", None)),
+        (getattr(cfg, "source_scheme", ""), getattr(cfg, "rename_scheme", None)),
+    ]
+
+    for old, new in rename_pairs:
+        if not old or not new:
+            continue
+        # 1) 通用边界替换（控制误伤）
+        out = _replace_word_boundary(out, old, new)
+        # 2) 结构化字段替换
+        out = re.sub(rf"(name\s*=\s*){re.escape(old)}(\s*;)", rf"\1{new}\2", out)
+        out = re.sub(rf"(path\s*=\s*){re.escape(old)}(\s*;)", rf"\1{new}\2", out)
+        out = re.sub(rf"(productName\s*=\s*){re.escape(old)}(\s*;)", rf"\1{new}\2", out)
+        out = re.sub(rf"(PRODUCT_NAME\s*=\s*){re.escape(old)}(\s*;)", rf"\1{new}\2", out)
+        out = re.sub(rf"(\"?){re.escape(old)}(\\.xcodeproj\"?)", rf"\1{new}\2", out)
+        out = re.sub(rf"(\"?){re.escape(old)}(\\.xcworkspace\"?)", rf"\1{new}\2", out)
+        out = re.sub(rf"(\"?){re.escape(old)}(\\.xcscheme\"?)", rf"\1{new}\2", out)
+    return out
+
+
+def _replace_podfile_structured(text: str, cfg: ObfConfig) -> str:
+    """
+    对 Podfile 做语义化替换：
+    - target 'X'
+    - project 'X'
+    - workspace 'X'
+    - scheme => 'X' / :scheme => 'X'
+    """
+    out = text
+    if getattr(cfg, "source_target", "") and getattr(cfg, "rename_target", None):
+        src = re.escape(cfg.source_target)
+        dst = cfg.rename_target
+        out = re.sub(rf"(target\s+['\"])({src})(['\"])", rf"\1{dst}\3", out)
+
+    if getattr(cfg, "source_project", "") and getattr(cfg, "rename_project", None):
+        src = re.escape(cfg.source_project)
+        dst = cfg.rename_project
+        out = re.sub(rf"(project\s+['\"])([^'\"]*?){src}([^'\"]*?['\"])", rf"\1\2{dst}\3", out)
+        out = re.sub(rf"(workspace\s+['\"])([^'\"]*?){src}([^'\"]*?['\"])", rf"\1\2{dst}\3", out)
+
+    if getattr(cfg, "source_scheme", "") and getattr(cfg, "rename_scheme", None):
+        src = re.escape(cfg.source_scheme)
+        dst = cfg.rename_scheme
+        out = re.sub(rf"(scheme\s*=>\s*['\"])({src})(['\"])", rf"\1{dst}\3", out)
+        out = re.sub(rf"(:scheme\s*=>\s*['\"])({src})(['\"])", rf"\1{dst}\3", out)
+    return out
+
+
 def _backup(path: Path, cfg: ObfConfig) -> None:
     rel = path.relative_to(cfg.workspace_root)
     bk = cfg.backup_dir / rel
@@ -262,12 +325,18 @@ def apply_mapping(files: Sequence[Path], mapping: Dict[str, Dict[str, str]], cfg
         old = f.read_text(encoding="utf-8", errors="ignore")
         new = _rewrite(old, patterns)
 
-        if getattr(cfg, "rename_target", None):
-            new = new.replace(getattr(cfg, "source_target", ""), cfg.rename_target) if getattr(cfg, "source_target", "") else new
-        if getattr(cfg, "rename_project", None):
-            new = new.replace(getattr(cfg, "source_project", ""), cfg.rename_project) if getattr(cfg, "source_project", "") else new
-        if getattr(cfg, "rename_scheme", None):
-            new = new.replace(getattr(cfg, "source_scheme", ""), cfg.rename_scheme) if getattr(cfg, "source_scheme", "") else new
+        # 对 pbxproj / Podfile 使用结构化替换，避免误伤
+        if f.name == "project.pbxproj":
+            new = _replace_pbxproj_structured(new, cfg)
+        elif f.name == "Podfile":
+            new = _replace_podfile_structured(new, cfg)
+        else:
+            if getattr(cfg, "rename_target", None) and getattr(cfg, "source_target", ""):
+                new = _replace_word_boundary(new, cfg.source_target, cfg.rename_target)
+            if getattr(cfg, "rename_project", None) and getattr(cfg, "source_project", ""):
+                new = _replace_word_boundary(new, cfg.source_project, cfg.rename_project)
+            if getattr(cfg, "rename_scheme", None) and getattr(cfg, "source_scheme", ""):
+                new = _replace_word_boundary(new, cfg.source_scheme, cfg.rename_scheme)
 
         if old == new:
             continue

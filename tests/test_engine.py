@@ -69,6 +69,37 @@ class EngineTests(unittest.TestCase):
             m2 = run(cfg2).mapping
             self.assertEqual(m1["class"], m2["class"])
 
+    def test_structured_pbxproj_and_podfile_rename(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "App.h").write_text("@interface Foo: NSObject @end", encoding="utf-8")
+            (root / "App.m").write_text("@implementation Foo @end", encoding="utf-8")
+            (root / "project.pbxproj").write_text(
+                "name = MyApp;\\nPRODUCT_NAME = MyApp;\\npath = MyApp.xcodeproj;\\n",
+                encoding="utf-8",
+            )
+            (root / "Podfile").write_text(
+                "target 'MyApp' do\\n  project 'MyApp.xcodeproj'\\n  workspace 'MyApp.xcworkspace'\\nend\\n",
+                encoding="utf-8",
+            )
+
+            args = _Args(root, action="obfuscate")
+            args.source_target = "MyApp"
+            args.rename_target = "MyAppA"
+            args.source_project = "MyApp"
+            args.rename_project = "MyAppA"
+            args.source_scheme = "MyApp"
+            args.rename_scheme = "MyAppA"
+
+            cfg = build_config(args)
+            run(cfg)
+
+            pbx = (root / "project.pbxproj").read_text(encoding="utf-8")
+            pod = (root / "Podfile").read_text(encoding="utf-8")
+            self.assertIn("MyAppA", pbx)
+            self.assertNotIn("name = MyApp;", pbx)
+            self.assertIn("target 'MyAppA'", pod)
+
 
 if __name__ == "__main__":
     unittest.main()
