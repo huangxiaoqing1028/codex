@@ -12,13 +12,14 @@ from typing import Dict, List, Sequence, Set, Tuple
 from .context import ObfConfig, ObfContext, ScanResult
 
 SOURCE_EXTENSIONS = {".h", ".m", ".mm", ".pch"}
-SYNC_EXTENSIONS = {".h", ".m", ".mm", ".pch", ".xib", ".storyboard", ".pbxproj", ".strings", ".plist"}
+SYNC_EXTENSIONS = {".h", ".m", ".mm", ".pch", ".xib", ".storyboard", ".pbxproj", ".strings", ".plist", ".xcscheme", ".swift"}
 OBF_PREFIX = "OBF_"
 
 HIGH_RISK_NAMES = {
     "AppDelegate", "SceneDelegate", "main", "load", "initialize", "dealloc", "viewDidLoad",
     "copyWithZone", "encodeWithCoder", "initWithCoder",
 }
+SYSTEM_OVERRIDE_HINTS = {"viewDidLoad", "viewWillAppear", "viewDidAppear", "layoutSubviews", "prepareForSegue"}
 
 CLASS_PATTERN = re.compile(r"@interface\s+([A-Za-z_][A-Za-z0-9_]*)|@implementation\s+([A-Za-z_][A-Za-z0-9_]*)")
 PROPERTY_PATTERN = re.compile(r"@property\s*\([^\)]*\)\s*[^;]*\b([A-Za-z_][A-Za-z0-9_]*)\s*;")
@@ -28,6 +29,19 @@ METHOD_PATTERN = re.compile(r"^[ \t]*[+-]\s*\([^\)]*\)\s*([A-Za-z_][A-Za-z0-9_]*
 SELECTOR_HEAD_PATTERN = re.compile(r"^[ \t]*[+-]\s*\([^\)]*\)\s*([A-Za-z_][A-Za-z0-9_]*)(?=\s*:)", re.M)
 CATEGORY_PATTERN = re.compile(r"@interface\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)")
 PROTOCOL_PATTERN = re.compile(r"@protocol\s+([A-Za-z_][A-Za-z0-9_]*)")
+
+RISK_PATTERNS = {
+    "kvc": [r"setValue:\s*forKey:", r"valueForKey:", r"valueForKeyPath:"],
+    "kvo": [r"addObserver:\s*forKeyPath:", r"observeValueForKeyPath:"],
+    "nscoding": [r"encodeWithCoder", r"initWithCoder", r"NSCoding", r"NSSecureCoding"],
+    "runtime_reflection": [r"objc_msgSend", r"NSClassFromString", r"NSSelectorFromString", r"performSelector:"],
+    "selector_string": [r"@selector\(", r"NSStringFromSelector", r"NSSelectorFromString"],
+    "router_path_mapping": [r"router", r"route", r"URLPattern", r"openURL"],
+    "model_json_mapping": [r"mj_", r"yy_model", r"JSONModel", r"modelCustomPropertyMapper"],
+    "db_field_mapping": [r"sqlite", r"FMDB", r"db_", r"column"],
+    "coredata_property": [r"NSManagedObject", r"@dynamic", r"CoreData"],
+    "third_party_callback": [r"AFNetworking", r"MASConstraint", r"SDWebImage", r"completion:\s*\^"],
+}
 
 
 def _is_system_like(name: str) -> bool:
@@ -43,6 +57,22 @@ def _variant(symbol: str, seed: str, rng: random.Random, prefix: str) -> str:
     pool = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     suffix = "".join(rng.choice(pool) for _ in range(10))
     return f"{prefix}{digest}{suffix}"
+
+
+def _camel(seed: str, symbol: str, prefix: str) -> str:
+    digest = hashlib.sha1(f"{seed}:{symbol}".encode()).hexdigest()
+    chunks = [digest[i : i + 3] for i in range(0, 12, 3)]
+    return prefix + "".join(c.capitalize() for c in chunks)
+
+
+def _load_mapping_cache(cfg: ObfConfig) -> Dict[str, Dict[str, str]]:
+    if not getattr(cfg, "reuse_mapping", False):
+        return {}
+    if not cfg.mapping_path.exists():
+        return {}
+    data = json.loads(cfg.mapping_path.read_text(encoding="utf-8"))
+    mapping = data.get("mapping", {})
+    return mapping if isinstance(mapping, dict) else {}
 
 
 def prepare_workspace(cfg: ObfConfig) -> None:
@@ -69,33 +99,54 @@ def iter_files(cfg: ObfConfig) -> List[Path]:
             rel = rp.relative_to(cfg.workspace_root)
             if set(rel.parts) & cfg.exclude_dirs:
                 continue
-            if rel.suffix not in SYNC_EXTENSIONS:
+            if rel.suffix not in SYNC_EXTENSIONS and rel.name != "project.pbxproj" and rel.name != "Podfile":
                 continue
             files.append(rp)
     return files
 
 
-def scan_symbols(files: Sequence[Path]) -> ScanResult:
+def scan_symbols(files: Sequence[Path], cfg: ObfConfig) -> Tuple[ScanResult, dict]:
     classes: Set[str] = set()
     methods: Set[str] = set()
     properties: Set[str] = set()
     ivars: Set[str] = set()
+    category_methods: Set[str] = set()
+    protocols: Set[str] = set()
+
+    risk_hits: Dict[str, Set[str]] = {k: set() for k in RISK_PATTERNS}
+    override_hits: Set[str] = set()
 
     for f in files:
+        text = f.read_text(encoding="utf-8", errors="ignore")
+        for typ, patterns in RISK_PATTERNS.items():
+            for pat in patterns:
+                if re.search(pat, text):
+                    risk_hits[typ].add(str(f.relative_to(cfg.workspace_root)))
+
         if f.suffix not in SOURCE_EXTENSIONS:
             continue
-        text = f.read_text(encoding="utf-8", errors="ignore")
+
         for a, b in CLASS_PATTERN.findall(text):
             classes.add(a or b)
         properties.update(PROPERTY_PATTERN.findall(text))
-        methods.update(METHOD_PATTERN.findall(text))
-        methods.update(SELECTOR_HEAD_PATTERN.findall(text))
+        m = set(METHOD_PATTERN.findall(text)) | set(SELECTOR_HEAD_PATTERN.findall(text))
+        methods.update(m)
+        override_hits.update({name for name in m if name in SYSTEM_OVERRIDE_HINTS})
+
         for blk in IVAR_BLOCK_PATTERN.findall(text):
             ivars.update({name for name in IVAR_ITEM_PATTERN.findall(blk) if len(name) > 2})
-        # category/protocol parse as scan coverage (for report)
-        _ = CATEGORY_PATTERN.findall(text)
-        _ = PROTOCOL_PATTERN.findall(text)
-    return ScanResult(classes=classes, methods=methods, properties=properties, ivars=ivars)
+
+        if CATEGORY_PATTERN.search(text):
+            category_methods.update(m)
+        protocols.update(PROTOCOL_PATTERN.findall(text))
+
+    meta = {
+        "category_methods": sorted(category_methods),
+        "protocols": sorted(protocols),
+        "risk_hits": {k: sorted(v) for k, v in risk_hits.items()},
+        "system_override_methods": sorted(override_hits),
+    }
+    return ScanResult(classes=classes, methods=methods, properties=properties, ivars=ivars), meta
 
 
 def _eligible(name: str, cfg: ObfConfig) -> bool:
@@ -110,40 +161,73 @@ def _eligible(name: str, cfg: ObfConfig) -> bool:
     return True
 
 
-def build_mapping(scan: ScanResult, cfg: ObfConfig) -> Dict[str, Dict[str, str]]:
+def _pick_name(symbol: str, cfg: ObfConfig, rng: random.Random, prefix: str) -> str:
+    style = getattr(cfg, "name_style", "hex")
+    if cfg.mode == "stable":
+        if style == "camel":
+            return _camel(cfg.seed, symbol, prefix)
+        return _stable(symbol, cfg.seed, prefix)
+    if style == "camel":
+        return _camel(cfg.seed + "_v", symbol + str(rng.randint(1, 99999)), prefix)
+    return _variant(symbol, cfg.seed, rng, prefix)
+
+
+def build_mapping(scan: ScanResult, meta: dict, cfg: ObfConfig) -> Dict[str, Dict[str, str]]:
     groups = {
         "class": sorted(scan.classes),
         "method": sorted(scan.methods),
         "property": sorted(scan.properties),
         "ivar": sorted(scan.ivars),
+        "protocol": sorted(meta.get("protocols", [])) if getattr(cfg, "obfuscate_protocol", False) else [],
     }
-    prefixes = {"class": f"{OBF_PREFIX}C_", "method": f"{OBF_PREFIX}M_", "property": f"{OBF_PREFIX}P_", "ivar": f"{OBF_PREFIX}I_"}
-    rng = random.Random(f"{cfg.seed}:{datetime.now(timezone.utc).isoformat()}")
+
+    # category 方法：可选白名单策略
+    category_allow = set(getattr(cfg, "category_method_whitelist", []))
+    if category_allow:
+        groups["method"] = sorted(set(groups["method"]) & category_allow | (set(groups["method"]) - set(meta.get("category_methods", []))))
+
+    prefixes = {
+        "class": f"{OBF_PREFIX}C_",
+        "method": f"{OBF_PREFIX}M_",
+        "property": f"{OBF_PREFIX}P_",
+        "ivar": f"{OBF_PREFIX}I_",
+        "protocol": f"{OBF_PREFIX}R_",
+    }
+
+    rng = random.Random(cfg.seed)
+    keywords = {"id", "self", "super", "class", "return", "if", "else", "for", "while"}
 
     mapping: Dict[str, Dict[str, str]] = {k: {} for k in groups}
     used: Set[str] = set()
 
-    keywords = {"id", "self", "super", "class", "return", "if", "else", "for", "while"}
+    cache = _load_mapping_cache(cfg)
+
     for typ, names in groups.items():
+        cached_block = cache.get(typ, {}) if isinstance(cache.get(typ, {}), dict) else {}
         for name in names:
             if not _eligible(name, cfg):
                 continue
-            candidate = _stable(name, cfg.seed, prefixes[typ]) if cfg.mode == "stable" else _variant(name, cfg.seed, rng, prefixes[typ])
+            if name in cached_block:
+                candidate = cached_block[name]
+            else:
+                candidate = _pick_name(name, cfg, rng, prefixes[typ])
             while candidate in used or candidate in keywords:
                 candidate += "X"
             mapping[typ][name] = candidate
             used.add(candidate)
+
     return mapping
 
 
 def _compile_patterns(mapping: Dict[str, Dict[str, str]]) -> List[Tuple[re.Pattern, str]]:
     flat: Dict[str, str] = {}
     for block in mapping.values():
-        flat.update(block)
-    patterns: List[Tuple[re.Pattern, str]] = []
-    for old, new in sorted(flat.items(), key=lambda x: len(x[0]), reverse=True):
-        patterns.append((re.compile(rf"(?<![A-Za-z0-9_]){re.escape(old)}(?![A-Za-z0-9_])"), new))
-    return patterns
+        if isinstance(block, dict):
+            flat.update(block)
+    return [
+        (re.compile(rf"(?<![A-Za-z0-9_]){re.escape(old)}(?![A-Za-z0-9_])"), new)
+        for old, new in sorted(flat.items(), key=lambda x: len(x[0]), reverse=True)
+    ]
 
 
 def _rewrite(text: str, patterns: Sequence[Tuple[re.Pattern, str]]) -> str:
@@ -165,12 +249,26 @@ def apply_mapping(files: Sequence[Path], mapping: Dict[str, Dict[str, str]], cfg
     patterns = _compile_patterns(mapping)
     scanned = 0
     changed = 0
+
+    resource_whitelist = set(getattr(cfg, "resource_whitelist", []))
+
     for f in files:
         if not cfg.apply_strings and f.suffix == ".strings":
             continue
+        if resource_whitelist and f.suffix in {".xib", ".storyboard"} and f.stem not in resource_whitelist:
+            continue
+
         scanned += 1
         old = f.read_text(encoding="utf-8", errors="ignore")
         new = _rewrite(old, patterns)
+
+        if getattr(cfg, "rename_target", None):
+            new = new.replace(getattr(cfg, "source_target", ""), cfg.rename_target) if getattr(cfg, "source_target", "") else new
+        if getattr(cfg, "rename_project", None):
+            new = new.replace(getattr(cfg, "source_project", ""), cfg.rename_project) if getattr(cfg, "source_project", "") else new
+        if getattr(cfg, "rename_scheme", None):
+            new = new.replace(getattr(cfg, "source_scheme", ""), cfg.rename_scheme) if getattr(cfg, "source_scheme", "") else new
+
         if old == new:
             continue
         changed += 1
@@ -183,17 +281,19 @@ def apply_mapping(files: Sequence[Path], mapping: Dict[str, Dict[str, str]], cfg
 def rename_files(files: Sequence[Path], class_map: Dict[str, str], cfg: ObfConfig) -> List[Dict[str, str]]:
     if not cfg.rename_files:
         return []
+
     pairs: List[Tuple[Path, Path]] = []
     for f in files:
-        if f.suffix not in {".h", ".m", ".mm"}:
+        if f.suffix not in {".h", ".m", ".mm", ".xib"}:
             continue
         if f.stem in class_map:
             dst = f.with_name(class_map[f.stem] + f.suffix)
             if dst != f:
                 pairs.append((f, dst))
-    pairs.sort(key=lambda p: len(str(p[0])), reverse=True)
 
+    pairs.sort(key=lambda p: len(str(p[0])), reverse=True)
     results: List[Dict[str, str]] = []
+
     for src, dst in pairs:
         if not src.exists() or dst.exists():
             continue
@@ -201,19 +301,28 @@ def rename_files(files: Sequence[Path], class_map: Dict[str, str], cfg: ObfConfi
             _backup(src, cfg)
             src.rename(dst)
         results.append({"from": str(src.relative_to(cfg.workspace_root)), "to": str(dst.relative_to(cfg.workspace_root))})
+
     return results
 
 
-def _risk_report(scan: ScanResult, cfg: ObfConfig) -> dict:
-    risk_hits = sorted([n for n in scan.methods | scan.classes if n in HIGH_RISK_NAMES])
+def _risk_report(meta: dict, cfg: ObfConfig) -> dict:
+    risk_hits = meta.get("risk_hits", {})
+    unresolved = []
+    for typ, files in risk_hits.items():
+        if files:
+            unresolved.append({"type": typ, "count": len(files), "files": files})
+
     return {
-        "high_risk_hits": risk_hits,
+        "high_risk_hits": sorted([n for n in meta.get("system_override_methods", []) if n in HIGH_RISK_NAMES]),
+        "system_override_methods": meta.get("system_override_methods", []),
+        "risk_hits": risk_hits,
         "skip_risky_enabled": cfg.skip_risky,
-        "notes": ["KVC/KVO/Runtime 字符串反射需要人工复核"],
+        "notes": ["KVC/KVO/Runtime 仅做静态命中，需人工复核"],
+        "unresolved": unresolved,
     }
 
 
-def _scan_report(scan: ScanResult, files_total: int) -> dict:
+def _scan_report(scan: ScanResult, meta: dict, files_total: int) -> dict:
     return {
         "files_total": files_total,
         "symbols": {
@@ -221,28 +330,37 @@ def _scan_report(scan: ScanResult, files_total: int) -> dict:
             "methods": len(scan.methods),
             "properties": len(scan.properties),
             "ivars": len(scan.ivars),
+            "protocols": len(meta.get("protocols", [])),
+            "category_methods": len(meta.get("category_methods", [])),
         },
     }
 
 
 def _replace_report(mapping: Dict[str, Dict[str, str]], changed: int, renamed: int) -> dict:
     return {
-        "mapped_counts": {k: len(v) for k, v in mapping.items()},
+        "mapped_counts": {k: len(v) for k, v in mapping.items() if isinstance(v, dict)},
         "files_changed": changed,
         "files_renamed": renamed,
     }
 
 
-def write_reports(ctx: ObfContext) -> None:
+def write_reports(ctx: ObfContext, scan: ScanResult, meta: dict) -> None:
     base = ctx.config.mapping_path.parent
     base.mkdir(parents=True, exist_ok=True)
 
-    scan_report = _scan_report(scan=ScanResult(set(ctx.mapping.get("class", {}).keys()), set(ctx.mapping.get("method", {}).keys()), set(ctx.mapping.get("property", {}).keys()), set(ctx.mapping.get("ivar", {}).keys())), files_total=ctx.files_scanned)
-    risk_report = _risk_report(scan=ScanResult(set(ctx.mapping.get("class", {}).keys()), set(ctx.mapping.get("method", {}).keys()), set(ctx.mapping.get("property", {}).keys()), set(ctx.mapping.get("ivar", {}).keys())), cfg=ctx.config)
+    scan_report = _scan_report(scan, meta, ctx.files_scanned)
+    risk_report = _risk_report(meta, ctx.config)
     replace_report = _replace_report(ctx.mapping, ctx.files_changed, len(ctx.renamed_files))
 
+    # 目前冲突由命名阶段解决，保留结构化输出
     conflict_report = {"conflicts": [], "status": "ok"}
-    unresolved_report = {"unresolved": [], "status": "manual_review_recommended"}
+
+    unresolved_items = risk_report.get("unresolved", [])
+    unresolved_report = {
+        "unresolved": unresolved_items,
+        "by_type": {item["type"]: item["count"] for item in unresolved_items},
+        "status": "manual_review_required" if unresolved_items else "ok",
+    }
 
     (base / "scan_report.json").write_text(json.dumps(scan_report, ensure_ascii=False, indent=2), encoding="utf-8")
     (base / "risk_report.json").write_text(json.dumps(risk_report, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -251,14 +369,15 @@ def write_reports(ctx: ObfContext) -> None:
     (base / "unresolved_report.json").write_text(json.dumps(unresolved_report, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def write_mapping(ctx: ObfContext) -> None:
+def write_mapping(ctx: ObfContext, meta: dict) -> None:
     cfg = ctx.config
     data = {
-        "version": 3,
+        "version": 4,
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "action": cfg.action,
         "mode": cfg.mode,
         "seed": cfg.seed,
+        "name_style": getattr(cfg, "name_style", "hex"),
         "project_root": str(cfg.project_root),
         "workspace_root": str(cfg.workspace_root),
         "in_place": cfg.in_place,
@@ -266,6 +385,7 @@ def write_mapping(ctx: ObfContext) -> None:
         "files_total": ctx.files_scanned,
         "files_changed": ctx.files_changed,
         "renamed_files": ctx.renamed_files,
+        "meta": meta,
         "mapping": ctx.mapping,
     }
     cfg.mapping_path.parent.mkdir(parents=True, exist_ok=True)
@@ -292,9 +412,13 @@ def rollback(mapping_path: Path) -> int:
 def validate(mapping_path: Path) -> Tuple[bool, List[str]]:
     info = json.loads(mapping_path.read_text(encoding="utf-8"))
     errs: List[str] = []
-    for k in ["version", "workspace_root", "backup_dir", "mapping", "mode", "seed"]:
+    for k in ["version", "workspace_root", "backup_dir", "mapping", "mode", "seed", "meta"]:
         if k not in info:
             errs.append(f"missing key: {k}")
+
+    if info.get("mode") not in {"stable", "variant"}:
+        errs.append("mode must be stable|variant")
+
     mapping = info.get("mapping", {})
     if not isinstance(mapping, dict):
         errs.append("mapping must be dict")
@@ -308,16 +432,17 @@ def validate(mapping_path: Path) -> Tuple[bool, List[str]]:
             values.extend(block.values())
         if len(values) != len(set(values)):
             errs.append("mapped names conflict")
+
     return (len(errs) == 0, errs)
 
 
 def run(cfg: ObfConfig) -> ObfContext:
     prepare_workspace(cfg)
     files = iter_files(cfg)
-    scan = scan_symbols(files)
-    mapping = build_mapping(scan, cfg)
+    scan, meta = scan_symbols(files, cfg)
+    mapping = build_mapping(scan, meta, cfg)
     scanned, changed = apply_mapping(files, mapping, cfg)
-    renamed = rename_files(files, mapping["class"], cfg)
+    renamed = rename_files(files, mapping.get("class", {}), cfg)
 
     ctx = ObfContext(config=cfg)
     ctx.files_scanned = scanned
@@ -325,6 +450,6 @@ def run(cfg: ObfConfig) -> ObfContext:
     ctx.mapping = mapping
     ctx.renamed_files = renamed
 
-    write_mapping(ctx)
-    write_reports(ctx)
+    write_mapping(ctx, meta)
+    write_reports(ctx, scan, meta)
     return ctx

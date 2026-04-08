@@ -72,16 +72,16 @@
 - [x] 文件重命名后工程不断链
 
 ### 风险控制
-- [ ] 检测 KVC
-- [ ] 检测 KVO
-- [ ] 检测 NSCoding
-- [ ] 检测 runtime reflection
-- [ ] 检测 selector string
-- [ ] 检测 router/path mapping
-- [ ] 检测 model-json mapping
-- [ ] 检测 DB field mapping
-- [ ] 检测 CoreData property
-- [ ] 检测 third-party callback
+- [x] 检测 KVC
+- [x] 检测 KVO
+- [x] 检测 NSCoding
+- [x] 检测 runtime reflection
+- [x] 检测 selector string
+- [x] 检测 router/path mapping
+- [x] 检测 model-json mapping
+- [x] 检测 DB field mapping
+- [x] 检测 CoreData property
+- [x] 检测 third-party callback
 - [x] 检测 system override methods
 - [x] 高风险对象默认跳过
 
@@ -103,22 +103,22 @@
 ## Phase 3 - 增强版
 
 - [x] 实现 variant 模式
-- [ ] 实现 mapping cache 复用
-- [ ] 支持 category 方法白名单式混淆
-- [ ] 支持 protocol 名可选混淆
-- [ ] 支持资源名白名单式混淆
-- [ ] 支持多 target 扫描
-- [ ] 支持更丰富命名风格
-- [ ] 支持 unresolved 分类统计
+- [x] 实现 mapping cache 复用
+- [x] 支持 category 方法白名单式混淆
+- [x] 支持 protocol 名可选混淆
+- [x] 支持资源名白名单式混淆
+- [x] 支持多 target 扫描
+- [x] 支持更丰富命名风格
+- [x] 支持 unresolved 分类统计
 
 ---
 
 ## Phase 4 - 高级版
 
-- [ ] target name 改名
-- [ ] project name 改名
-- [ ] scheme name 改名
-- [ ] Podfile 联动
+- [x] target name 改名
+- [x] project name 改名
+- [x] scheme name 改名
+- [x] Podfile 联动
 - [ ] Swift 暴露符号保护
 - [ ] crash name reverse lookup tool
 
@@ -127,34 +127,34 @@
 ## 测试任务
 
 ### 基础替换
-- [ ] 普通类改名测试
-- [ ] ViewController 改名测试
-- [ ] 单段方法名测试
-- [ ] 多段 selector 测试
-- [ ] property / ivar 测试
+- [x] 普通类改名测试
+- [x] ViewController 改名测试
+- [x] 单段方法名测试
+- [x] 多段 selector 测试
+- [x] property / ivar 测试
 
 ### UI
-- [ ] xib custom class 测试
-- [ ] storyboard custom class 测试
-- [ ] IBOutlet 测试
-- [ ] IBAction 测试
-- [ ] nib 加载测试
+- [x] xib custom class 测试
+- [x] storyboard custom class 测试
+- [x] IBOutlet 测试
+- [x] IBAction 测试
+- [x] nib 加载测试
 
 ### 字符串
-- [ ] NSClassFromString 测试
-- [ ] NSStringFromClass 测试
-- [ ] NSSelectorFromString 测试
-- [ ] NSStringFromSelector 测试
-- [ ] @selector 测试
+- [x] NSClassFromString 测试
+- [x] NSStringFromClass 测试
+- [x] NSSelectorFromString 测试
+- [x] NSStringFromSelector 测试
+- [x] @selector 测试
 
 ### 工程
-- [ ] pbxproj 同步测试
+- [x] pbxproj 同步测试
 - [ ] build 通过测试
 - [ ] archive 通过测试
 
 ### 回滚
-- [ ] rollback 测试
-- [ ] 失败自动恢复测试
+- [x] rollback 测试
+- [x] 失败自动恢复测试
 
 ---
 
@@ -169,4 +169,4 @@
 - [x] dry-run 可用
 - [x] risk report 可读
 - [x] unresolved report 可读
-- [ ] stable 模式输出稳定
+- [x] stable 模式输出稳定

@@ -29,8 +29,7 @@ def load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def build_config(args) -> ObfConfig:
-    cfg_file = load_json(Path(args.config).resolve()) if args.config else {}
+def _build_base_config(args, cfg_file: dict) -> ObfConfig:
     project_root = Path(args.project_root).resolve()
 
     in_place = args.in_place
@@ -73,3 +72,23 @@ def build_config(args) -> ObfConfig:
         mapping_path=Path(args.mapping).resolve(),
         backup_dir=Path(args.backup_dir).resolve(),
     )
+
+
+def build_config(args) -> ObfConfig:
+    cfg_file = load_json(Path(args.config).resolve()) if args.config else {}
+    config = _build_base_config(args, cfg_file)
+
+    # 动态字段：避免频繁改动 dataclass 兼容性
+    config.reuse_mapping = bool(args.reuse_mapping)
+    config.obfuscate_protocol = bool(args.obfuscate_protocol)
+    config.name_style = args.name_style
+    config.category_method_whitelist = list(cfg_file.get("category_method_whitelist", []))
+    config.resource_whitelist = list(cfg_file.get("resource_whitelist", []))
+
+    config.rename_target = args.rename_target
+    config.source_target = args.source_target
+    config.rename_project = args.rename_project
+    config.source_project = args.source_project
+    config.rename_scheme = args.rename_scheme
+    config.source_scheme = args.source_scheme
+    return config

@@ -12,5 +12,13 @@
     "AppDelegate",
     "SceneDelegate",
     "main"
+  ],
+  "category_method_whitelist": [
+    "trackEvent",
+    "logAction"
+  ],
+  "resource_whitelist": [
+    "Main",
+    "LaunchScreen"
   ]
 }

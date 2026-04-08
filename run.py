@@ -17,6 +17,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--action", choices=["dry-run", "obfuscate", "validate", "rollback"], default="dry-run")
     p.add_argument("--mode", choices=["stable", "variant"], default="stable")
     p.add_argument("--seed", default="release-seed")
+    p.add_argument("--name-style", choices=["hex", "camel"], default="hex")
     p.add_argument("--in-place", action="store_true", help="直接修改 project-root（默认否）")
     p.add_argument("--output-root", help="非 in-place 模式下输出目录")
     p.add_argument("--mapping", default="obfuscation/mapping.json")
@@ -26,6 +27,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--disable-strings", action="store_true")
     p.add_argument("--whitelist-file")
     p.add_argument("--blacklist-file")
+    p.add_argument("--reuse-mapping", action="store_true", help="复用已有 mapping 作为 cache")
+    p.add_argument("--obfuscate-protocol", action="store_true", help="是否混淆 protocol 名")
+
+    # 高级联动改名
+    p.add_argument("--source-target")
+    p.add_argument("--rename-target")
+    p.add_argument("--source-project")
+    p.add_argument("--rename-project")
+    p.add_argument("--source-scheme")
+    p.add_argument("--rename-scheme")
+
     p.add_argument("--verbose", action="store_true")
     return p
 

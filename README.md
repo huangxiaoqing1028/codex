@@ -8,20 +8,23 @@
 - `obfuscator/config_loader.py`：配置加载
 - `obfuscator/logging_utils.py`：日志模块
 - `obfuscator/context.py`：全局上下文 `ObfContext`
-- `obfuscator/engine.py`：扫描、映射、替换、重命名、报告、回滚、校验
+- `obfuscator/engine.py`：扫描、解析、映射、替换、重命名、报告、回滚、校验
 - `objc_obfuscator.py`：兼容入口（转发到 `run.py`）
 - `TODO.md`：阶段性任务与验收清单
 
-## 核心特性
+## 已实现能力
 
-- 仅处理主工程源码，默认排除 Pods / Carthage / ThirdParty
+- 主工程扫描：`.h/.m/.mm/.pch/.xib/.storyboard/project.pbxproj/.strings/.plist`
 - 支持类名、方法名、属性名、成员变量名、文件名混淆
-- 支持 xib / storyboard / pbxproj / strings / plist 同步替换
-- 支持 `dry-run` / `obfuscate` / `validate` / `rollback`
-- 支持 `stable` / `variant` 两种命名模式
-- 支持白名单 / 黑名单 / 高风险对象默认跳过
-- 支持 mapping 输出与 backup 回滚
-- 输出 `scan/risk/replace/conflict/unresolved` 报告
+- 支持 `dry-run / obfuscate / validate / rollback`
+- 支持 `stable / variant` + `hex / camel` 命名风格
+- 支持 mapping cache 复用（`--reuse-mapping`）
+- 支持 protocol 可选混淆（`--obfuscate-protocol`）
+- 支持 category 方法白名单式混淆（配置 `category_method_whitelist`）
+- 支持资源白名单式混淆（配置 `resource_whitelist`）
+- 支持 target/project/scheme 文本联动改名（可选参数）
+- 输出 mapping + `scan/risk/replace/conflict/unresolved` 报告
+- 风险检测：KVC/KVO/NSCoding/runtime/selector/router/model-json/DB/CoreData/third-party callback/system override
 
 ## 快速开始
 
@@ -33,6 +36,7 @@ python3 run.py \
   --config obfuscator.config.json \
   --action dry-run \
   --mode stable \
+  --name-style hex \
   --seed release_2026Q2
 ```
 
@@ -45,22 +49,18 @@ python3 run.py \
   --config obfuscator.config.json \
   --action obfuscate \
   --mode stable \
+  --name-style camel \
   --seed release_2026Q2 \
   --mapping /path/to/artifacts/mapping.json \
-  --backup-dir /path/to/artifacts/backup
+  --backup-dir /path/to/artifacts/backup \
+  --reuse-mapping \
+  --obfuscate-protocol
 ```
 
-> 如需直接修改原工程，可加 `--in-place`（不建议作为默认流程）。
-
-### 3) validate（校验 mapping）
+### 3) validate / rollback
 
 ```bash
 python3 run.py --action validate --mapping /path/to/artifacts/mapping.json
-```
-
-### 4) rollback（回滚）
-
-```bash
 python3 run.py --action rollback --mapping /path/to/artifacts/mapping.json
 ```
 
@@ -76,7 +76,10 @@ python3 run.py \
   --mode stable \
   --seed "$BUILD_TAG" \
   --mapping "$WORKSPACE/artifacts/mapping.json" \
-  --backup-dir "$WORKSPACE/artifacts/backup"
+  --backup-dir "$WORKSPACE/artifacts/backup" \
+  --source-target MyApp --rename-target MyAppA \
+  --source-project MyApp --rename-project MyAppA \
+  --source-scheme MyApp --rename-scheme MyAppA
 
-xcodebuild -workspace "$WORKSPACE/MyApp_obfuscated/MyApp.xcworkspace" -scheme MyApp archive
+xcodebuild -workspace "$WORKSPACE/MyApp_obfuscated/MyApp.xcworkspace" -scheme MyAppA archive
 ```
