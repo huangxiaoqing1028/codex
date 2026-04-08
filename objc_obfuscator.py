@@ -1,19 +1,5 @@
 #!/usr/bin/env python3
-"""
-商业稳定版 Objective-C 源码混淆脚本
-
-特性：
-1) 仅处理主工程源码，默认跳过 Pods / 第三方目录
-2) 支持类名、方法名、属性名、成员变量名混淆
-3) 支持 xib / storyboard / pbxproj 同步
-4) 支持字符串引用同步替换
-5) 支持白名单 / 黑名单 / 风险跳过
-6) 支持 mapping 输出与 rollback 回滚
-7) 支持 dry-run 只扫描不修改
-8) stable 固定映射模式
-9) variant 扰动映射模式
-10) 可接入 archive / ipa 打包流程（CLI + 非交互输出）
-"""
+"""Objective-C 主工程可控混淆工具（保守优先、可回滚）。"""
 
 from __future__ import annotations
 
@@ -27,51 +13,64 @@ import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, List, Set, Tuple
+from typing import Dict, Iterable, List, Sequence, Set, Tuple
 
+SOURCE_EXTENSIONS = {".h", ".m", ".mm"}
+SYNC_EXTENSIONS = {".h", ".m", ".mm", ".xib", ".storyboard", ".pbxproj", ".strings", ".plist"}
+OBF_PREFIX = "OBF_"
 
 DEFAULT_EXCLUDE_DIRS = {
     "Pods",
     "Carthage",
-    "Vendor",
-    "Vendors",
     "ThirdParty",
     "Third_Party",
+    "Vendor",
+    "Vendors",
     "build",
     ".git",
+    ".svn",
 }
 
-SOURCE_EXTENSIONS = {".h", ".m", ".mm"}
-SYNC_EXTENSIONS = {".h", ".m", ".mm", ".xib", ".storyboard", ".pbxproj", ".strings", ".plist"}
-
-OBF_PREFIX = "OBF_"
-
-RISKY_SELECTORS = {
-    "viewDidLoad",
-    "dealloc",
+HIGH_RISK_NAMES = {
+    "AppDelegate",
+    "SceneDelegate",
+    "main",
     "load",
     "initialize",
-    "init",
+    "dealloc",
+    "viewDidLoad",
     "copyWithZone",
     "encodeWithCoder",
     "initWithCoder",
 }
 
+CLASS_PATTERN = re.compile(r"@interface\s+([A-Za-z_][A-Za-z0-9_]*)|@implementation\s+([A-Za-z_][A-Za-z0-9_]*)")
+PROPERTY_PATTERN = re.compile(r"@property\s*\([^\)]*\)\s*[^;]*\b([A-Za-z_][A-Za-z0-9_]*)\s*;")
+IVAR_BLOCK_PATTERN = re.compile(r"\{([^}]*)\}", re.S)
+IVAR_ITEM_PATTERN = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*;")
+METHOD_PATTERN = re.compile(r"^[ \t]*[+-]\s*\([^\)]*\)\s*([A-Za-z_][A-Za-z0-9_]*)(?=\s*[:;{])", re.M)
+SELECTOR_HEAD_PATTERN = re.compile(r"^[ \t]*[+-]\s*\([^\)]*\)\s*([A-Za-z_][A-Za-z0-9_]*)(?=\s*:)", re.M)
+
 
 @dataclasses.dataclass
 class Config:
     project_root: Path
+    workspace_root: Path
     include_dirs: List[Path]
     exclude_dirs: Set[str]
-    mode: str
-    seed: str
-    dry_run: bool
-    skip_risky: bool
     whitelist: Set[str]
     blacklist: Set[str]
+    skip_risky: bool
+    apply_strings: bool
+    rename_files: bool
+    mode: str
+    seed: str
+    action: str
+    dry_run: bool
+    in_place: bool
+    output_root: Path
     mapping_path: Path
     backup_dir: Path
-    apply_strings: bool
 
 
 @dataclasses.dataclass
@@ -81,123 +80,133 @@ class ScanResult:
     properties: Set[str]
     ivars: Set[str]
 
-    def all_symbols(self) -> Set[str]:
-        return self.classes | self.methods | self.properties | self.ivars
-
-
-CLASS_PATTERN = re.compile(r"@interface\s+([A-Za-z_][A-Za-z0-9_]*)|@implementation\s+([A-Za-z_][A-Za-z0-9_]*)")
-PROPERTY_PATTERN = re.compile(r"@property\s*\([^\)]*\)\s*[^;]*\b([A-Za-z_][A-Za-z0-9_]*)\s*;")
-IVAR_PATTERN = re.compile(r"\{([^}]*)\}", re.S)
-IVAR_ITEM_PATTERN = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*;")
-METHOD_PATTERN = re.compile(r"^[ \t]*[+-]\s*\([^\)]*\)\s*([A-Za-z_][A-Za-z0-9_]*)(?=\s*[:;{])", re.M)
-SELECTOR_PIECE_PATTERN = re.compile(r"^[ \t]*[+-]\s*\([^\)]*\)\s*([A-Za-z_][A-Za-z0-9_]*)(?=\s*:)", re.M)
-
 
 def load_json(path: Path) -> dict:
     if not path.exists():
         return {}
-    with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def normalize_names(items: Iterable[str]) -> Set[str]:
     return {x.strip() for x in items if isinstance(x, str) and x.strip()}
 
 
-def build_config(args: argparse.Namespace) -> Config:
-    project_root = Path(args.project_root).resolve()
-    cfg = load_json(Path(args.config)) if args.config else {}
+def is_system_like(name: str) -> bool:
+    return name.startswith(("NS", "UI", "CA", "CF", "AV", "WK", "MTL", "OS", "GK", "SK"))
 
-    include_dirs = [project_root]
-    for rel in cfg.get("include_dirs", []):
-        include_dirs.append((project_root / rel).resolve())
+
+def stable_name(symbol: str, seed: str) -> str:
+    digest = hashlib.sha1(f"{seed}:{symbol}".encode("utf-8")).hexdigest()[:12]
+    return f"{OBF_PREFIX}{digest}"
+
+
+def variant_name(symbol: str, seed: str, rng: random.Random) -> str:
+    digest = hashlib.md5(f"{seed}:{symbol}".encode("utf-8")).hexdigest()[:4]
+    pool = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    suffix = "".join(rng.choice(pool) for _ in range(10))
+    return f"{OBF_PREFIX}{digest}{suffix}"
+
+
+def build_config(args: argparse.Namespace) -> Config:
+    cfg_file = load_json(Path(args.config).resolve()) if args.config else {}
+    project_root = Path(args.project_root).resolve()
+
+    in_place = args.in_place
+    output_root = Path(args.output_root).resolve() if args.output_root else project_root.parent / f"{project_root.name}_obfuscated"
+    workspace_root = project_root if in_place else output_root
+
+    include_dirs: List[Path] = [workspace_root]
+    for rel in cfg_file.get("include_dirs", []):
+        include_dirs.append((workspace_root / rel).resolve())
 
     exclude_dirs = set(DEFAULT_EXCLUDE_DIRS)
-    exclude_dirs.update(normalize_names(cfg.get("exclude_dirs", [])))
+    exclude_dirs.update(normalize_names(cfg_file.get("exclude_dirs", [])))
 
-    whitelist = normalize_names(cfg.get("whitelist", []))
-    blacklist = normalize_names(cfg.get("blacklist", []))
+    whitelist = normalize_names(cfg_file.get("whitelist", []))
+    blacklist = normalize_names(cfg_file.get("blacklist", []))
 
     if args.whitelist_file:
         whitelist.update(normalize_names(Path(args.whitelist_file).read_text(encoding="utf-8").splitlines()))
     if args.blacklist_file:
         blacklist.update(normalize_names(Path(args.blacklist_file).read_text(encoding="utf-8").splitlines()))
 
+    action = args.action
+    dry_run = action == "dry-run"
+
     return Config(
         project_root=project_root,
+        workspace_root=workspace_root,
         include_dirs=include_dirs,
         exclude_dirs=exclude_dirs,
-        mode=args.mode,
-        seed=args.seed,
-        dry_run=args.dry_run,
-        skip_risky=args.skip_risky,
         whitelist=whitelist,
         blacklist=blacklist,
+        skip_risky=not args.disable_risky_skip,
+        apply_strings=not args.disable_strings,
+        rename_files=not args.disable_file_rename,
+        mode=args.mode,
+        seed=args.seed,
+        action=action,
+        dry_run=dry_run,
+        in_place=in_place,
+        output_root=output_root,
         mapping_path=Path(args.mapping).resolve(),
         backup_dir=Path(args.backup_dir).resolve(),
-        apply_strings=not args.disable_strings,
     )
 
 
-def should_skip_file(path: Path, cfg: Config) -> bool:
-    parts = set(path.parts)
-    if parts & cfg.exclude_dirs:
+def prepare_workspace(cfg: Config) -> None:
+    if cfg.in_place or cfg.dry_run or cfg.action in {"validate", "rollback"}:
+        return
+    if cfg.output_root.exists():
+        shutil.rmtree(cfg.output_root)
+    shutil.copytree(cfg.project_root, cfg.output_root, dirs_exist_ok=False)
+
+
+def should_skip(path: Path, cfg: Config) -> bool:
+    if set(path.parts) & cfg.exclude_dirs:
         return True
-    return not any(path.suffix == ext for ext in SYNC_EXTENSIONS)
+    return path.suffix not in SYNC_EXTENSIONS
 
 
-def iter_project_files(cfg: Config) -> Iterable[Path]:
-    visited = set()
-    for include_dir in cfg.include_dirs:
-        if not include_dir.exists():
+def iter_files(cfg: Config) -> List[Path]:
+    out: List[Path] = []
+    seen: Set[Path] = set()
+    for inc in cfg.include_dirs:
+        if not inc.exists():
             continue
-        for p in include_dir.rglob("*"):
+        for p in inc.rglob("*"):
             if not p.is_file():
                 continue
             rp = p.resolve()
-            if rp in visited:
+            if rp in seen:
                 continue
-            visited.add(rp)
-            rel = rp.relative_to(cfg.project_root)
-            if should_skip_file(rel, cfg):
+            seen.add(rp)
+            rel = rp.relative_to(cfg.workspace_root)
+            if should_skip(rel, cfg):
                 continue
-            yield rp
+            out.append(rp)
+    return out
 
 
-def scan_symbols(files: List[Path]) -> ScanResult:
+def scan_symbols(files: Sequence[Path]) -> ScanResult:
     classes: Set[str] = set()
     methods: Set[str] = set()
     properties: Set[str] = set()
     ivars: Set[str] = set()
-
     for f in files:
         if f.suffix not in SOURCE_EXTENSIONS:
             continue
-        content = f.read_text(encoding="utf-8", errors="ignore")
-
-        for a, b in CLASS_PATTERN.findall(content):
+        text = f.read_text(encoding="utf-8", errors="ignore")
+        for a, b in CLASS_PATTERN.findall(text):
             classes.add(a or b)
-
-        for m in PROPERTY_PATTERN.findall(content):
-            properties.add(m)
-
-        for m in METHOD_PATTERN.findall(content):
-            methods.add(m)
-
-        for m in SELECTOR_PIECE_PATTERN.findall(content):
-            methods.add(m)
-
-        for blk in IVAR_PATTERN.findall(content):
-            for name in IVAR_ITEM_PATTERN.findall(blk):
-                if len(name) > 2:
-                    ivars.add(name)
-
+        properties.update(PROPERTY_PATTERN.findall(text))
+        methods.update(METHOD_PATTERN.findall(text))
+        methods.update(SELECTOR_HEAD_PATTERN.findall(text))
+        for blk in IVAR_BLOCK_PATTERN.findall(text):
+            for item in IVAR_ITEM_PATTERN.findall(blk):
+                if len(item) > 2:
+                    ivars.add(item)
     return ScanResult(classes=classes, methods=methods, properties=properties, ivars=ivars)
-
-
-def is_system_like(name: str) -> bool:
-    prefixes = ("NS", "UI", "CA", "CF", "AV", "WK", "MTL", "OS", "GK", "SK")
-    return name.startswith(prefixes)
 
 
 def eligible(name: str, cfg: Config) -> bool:
@@ -207,188 +216,234 @@ def eligible(name: str, cfg: Config) -> bool:
         return False
     if is_system_like(name):
         return False
-    if cfg.skip_risky and name in RISKY_SELECTORS:
+    if cfg.skip_risky and name in HIGH_RISK_NAMES:
         return False
     return True
 
 
-def stable_name(name: str, seed: str) -> str:
-    digest = hashlib.sha1(f"{seed}:{name}".encode("utf-8")).hexdigest()[:12]
-    return f"{OBF_PREFIX}{digest}"
-
-
-def variant_name(name: str, seed: str, rng: random.Random) -> str:
-    alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    suffix = "".join(rng.choice(alphabet) for _ in range(10))
-    digest = hashlib.md5(f"{seed}:{name}".encode("utf-8")).hexdigest()[:4]
-    return f"{OBF_PREFIX}{digest}{suffix}"
-
-
 def build_mapping(scan: ScanResult, cfg: Config) -> Dict[str, Dict[str, str]]:
     rng = random.Random(f"{cfg.seed}:{datetime.now(timezone.utc).isoformat()}")
-
-    mapping: Dict[str, Dict[str, str]] = {
-        "class": {},
-        "method": {},
-        "property": {},
-        "ivar": {},
-    }
-
-    buckets = {
+    groups = {
         "class": sorted(scan.classes),
         "method": sorted(scan.methods),
         "property": sorted(scan.properties),
         "ivar": sorted(scan.ivars),
     }
-
+    mapping: Dict[str, Dict[str, str]] = {k: {} for k in groups}
     used: Set[str] = set()
-    for typ, names in buckets.items():
-        for n in names:
-            if not eligible(n, cfg):
+    for typ, symbols in groups.items():
+        for sym in symbols:
+            if not eligible(sym, cfg):
                 continue
-            candidate = stable_name(n, cfg.seed) if cfg.mode == "stable" else variant_name(n, cfg.seed, rng)
-            while candidate in used:
-                candidate += "X"
-            used.add(candidate)
-            mapping[typ][n] = candidate
-
+            cand = stable_name(sym, cfg.seed) if cfg.mode == "stable" else variant_name(sym, cfg.seed, rng)
+            while cand in used:
+                cand += "X"
+            mapping[typ][sym] = cand
+            used.add(cand)
     return mapping
 
 
-def compile_replace_patterns(mapping: Dict[str, Dict[str, str]]) -> List[Tuple[re.Pattern, str]]:
-    flat = {}
-    for mp in mapping.values():
-        flat.update(mp)
-
-    ordered = sorted(flat.items(), key=lambda kv: len(kv[0]), reverse=True)
-    patterns: List[Tuple[re.Pattern, str]] = []
-    for old, new in ordered:
-        p = re.compile(rf"(?<![A-Za-z0-9_]){re.escape(old)}(?![A-Za-z0-9_])")
-        patterns.append((p, new))
-    return patterns
+def compile_patterns(mapping: Dict[str, Dict[str, str]]) -> List[Tuple[re.Pattern, str]]:
+    flat: Dict[str, str] = {}
+    for block in mapping.values():
+        flat.update(block)
+    out: List[Tuple[re.Pattern, str]] = []
+    for old, new in sorted(flat.items(), key=lambda x: len(x[0]), reverse=True):
+        out.append((re.compile(rf"(?<![A-Za-z0-9_]){re.escape(old)}(?![A-Za-z0-9_])"), new))
+    return out
 
 
-def rewrite_content(content: str, patterns: List[Tuple[re.Pattern, str]]) -> str:
-    out = content
+def rewrite_text(text: str, patterns: Sequence[Tuple[re.Pattern, str]]) -> str:
+    out = text
     for p, repl in patterns:
         out = p.sub(repl, out)
     return out
 
 
-def ensure_backup(path: Path, cfg: Config) -> Path:
-    rel = path.resolve().relative_to(cfg.project_root)
+def ensure_backup(file_path: Path, cfg: Config) -> None:
+    rel = file_path.relative_to(cfg.workspace_root)
     bk = cfg.backup_dir / rel
     bk.parent.mkdir(parents=True, exist_ok=True)
     if not bk.exists():
-        shutil.copy2(path, bk)
-    return bk
+        shutil.copy2(file_path, bk)
 
 
-def apply_mapping(files: List[Path], mapping: Dict[str, Dict[str, str]], cfg: Config) -> Tuple[int, int]:
-    patterns = compile_replace_patterns(mapping)
-    changed = 0
+def apply_symbol_mapping(files: Sequence[Path], mapping: Dict[str, Dict[str, str]], cfg: Config) -> Tuple[int, int]:
+    pats = compile_patterns(mapping)
     scanned = 0
-    for f in files:
+    changed = 0
+    for p in files:
+        if not cfg.apply_strings and p.suffix == ".strings":
+            continue
         scanned += 1
-        content = f.read_text(encoding="utf-8", errors="ignore")
-        new_content = rewrite_content(content, patterns)
-        if new_content == content:
+        old = p.read_text(encoding="utf-8", errors="ignore")
+        new = rewrite_text(old, pats)
+        if new == old:
             continue
         changed += 1
         if not cfg.dry_run:
-            ensure_backup(f, cfg)
-            f.write_text(new_content, encoding="utf-8")
+            ensure_backup(p, cfg)
+            p.write_text(new, encoding="utf-8")
     return scanned, changed
 
 
-def rollback(mapping_path: Path) -> int:
-    info = load_json(mapping_path)
-    backup_dir = Path(info.get("backup_dir", ""))
-    project_root = Path(info.get("project_root", ""))
-    if not backup_dir.exists() or not project_root.exists():
-        raise RuntimeError("mapping 中缺少有效 backup_dir 或 project_root，无法回滚")
-
-    restored = 0
-    for f in backup_dir.rglob("*"):
-        if not f.is_file():
+def rename_files(files: Sequence[Path], class_mapping: Dict[str, str], cfg: Config) -> List[Tuple[str, str]]:
+    if not cfg.rename_files:
+        return []
+    rename_pairs: List[Tuple[Path, Path]] = []
+    for p in files:
+        if p.suffix not in SOURCE_EXTENSIONS:
             continue
-        rel = f.relative_to(backup_dir)
-        dst = project_root / rel
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(f, dst)
-        restored += 1
-    return restored
+        stem = p.stem
+        if stem in class_mapping:
+            dst = p.with_name(class_mapping[stem] + p.suffix)
+            if dst != p:
+                rename_pairs.append((p, dst))
+
+    # 防止路径冲突：按路径长度倒序 rename
+    rename_pairs.sort(key=lambda pair: len(str(pair[0])), reverse=True)
+    result: List[Tuple[str, str]] = []
+    for src, dst in rename_pairs:
+        if not src.exists():
+            continue
+        if dst.exists():
+            continue
+        if not cfg.dry_run:
+            ensure_backup(src, cfg)
+            src.rename(dst)
+        result.append((str(src.relative_to(cfg.workspace_root)), str(dst.relative_to(cfg.workspace_root))))
+    return result
 
 
-def write_mapping(mapping: Dict[str, Dict[str, str]], cfg: Config, files: List[Path], scanned: ScanResult, changed: int) -> None:
+def write_mapping(cfg: Config, mapping: Dict[str, Dict[str, str]], renamed_files: List[Tuple[str, str]], files_total: int, files_changed: int) -> None:
     data = {
-        "version": 1,
+        "version": 2,
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-        "project_root": str(cfg.project_root),
+        "action": cfg.action,
         "mode": cfg.mode,
         "seed": cfg.seed,
-        "dry_run": cfg.dry_run,
-        "skip_risky": cfg.skip_risky,
+        "project_root": str(cfg.project_root),
+        "workspace_root": str(cfg.workspace_root),
+        "in_place": cfg.in_place,
         "backup_dir": str(cfg.backup_dir),
-        "statistics": {
-            "files_total": len(files),
-            "symbols_scanned": {
-                "classes": len(scanned.classes),
-                "methods": len(scanned.methods),
-                "properties": len(scanned.properties),
-                "ivars": len(scanned.ivars),
-            },
-            "symbols_mapped": {k: len(v) for k, v in mapping.items()},
-            "files_changed": changed,
-        },
+        "files_total": files_total,
+        "files_changed": files_changed,
+        "renamed_files": [{"from": a, "to": b} for a, b in renamed_files],
         "mapping": mapping,
     }
     cfg.mapping_path.parent.mkdir(parents=True, exist_ok=True)
     cfg.mapping_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Objective-C 混淆脚本（工程级）")
-    parser.add_argument("--project-root", default=".", help="工程根目录")
-    parser.add_argument("--config", help="JSON 配置文件")
-    parser.add_argument("--mode", choices=["stable", "variant"], default="stable", help="映射模式")
-    parser.add_argument("--seed", default="commercial-seed", help="混淆种子")
-    parser.add_argument("--mapping", default="obfuscation/mapping.json", help="mapping 输出路径")
-    parser.add_argument("--backup-dir", default="obfuscation/backup", help="回滚备份目录")
-    parser.add_argument("--dry-run", action="store_true", help="只扫描不写入")
-    parser.add_argument("--skip-risky", action="store_true", help="跳过高风险方法")
-    parser.add_argument("--whitelist-file", help="白名单文件（每行一个标识符）")
-    parser.add_argument("--blacklist-file", help="黑名单文件（每行一个标识符）")
-    parser.add_argument("--disable-strings", action="store_true", help="禁用字符串文件替换")
-    parser.add_argument("--rollback", action="store_true", help="按 mapping 执行回滚")
-    args = parser.parse_args()
+def rollback(mapping_path: Path) -> int:
+    info = load_json(mapping_path)
+    workspace_root = Path(info.get("workspace_root", ""))
+    backup_dir = Path(info.get("backup_dir", ""))
+    if not workspace_root.exists() or not backup_dir.exists():
+        raise RuntimeError("mapping 中 workspace_root/backup_dir 无效，无法回滚")
+    restored = 0
+    for bk in backup_dir.rglob("*"):
+        if not bk.is_file():
+            continue
+        rel = bk.relative_to(backup_dir)
+        dst = workspace_root / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(bk, dst)
+        restored += 1
+    return restored
 
-    if args.rollback:
-        restored = rollback(Path(args.mapping).resolve())
-        print(f"[rollback] restored files: {restored}")
-        return 0
 
-    cfg = build_config(args)
-    files = list(iter_project_files(cfg))
+def validate(mapping_path: Path) -> Tuple[bool, List[str]]:
+    info = load_json(mapping_path)
+    errs: List[str] = []
+    required = ["version", "workspace_root", "backup_dir", "mapping", "mode", "seed"]
+    for k in required:
+        if k not in info:
+            errs.append(f"missing key: {k}")
+    if info.get("mode") not in {"stable", "variant"}:
+        errs.append("mode must be stable or variant")
 
-    if not cfg.apply_strings:
-        files = [f for f in files if f.suffix != ".strings"]
+    mapping = info.get("mapping", {})
+    if not isinstance(mapping, dict):
+        errs.append("mapping must be dict")
+    else:
+        flat_vals: List[str] = []
+        for k in ("class", "method", "property", "ivar"):
+            block = mapping.get(k, {})
+            if not isinstance(block, dict):
+                errs.append(f"mapping.{k} must be dict")
+                continue
+            flat_vals.extend(block.values())
+        if len(flat_vals) != len(set(flat_vals)):
+            errs.append("mapped names must be unique")
 
+    return (len(errs) == 0, errs)
+
+
+def run_obfuscation(cfg: Config) -> int:
+    prepare_workspace(cfg)
+    files = iter_files(cfg)
     scan = scan_symbols(files)
     mapping = build_mapping(scan, cfg)
-    scanned, changed = apply_mapping(files, mapping, cfg)
-    write_mapping(mapping, cfg, files, scan, changed)
+    scanned, changed = apply_symbol_mapping(files, mapping, cfg)
 
+    # 文件名混淆后，pbxproj/xib/storyboard 通过前面的文本替换已经完成引用同步
+    renamed_files = rename_files(files, mapping["class"], cfg)
+
+    write_mapping(cfg, mapping, renamed_files, scanned, changed + len(renamed_files))
     print("[summary]")
+    print(f"  action: {cfg.action}")
     print(f"  mode: {cfg.mode}")
+    print(f"  workspace: {cfg.workspace_root}")
     print(f"  dry_run: {cfg.dry_run}")
     print(f"  scanned_files: {scanned}")
     print(f"  changed_files: {changed}")
-    print(f"  mapped_symbols: {sum(len(v) for v in mapping.values())}")
+    print(f"  renamed_files: {len(renamed_files)}")
     print(f"  mapping: {cfg.mapping_path}")
     if not cfg.dry_run:
         print(f"  backup: {cfg.backup_dir}")
     return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(description="Objective-C 主工程可控混淆工具")
+    p.add_argument("--project-root", default=".", help="原工程根目录")
+    p.add_argument("--config", help="JSON 配置文件")
+    p.add_argument("--action", choices=["dry-run", "obfuscate", "validate", "rollback"], default="dry-run")
+    p.add_argument("--mode", choices=["stable", "variant"], default="stable")
+    p.add_argument("--seed", default="release-seed")
+    p.add_argument("--in-place", action="store_true", help="直接修改 project-root（默认否，默认复制到 output-root）")
+    p.add_argument("--output-root", help="非 in-place 模式下的输出工程目录")
+    p.add_argument("--mapping", default="obfuscation/mapping.json")
+    p.add_argument("--backup-dir", default="obfuscation/backup")
+    p.add_argument("--disable-risky-skip", action="store_true", help="关闭高风险默认跳过")
+    p.add_argument("--disable-file-rename", action="store_true", help="关闭文件名混淆")
+    p.add_argument("--disable-strings", action="store_true")
+    p.add_argument("--whitelist-file")
+    p.add_argument("--blacklist-file")
+    return p
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+    cfg = build_config(args)
+
+    if cfg.action == "validate":
+        ok, errs = validate(cfg.mapping_path)
+        if ok:
+            print("[validate] mapping is valid")
+            return 0
+        print("[validate] mapping is invalid")
+        for err in errs:
+            print(f"  - {err}")
+        return 2
+
+    if cfg.action == "rollback":
+        restored = rollback(cfg.mapping_path)
+        print(f"[rollback] restored files: {restored}")
+        return 0
+
+    return run_obfuscation(cfg)
 
 
 if __name__ == "__main__":

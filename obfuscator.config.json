@@ -10,6 +10,7 @@
   "whitelist": [],
   "blacklist": [
     "AppDelegate",
+    "SceneDelegate",
     "main"
   ]
 }
