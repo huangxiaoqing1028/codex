@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+PLUGIN_PATH_DYLIB="${ROOT_DIR}/build/obf-pass/SimpleObfPass.dylib"
+PLUGIN_PATH_SO="${ROOT_DIR}/build/obf-pass/SimpleObfPass.so"
+BINDIR_FILE="${ROOT_DIR}/build/obf-pass/llvm-bindir.txt"
+VERSION_FILE="${ROOT_DIR}/build/obf-pass/llvm-version.txt"
+VERBOSE_FLAG="${MY_CLANG_VERBOSE:-}"
+IS_VERBOSE=0
+if [[ -n "${VERBOSE_FLAG}" && "${VERBOSE_FLAG}" != "0" ]]; then
+  IS_VERBOSE=1
+fi
+
+should_inject_plugin() {
+  local is_compile=0
+  local is_pch=0
+  local src=""
+  local prev=""
+
+  for arg in "$@"; do
+    # 必须是编译动作
+    if [[ "$arg" == "-c" ]]; then
+      is_compile=1
+    fi
+
+    # 真正的 PCH 构建
+    if [[ "$arg" == "-emit-pch" ]]; then
+      is_pch=1
+    fi
+
+    # -c 后面紧跟源码路径
+    if [[ "$prev" == "-c" ]]; then
+      src="$arg"
+    fi
+
+    # 输入文件是 .pch 才算，-include xx.pch 不算
+    if [[ "$arg" == *.pch ]]; then
+      if [[ "$prev" != "-include" ]]; then
+        is_pch=1
+      fi
+    fi
+
+    prev="$arg"
+  done
+
+  if [[ "$is_compile" != "1" ]]; then
+    [[ "${IS_VERBOSE}" == "1" ]] && echo "[my-clang] skip plugin: non-compile action" >&2
+    return 1
+  fi
+
+  if [[ "$is_pch" == "1" ]]; then
+    [[ "${IS_VERBOSE}" == "1" ]] && echo "[my-clang] skip plugin: real pch build" >&2
+    return 1
+  fi
+
+  [[ -n "$src" ]] || return 1
+
+  case "$src" in
+    *"/Pods/"*|*"/Carthage/"*|*"/SourcePackages/"*|*"/ThirdPartyLibrary/"*|*"/Vendor/"*|*"/Frameworks/"*)
+      [[ "${IS_VERBOSE}" == "1" ]] && echo "[my-clang] skip plugin: third-party source ($src)" >&2
+      return 1
+      ;;
+  esac
+
+  return 0
+}
+
+PLUGIN_PATH=""
+if [[ -f "${PLUGIN_PATH_DYLIB}" ]]; then
+  PLUGIN_PATH="${PLUGIN_PATH_DYLIB}"
+elif [[ -f "${PLUGIN_PATH_SO}" ]]; then
+  PLUGIN_PATH="${PLUGIN_PATH_SO}"
+fi
+
+if [[ "${IS_VERBOSE}" == "1" ]]; then
+  echo "[my-clang] plugin: ${PLUGIN_PATH:-<missing>}" >&2
+fi
+
+CLANG_BIN="clang"
+if [[ -f "${BINDIR_FILE}" ]]; then
+  LLVM_BINDIR="$(cat "${BINDIR_FILE}")"
+  if [[ -x "${LLVM_BINDIR}/clang" ]]; then
+    CLANG_BIN="${LLVM_BINDIR}/clang"
+  fi
+fi
+
+INJECT_PLUGIN=1
+if [[ "${MY_CLANG_DISABLE_PLUGIN:-0}" == "1" ]]; then
+  INJECT_PLUGIN=0
+elif ! should_inject_plugin "$@"; then
+  INJECT_PLUGIN=0
+fi
+
+if [[ "${INJECT_PLUGIN}" == "0" ]]; then
+  CMD=("${CLANG_BIN}" "$@")
+else
+  if [[ -z "${PLUGIN_PATH}" ]]; then
+    echo "[my-clang] missing plugin: ${PLUGIN_PATH_DYLIB} (or .so)" >&2
+    echo "[my-clang] run scripts/bootstrap_my_clang.sh first" >&2
+    exit 1
+  fi
+  if [[ -f "${VERSION_FILE}" ]]; then
+    BUILT_LLVM_VERSION="$(cat "${VERSION_FILE}")"
+    BUILT_LLVM_MAJOR="${BUILT_LLVM_VERSION%%.*}"
+    CLANG_VERSION_LINE="$("${CLANG_BIN}" --version 2>/dev/null | head -n1 || true)"
+    CLANG_MAJOR="$(sed -E 's/.*version ([0-9]+).*/\1/' <<<"${CLANG_VERSION_LINE}")"
+    if [[ -n "${BUILT_LLVM_MAJOR}" && -n "${CLANG_MAJOR}" && "${BUILT_LLVM_MAJOR}" != "${CLANG_MAJOR}" ]]; then
+      echo "[my-clang] LLVM ABI mismatch: plugin built with LLVM ${BUILT_LLVM_VERSION}, but compiler is: ${CLANG_VERSION_LINE}" >&2
+      echo "[my-clang] rerun ./scripts/bootstrap_my_clang.sh or set MY_CLANG_DISABLE_PLUGIN=1 for troubleshooting" >&2
+      exit 1
+    fi
+  fi
+  EXTRA_FLAGS=()
+  AUTO_SEED="${MY_CLANG_AUTO_SEED:-1}"
+  if [[ -z "${OBF_SEED:-}" && "${AUTO_SEED}" != "0" ]]; then
+    NOW_NS="$(date +%s%N 2>/dev/null || date +%s)"
+    OBF_SEED="$(( (NOW_NS ^ $$ ^ RANDOM) & 0x7fffffffffffffff ))"
+    export OBF_SEED
+    if [[ "${IS_VERBOSE}" == "1" ]]; then
+      echo "[my-clang] auto OBF_SEED=${OBF_SEED}" >&2
+    fi
+  fi
+
+  # Make sure O0/debug builds still run IR passes (especially in iOS simulator).
+  if [[ "${MY_CLANG_KEEP_OPTNONE:-0}" != "1" ]]; then
+    HAS_DISABLE_OPTNONE=0
+    for ARG in "$@"; do
+      if [[ "${ARG}" == "-disable-O0-optnone" ]]; then
+        HAS_DISABLE_OPTNONE=1
+        break
+      fi
+    done
+    if [[ "${HAS_DISABLE_OPTNONE}" == "0" ]]; then
+      EXTRA_FLAGS+=("-Xclang" "-disable-O0-optnone")
+    fi
+  fi
+  CMD=("${CLANG_BIN}" "-fpass-plugin=${PLUGIN_PATH}")
+  if [[ ${#EXTRA_FLAGS[@]} -gt 0 ]]; then
+    CMD+=("${EXTRA_FLAGS[@]}")
+  fi
+  CMD+=("$@")
+fi
+if [[ "${IS_VERBOSE}" == "1" ]]; then
+  echo "[my-clang] exec: ${CMD[*]}" >&2
+fi
+
+if [[ "${IS_VERBOSE}" == "1" && "${INJECT_PLUGIN}" == "1" ]]; then
+  TMP_LOG="$(mktemp -t my-clang-pass.XXXXXX)"
+  cleanup() {
+    rm -f "${TMP_LOG}"
+  }
+  trap cleanup EXIT
+
+  set +e
+  "${CMD[@]}" 2> >(tee "${TMP_LOG}" >&2)
+  STATUS=$?
+  set -e
+
+  CHANGED_COUNT="$(rg -c '^\[SimpleObfPass\] changed function:' "${TMP_LOG}" 2>/dev/null || true)"
+  if [[ -n "${CHANGED_COUNT}" && "${CHANGED_COUNT}" != "0" ]]; then
+    echo "[my-clang] pass change summary: ${CHANGED_COUNT} function(s) modified" >&2
+    rg '^\[SimpleObfPass\] changed function:' "${TMP_LOG}" >&2 || true
+  else
+    echo "[my-clang] pass change summary: no function-level changes reported" >&2
+  fi
+
+  exit "${STATUS}"
+fi
+
+exec "${CMD[@]}"
