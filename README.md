@@ -58,6 +58,50 @@ python3 run.py \
   --obfuscate-protocol
 ```
 
+#### 参数含义（上面这条命令逐项解释）
+
+| 参数 | 示例值 | 含义 |
+|---|---|---|
+| `--project-root` | `/path/to/MyApp` | 原始 iOS 工程根目录（输入目录）。 |
+| `--output-root` | `/path/to/MyApp_obfuscated` | 混淆后输出目录（默认不污染原工程，会复制到这里再处理）。 |
+| `--config` | `obfuscator.config.json` | 配置文件，包含 include/exclude、白名单、资源白名单等。 |
+| `--action` | `obfuscate` | 执行动作：真正写入混淆结果（而不是仅扫描）。 |
+| `--mode` | `stable` | 命名模式：`stable` 表示同 seed 下可复现；`variant` 表示扰动映射。 |
+| `--name-style` | `camel` | 命名风格：`hex`（哈希风格）或 `camel`（驼峰片段风格）。 |
+| `--seed` | `release_2026Q2` | 混淆种子，影响映射结果；稳定发布建议固定。 |
+| `--mapping` | `/path/to/artifacts/mapping.json` | mapping 输出路径（用于审计、validate、rollback）。 |
+| `--backup-dir` | `/path/to/artifacts/backup` | 备份目录（回滚时从这里恢复）。 |
+| `--reuse-mapping` | （开关） | 启用 mapping cache 复用，优先沿用已有映射。 |
+| `--obfuscate-protocol` | （开关） | 允许 protocol 名参与混淆（默认不混淆 protocol）。 |
+
+#### 调用示例（带中文注释）
+
+```bash
+python3 run.py \
+  # 原工程目录（输入）
+  --project-root /path/to/MyApp \
+  # 混淆后工程目录（输出）
+  --output-root /path/to/MyApp_obfuscated \
+  # 配置文件（白名单/黑名单/扫描范围）
+  --config obfuscator.config.json \
+  # 执行真正混淆
+  --action obfuscate \
+  # 稳定映射模式（同 seed 可复现）
+  --mode stable \
+  # 混淆名风格：驼峰
+  --name-style camel \
+  # 发布批次种子
+  --seed release_2026Q2 \
+  # mapping 输出（用于审计/回滚）
+  --mapping /path/to/artifacts/mapping.json \
+  # 备份目录（rollback 依赖）
+  --backup-dir /path/to/artifacts/backup \
+  # 复用历史 mapping，避免重发散
+  --reuse-mapping \
+  # protocol 名也参与混淆
+  --obfuscate-protocol                       # protocol 名也参与混淆
+```
+
 ### 3) validate / rollback
 
 ```bash
