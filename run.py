@@ -10,6 +10,28 @@ from obfuscator.engine import rollback, run, validate
 from obfuscator.logging_utils import setup_logger
 
 
+def normalize_argv(argv: list[str]) -> list[str]:
+    """
+    容错处理：
+    用户常把 `--mapping/xxx` 写成连在一起的形式，这里自动拆分成
+    `--mapping /xxx`，避免 argparse 直接报错。
+    """
+    normalized: list[str] = []
+    split_flags = ("--mapping", "--backup-dir", "--project-root", "--output-root", "--config")
+    for token in argv:
+        matched = False
+        for flag in split_flags:
+            prefix = f"{flag}/"
+            if token.startswith(prefix):
+                normalized.append(flag)
+                normalized.append("/" + token[len(prefix) :])
+                matched = True
+                break
+        if not matched:
+            normalized.append(token)
+    return normalized
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Objective-C 主工程可控混淆工具")
     p.add_argument("--project-root", default=".", help="原工程根目录")
@@ -43,7 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
-    args = build_parser().parse_args()
+    args = build_parser().parse_args(normalize_argv(sys.argv[1:]))
     logger = setup_logger(args.verbose)
     cfg = build_config(args)
 

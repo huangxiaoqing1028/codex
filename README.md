@@ -74,6 +74,8 @@ python3 run.py \
 | `--reuse-mapping` | （开关） | 启用 mapping cache 复用，优先沿用已有映射。 |
 | `--obfuscate-protocol` | （开关） | 允许 protocol 名参与混淆（默认不混淆 protocol）。 |
 
+> 小提示：`--mapping`、`--backup-dir` 等参数请优先使用“空格分隔”写法（如 `--mapping /tmp/mapping.json`）。当前版本也兼容误写成 `--mapping/tmp/mapping.json` 的形式，会自动纠正。
+
 #### 调用示例（带中文注释）
 
 ```bash

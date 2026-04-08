@@ -5,6 +5,7 @@ from pathlib import Path
 
 from obfuscator.config_loader import build_config
 from obfuscator.engine import run, validate, rollback
+from run import normalize_argv
 
 
 class _Args:
@@ -36,6 +37,14 @@ class _Args:
 
 
 class EngineTests(unittest.TestCase):
+    def test_normalize_argv_for_compact_path_flags(self):
+        argv = ["--mapping/tmp/a.json", "--backup-dir/tmp/bk", "--mode", "stable"]
+        normalized = normalize_argv(argv)
+        self.assertEqual(
+            normalized,
+            ["--mapping", "/tmp/a.json", "--backup-dir", "/tmp/bk", "--mode", "stable"],
+        )
+
     def test_obfuscate_validate_rollback(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
