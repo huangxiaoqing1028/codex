@@ -1,0 +1,29 @@
+{
+  "include_dirs": [
+    "MyApp",
+    "MyAppTests"
+  ],
+  "exclude_dirs": [
+    "Generated",
+    "Fastlane"
+  ],
+  "whitelist": [],
+  "blacklist": [
+    "AppDelegate",
+    "SceneDelegate",
+    "main"
+  ],
+  "category_method_whitelist": [
+    "trackEvent",
+    "logAction"
+  ],
+  "resource_whitelist": [
+    "Main",
+    "LaunchScreen"
+  ],
+  "system_storyboards": [
+    "Main",
+    "LaunchScreen",
+    "LaunchScreen_iPad"
+  ]
+}
