@@ -48,7 +48,7 @@ class EngineTests(unittest.TestCase):
             self.assertEqual(cfg.backup_dir, root / "obfuscation_artifacts" / "backup")
 
     def test_normalize_argv_for_compact_path_flags(self):
-        argv = ["--mapping/tmp/a.json", "--backup-dir/tmp/bk", "--mode", "stable"]
+        argv = ["--mapping/tmp/a.json", "   ", "\u00A0", "--backup-dir/tmp/bk", "--mode", "stable"]
         normalized = normalize_argv(argv)
         self.assertEqual(
             normalized,

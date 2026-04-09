@@ -150,3 +150,16 @@ xcodebuild -workspace "$WORKSPACE/MyApp_obfuscated/MyApp.xcworkspace" -scheme My
 - 先执行 `ls "<project-root>"` 确认路径确实存在；
 - 保证路径指向的是 iOS 工程源码根目录；
 - 若目录名含空格/中文，建议整段用引号包起来。
+
+### 3) `run.py: error: unrecognized arguments:` 或 `zsh: command not found: --project-root`
+
+原因通常是多行命令里 `\` 后面跟了空格，导致换行续行失效。  
+建议：
+- 复制命令时确保每行末尾是 `\` 且 **后面没有任何空格**；
+- 或者直接用单行命令执行（最稳妥）。
+
+单行示例：
+
+```bash
+python3 run.py --project-root "/Users/kenny/Downloads/OC源码混淆/低碳行" --output-root "/Users/kenny/Downloads/OC源码混淆/低碳行_obfuscated" --config "obfuscator.config.json" --action obfuscate --mode stable --name-style camel --seed release_2026Q2 --mapping "/Users/kenny/Downloads/OC源码混淆/mapping.json" --backup-dir "/Users/kenny/Downloads/OC源码混淆/backup" --reuse-mapping --obfuscate-protocol
+```

@@ -19,6 +19,9 @@ def normalize_argv(argv: list[str]) -> list[str]:
     normalized: list[str] = []
     split_flags = ("--mapping", "--backup-dir", "--project-root", "--output-root", "--config")
     for token in argv:
+        # 过滤复制命令时混入的空白参数（含全角/不可见空格）
+        if not token or not token.strip():
+            continue
         matched = False
         for flag in split_flags:
             prefix = f"{flag}/"
