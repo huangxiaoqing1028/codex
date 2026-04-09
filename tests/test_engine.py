@@ -115,6 +115,8 @@ class EngineTests(unittest.TestCase):
             )
             (root / "Main.storyboard").write_text("Main", encoding="utf-8")
             (root / "Feature.storyboard").write_text("Feature", encoding="utf-8")
+            (root / "MyApp.xcodeproj").mkdir()
+            (root / "MyApp.xcodeproj" / "project.pbxproj").write_text("name = MyApp;", encoding="utf-8")
 
             args = _Args(root, action="obfuscate")
             args.source_target = "MyApp"
@@ -133,6 +135,7 @@ class EngineTests(unittest.TestCase):
             self.assertIn("MyAppA", pbx)
             self.assertNotIn("name = MyApp;", pbx)
             self.assertIn("target 'MyAppA'", pod)
+            self.assertTrue((root / "MyAppA.xcodeproj").exists())
             # Main.storyboard 不应被改名，Feature.storyboard 可以改名并同步到 pbxproj
             self.assertTrue((root / "Main.storyboard").exists())
             self.assertFalse((root / "Feature.storyboard").exists())

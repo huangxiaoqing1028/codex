@@ -26,6 +26,7 @@
 - 支持 target/project/scheme 文本联动改名（可选参数）
 - 对 `project.pbxproj` 与 `Podfile` 使用结构化规则替换（非全局盲替换）
 - 文件改名后会进行二次引用同步（`project.pbxproj` / `Podfile` / storyboard 等）
+- 支持 `.xcodeproj/.xcworkspace` 容器目录联动改名（随 `source_project -> rename_project`）
 - 输出 mapping + `scan/risk/replace/conflict/unresolved` 报告
 - 风险检测：KVC/KVO/NSCoding/runtime/selector/router/model-json/DB/CoreData/third-party callback/system override
 

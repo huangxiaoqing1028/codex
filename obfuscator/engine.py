@@ -259,13 +259,13 @@ def _replace_pbxproj_structured(text: str, cfg: ObfConfig) -> str:
     for old, new in rename_pairs:
         if not old or not new:
             continue
-        # 1) 通用边界替换（控制误伤）
-        out = _replace_word_boundary(out, old, new)
-        # 2) 结构化字段替换
+        # 结构化字段替换（避免全局替换导致工程字段被误伤）
         out = re.sub(rf"(name\s*=\s*){re.escape(old)}(\s*;)", rf"\1{new}\2", out)
         out = re.sub(rf"(path\s*=\s*){re.escape(old)}(\s*;)", rf"\1{new}\2", out)
         out = re.sub(rf"(productName\s*=\s*){re.escape(old)}(\s*;)", rf"\1{new}\2", out)
         out = re.sub(rf"(PRODUCT_NAME\s*=\s*){re.escape(old)}(\s*;)", rf"\1{new}\2", out)
+        out = re.sub(rf"(PRODUCT_NAME\s*=\s*\"){re.escape(old)}(\"\\s*;)", rf"\1{new}\2", out)
+        out = re.sub(rf"(PRODUCT_BUNDLE_IDENTIFIER\\s*=\\s*[^;]*?){re.escape(old)}([^;]*;)", rf"\1{new}\2", out)
         out = re.sub(rf"(\"?){re.escape(old)}(\\.xcodeproj\"?)", rf"\1{new}\2", out)
         out = re.sub(rf"(\"?){re.escape(old)}(\\.xcworkspace\"?)", rf"\1{new}\2", out)
         out = re.sub(rf"(\"?){re.escape(old)}(\\.xcscheme\"?)", rf"\1{new}\2", out)
@@ -392,7 +392,6 @@ def sync_renamed_references(files: Sequence[Path], renamed_files: List[Dict[str,
         new_rel = item["to"]
         replace_pairs.append((old_rel, new_rel))
         replace_pairs.append((Path(old_rel).name, Path(new_rel).name))
-        replace_pairs.append((Path(old_rel).stem, Path(new_rel).stem))
 
     # 长串优先替换
     replace_pairs = sorted(set(replace_pairs), key=lambda x: len(x[0]), reverse=True)
@@ -404,7 +403,7 @@ def sync_renamed_references(files: Sequence[Path], renamed_files: List[Dict[str,
         new = old
         for old_s, new_s in replace_pairs:
             if old_s:
-                new = _replace_word_boundary(new, old_s, new_s)
+                # 文件重命名同步仅替换具体文件名/路径，不替换裸 stem，避免污染工程名等字段
                 new = new.replace(old_s, new_s)
         if new != old:
             changed += 1
@@ -412,6 +411,31 @@ def sync_renamed_references(files: Sequence[Path], renamed_files: List[Dict[str,
                 _backup(f, cfg)
                 f.write_text(new, encoding="utf-8")
     return changed
+
+
+def rename_project_containers(cfg: ObfConfig) -> List[Dict[str, str]]:
+    """
+    工程级容器改名：*.xcodeproj / *.xcworkspace。
+    """
+    src = getattr(cfg, "source_project", "")
+    dst = getattr(cfg, "rename_project", None)
+    if not src or not dst:
+        return []
+
+    actions: List[Dict[str, str]] = []
+    for ext in (".xcodeproj", ".xcworkspace"):
+        old_p = cfg.workspace_root / f"{src}{ext}"
+        new_p = cfg.workspace_root / f"{dst}{ext}"
+        if not old_p.exists() or new_p.exists():
+            continue
+        if not cfg.dry_run:
+            if old_p.is_dir():
+                shutil.move(str(old_p), str(new_p))
+            else:
+                _backup(old_p, cfg)
+                old_p.rename(new_p)
+        actions.append({"from": str(old_p.relative_to(cfg.workspace_root)), "to": str(new_p.relative_to(cfg.workspace_root))})
+    return actions
 
 
 def _risk_report(meta: dict, cfg: ObfConfig) -> dict:
@@ -552,6 +576,8 @@ def run(cfg: ObfConfig) -> ObfContext:
     mapping = build_mapping(scan, meta, cfg)
     scanned, changed = apply_mapping(files, mapping, cfg)
     renamed = rename_files(files, mapping.get("class", {}), cfg)
+    container_renamed = rename_project_containers(cfg)
+    renamed.extend(container_renamed)
     ref_sync_changed = sync_renamed_references(files, renamed, cfg)
 
     ctx = ObfContext(config=cfg)
