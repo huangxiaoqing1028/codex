@@ -22,8 +22,10 @@
 - 支持 protocol 可选混淆（`--obfuscate-protocol`）
 - 支持 category 方法白名单式混淆（配置 `category_method_whitelist`）
 - 支持资源白名单式混淆（配置 `resource_whitelist`）
+- 支持系统 storyboard 排除（配置 `system_storyboards`，默认 `Main/LaunchScreen`）
 - 支持 target/project/scheme 文本联动改名（可选参数）
 - 对 `project.pbxproj` 与 `Podfile` 使用结构化规则替换（非全局盲替换）
+- 文件改名后会进行二次引用同步（`project.pbxproj` / `Podfile` / storyboard 等）
 - 输出 mapping + `scan/risk/replace/conflict/unresolved` 报告
 - 风险检测：KVC/KVO/NSCoding/runtime/selector/router/model-json/DB/CoreData/third-party callback/system override
 

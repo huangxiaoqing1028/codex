@@ -84,6 +84,7 @@ def build_config(args) -> ObfConfig:
     config.name_style = args.name_style
     config.category_method_whitelist = list(cfg_file.get("category_method_whitelist", []))
     config.resource_whitelist = list(cfg_file.get("resource_whitelist", []))
+    config.system_storyboards = list(cfg_file.get("system_storyboards", ["Main", "LaunchScreen"]))
 
     config.rename_target = args.rename_target
     config.source_target = args.source_target

@@ -90,14 +90,18 @@ class EngineTests(unittest.TestCase):
             root = Path(td)
             (root / "App.h").write_text("@interface Foo: NSObject @end", encoding="utf-8")
             (root / "App.m").write_text("@implementation Foo @end", encoding="utf-8")
+            (root / "Feature.h").write_text("@interface Feature: NSObject @end", encoding="utf-8")
+            (root / "Feature.m").write_text("@implementation Feature @end", encoding="utf-8")
             (root / "project.pbxproj").write_text(
-                "name = MyApp;\\nPRODUCT_NAME = MyApp;\\npath = MyApp.xcodeproj;\\n",
+                "name = MyApp;\\nPRODUCT_NAME = MyApp;\\npath = MyApp.xcodeproj;\\nMain.storyboard\\nFeature.storyboard\\n",
                 encoding="utf-8",
             )
             (root / "Podfile").write_text(
                 "target 'MyApp' do\\n  project 'MyApp.xcodeproj'\\n  workspace 'MyApp.xcworkspace'\\nend\\n",
                 encoding="utf-8",
             )
+            (root / "Main.storyboard").write_text("Main", encoding="utf-8")
+            (root / "Feature.storyboard").write_text("Feature", encoding="utf-8")
 
             args = _Args(root, action="obfuscate")
             args.source_target = "MyApp"
@@ -108,6 +112,7 @@ class EngineTests(unittest.TestCase):
             args.rename_scheme = "MyAppA"
 
             cfg = build_config(args)
+            cfg.system_storyboards = ["Main", "LaunchScreen"]
             run(cfg)
 
             pbx = (root / "project.pbxproj").read_text(encoding="utf-8")
@@ -115,6 +120,11 @@ class EngineTests(unittest.TestCase):
             self.assertIn("MyAppA", pbx)
             self.assertNotIn("name = MyApp;", pbx)
             self.assertIn("target 'MyAppA'", pod)
+            # Main.storyboard 不应被改名，Feature.storyboard 可以改名并同步到 pbxproj
+            self.assertTrue((root / "Main.storyboard").exists())
+            self.assertFalse((root / "Feature.storyboard").exists())
+            renamed_storyboards = [p.name for p in root.glob("*.storyboard") if p.name != "Main.storyboard"]
+            self.assertTrue(renamed_storyboards)
 
 
 if __name__ == "__main__":

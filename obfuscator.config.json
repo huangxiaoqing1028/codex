@@ -20,5 +20,10 @@
   "resource_whitelist": [
     "Main",
     "LaunchScreen"
+  ],
+  "system_storyboards": [
+    "Main",
+    "LaunchScreen",
+    "LaunchScreen_iPad"
   ]
 }

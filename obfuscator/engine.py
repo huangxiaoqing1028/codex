@@ -269,6 +269,8 @@ def _replace_pbxproj_structured(text: str, cfg: ObfConfig) -> str:
         out = re.sub(rf"(\"?){re.escape(old)}(\\.xcodeproj\"?)", rf"\1{new}\2", out)
         out = re.sub(rf"(\"?){re.escape(old)}(\\.xcworkspace\"?)", rf"\1{new}\2", out)
         out = re.sub(rf"(\"?){re.escape(old)}(\\.xcscheme\"?)", rf"\1{new}\2", out)
+        out = re.sub(rf"(\"?){re.escape(old)}(\\.app\"?)", rf"\1{new}\2", out)
+        out = re.sub(rf"(INFOPLIST_FILE\\s*=\\s*[^;]*?){re.escape(old)}([^;]*;)", rf"\1{new}\2", out)
     return out
 
 
@@ -351,9 +353,12 @@ def rename_files(files: Sequence[Path], class_map: Dict[str, str], cfg: ObfConfi
     if not cfg.rename_files:
         return []
 
+    system_storyboards = set(getattr(cfg, "system_storyboards", ["Main", "LaunchScreen"]))
     pairs: List[Tuple[Path, Path]] = []
     for f in files:
-        if f.suffix not in {".h", ".m", ".mm", ".xib"}:
+        if f.suffix not in {".h", ".m", ".mm", ".xib", ".storyboard"}:
+            continue
+        if f.suffix == ".storyboard" and f.stem in system_storyboards:
             continue
         if f.stem in class_map:
             dst = f.with_name(class_map[f.stem] + f.suffix)
@@ -372,6 +377,41 @@ def rename_files(files: Sequence[Path], class_map: Dict[str, str], cfg: ObfConfi
         results.append({"from": str(src.relative_to(cfg.workspace_root)), "to": str(dst.relative_to(cfg.workspace_root))})
 
     return results
+
+
+def sync_renamed_references(files: Sequence[Path], renamed_files: List[Dict[str, str]], cfg: ObfConfig) -> int:
+    """
+    文件名重命名后，二次同步引用（尤其是 project.pbxproj / Podfile / storyboard）。
+    """
+    if not renamed_files:
+        return 0
+    changed = 0
+    replace_pairs: List[Tuple[str, str]] = []
+    for item in renamed_files:
+        old_rel = item["from"]
+        new_rel = item["to"]
+        replace_pairs.append((old_rel, new_rel))
+        replace_pairs.append((Path(old_rel).name, Path(new_rel).name))
+        replace_pairs.append((Path(old_rel).stem, Path(new_rel).stem))
+
+    # 长串优先替换
+    replace_pairs = sorted(set(replace_pairs), key=lambda x: len(x[0]), reverse=True)
+
+    for f in files:
+        if not f.exists() or f.suffix not in SYNC_EXTENSIONS and f.name not in {"project.pbxproj", "Podfile"}:
+            continue
+        old = f.read_text(encoding="utf-8", errors="ignore")
+        new = old
+        for old_s, new_s in replace_pairs:
+            if old_s:
+                new = _replace_word_boundary(new, old_s, new_s)
+                new = new.replace(old_s, new_s)
+        if new != old:
+            changed += 1
+            if not cfg.dry_run:
+                _backup(f, cfg)
+                f.write_text(new, encoding="utf-8")
+    return changed
 
 
 def _risk_report(meta: dict, cfg: ObfConfig) -> dict:
@@ -512,10 +552,11 @@ def run(cfg: ObfConfig) -> ObfContext:
     mapping = build_mapping(scan, meta, cfg)
     scanned, changed = apply_mapping(files, mapping, cfg)
     renamed = rename_files(files, mapping.get("class", {}), cfg)
+    ref_sync_changed = sync_renamed_references(files, renamed, cfg)
 
     ctx = ObfContext(config=cfg)
     ctx.files_scanned = scanned
-    ctx.files_changed = changed + len(renamed)
+    ctx.files_changed = changed + len(renamed) + ref_sync_changed
     ctx.mapping = mapping
     ctx.renamed_files = renamed
 
