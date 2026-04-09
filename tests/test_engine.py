@@ -37,6 +37,16 @@ class _Args:
 
 
 class EngineTests(unittest.TestCase):
+    def test_artifacts_redirect_when_mapping_or_backup_at_root(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            args = _Args(root, action="dry-run")
+            args.mapping = str(root / "mapping.json")
+            args.backup_dir = str(root)
+            cfg = build_config(args)
+            self.assertEqual(cfg.mapping_path, root / "obfuscation_artifacts" / "mapping.json")
+            self.assertEqual(cfg.backup_dir, root / "obfuscation_artifacts" / "backup")
+
     def test_normalize_argv_for_compact_path_flags(self):
         argv = ["--mapping/tmp/a.json", "--backup-dir/tmp/bk", "--mode", "stable"]
         normalized = normalize_argv(argv)

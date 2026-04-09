@@ -53,6 +53,16 @@ def _build_base_config(args, cfg_file: dict) -> ObfConfig:
 
     action = args.action
 
+    mapping_path = Path(args.mapping).resolve()
+    backup_dir = Path(args.backup_dir).resolve()
+
+    # 统一把 mapping / report / backup 放到独立目录，避免污染工程根目录
+    artifacts_dir = (project_root / "obfuscation_artifacts").resolve()
+    if mapping_path.parent == project_root:
+        mapping_path = artifacts_dir / mapping_path.name
+    if backup_dir == project_root:
+        backup_dir = artifacts_dir / "backup"
+
     return ObfConfig(
         project_root=project_root,
         workspace_root=workspace_root,
@@ -69,8 +79,8 @@ def _build_base_config(args, cfg_file: dict) -> ObfConfig:
         dry_run=action == "dry-run",
         in_place=in_place,
         output_root=output_root,
-        mapping_path=Path(args.mapping).resolve(),
-        backup_dir=Path(args.backup_dir).resolve(),
+        mapping_path=mapping_path,
+        backup_dir=backup_dir,
     )
 
 
