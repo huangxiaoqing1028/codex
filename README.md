@@ -30,6 +30,7 @@
 - 风险检测：KVC/KVO/NSCoding/runtime/selector/router/model-json/DB/CoreData/third-party callback/system override
 
 > 说明：若 `--mapping` 或 `--backup-dir` 指向工程根目录，工具会自动改为写入 `project-root/obfuscation_artifacts/`，避免把 mapping/report 直接堆在根目录。
+> 报告类文件固定输出到：`project-root/obfuscation_artifacts/reports/`（`scan/risk/replace/conflict/unresolved`）。
 
 ## 快速开始
 

@@ -108,7 +108,8 @@ def main() -> int:
         logger.info("  changed_files: %s", ctx.files_changed)
         logger.info("  renamed_files: %s", len(ctx.renamed_files))
         logger.info("  mapping: %s", cfg.mapping_path)
-        logger.info("  reports: %s", cfg.mapping_path.parent)
+        reports_dir = (getattr(cfg, "artifacts_dir", cfg.mapping_path.parent) / "reports").resolve()
+        logger.info("  reports: %s", reports_dir)
         return 0
     except Exception as e:
         logger.error("[error] %s", e)

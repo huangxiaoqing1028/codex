@@ -67,6 +67,9 @@ class EngineTests(unittest.TestCase):
             cfg = build_config(_Args(root, action="obfuscate"))
             ctx = run(cfg)
             self.assertTrue(ctx.mapping["class"].get("Foo"))
+            reports_dir = root / "obfuscation_artifacts" / "reports"
+            self.assertTrue((reports_dir / "scan_report.json").exists())
+            self.assertTrue((reports_dir / "risk_report.json").exists())
 
             ok, errs = validate(Path(cfg.mapping_path))
             self.assertTrue(ok, msg=str(errs))

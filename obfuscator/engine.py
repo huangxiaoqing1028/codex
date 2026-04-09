@@ -454,7 +454,7 @@ def _replace_report(mapping: Dict[str, Dict[str, str]], changed: int, renamed: i
 
 
 def write_reports(ctx: ObfContext, scan: ScanResult, meta: dict) -> None:
-    base = ctx.config.mapping_path.parent
+    base = (getattr(ctx.config, "artifacts_dir", ctx.config.mapping_path.parent) / "reports").resolve()
     base.mkdir(parents=True, exist_ok=True)
 
     scan_report = _scan_report(scan, meta, ctx.files_scanned)

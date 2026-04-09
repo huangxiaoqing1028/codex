@@ -95,6 +95,7 @@ def build_config(args) -> ObfConfig:
     config.category_method_whitelist = list(cfg_file.get("category_method_whitelist", []))
     config.resource_whitelist = list(cfg_file.get("resource_whitelist", []))
     config.system_storyboards = list(cfg_file.get("system_storyboards", ["Main", "LaunchScreen"]))
+    config.artifacts_dir = (config.project_root / "obfuscation_artifacts").resolve()
 
     config.rename_target = args.rename_target
     config.source_target = args.source_target
