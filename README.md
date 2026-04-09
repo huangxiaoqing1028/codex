@@ -164,3 +164,14 @@ xcodebuild -workspace "$WORKSPACE/MyApp_obfuscated/MyApp.xcworkspace" -scheme My
 ```bash
 python3 run.py --project-root "/Users/kenny/Downloads/OC源码混淆/低碳行" --output-root "/Users/kenny/Downloads/OC源码混淆/低碳行_obfuscated" --config "obfuscator.config.json" --action obfuscate --mode stable --name-style camel --seed release_2026Q2 --mapping "/Users/kenny/Downloads/OC源码混淆/mapping.json" --backup-dir "/Users/kenny/Downloads/OC源码混淆/backup" --reuse-mapping --obfuscate-protocol
 ```
+
+### 4) 改了 project/target 名后 Pods 仍是旧引用
+
+如果你改了 `source_project/source_target`，建议在输出工程目录执行：
+
+```bash
+pod deintegrate
+pod install
+```
+
+用于刷新 `Pods-*.xcconfig` / `Pods_*.framework` 等引用。

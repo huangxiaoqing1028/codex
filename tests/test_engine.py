@@ -106,11 +106,11 @@ class EngineTests(unittest.TestCase):
             (root / "Feature.h").write_text("@interface Feature: NSObject @end", encoding="utf-8")
             (root / "Feature.m").write_text("@implementation Feature @end", encoding="utf-8")
             (root / "project.pbxproj").write_text(
-                "name = MyApp;\\nPRODUCT_NAME = MyApp;\\npath = MyApp.xcodeproj;\\nMain.storyboard\\nFeature.storyboard\\n",
+                "name = MyApp;\\nPRODUCT_NAME = MyApp;\\npath = MyApp.xcodeproj;\\nINFOPLIST_FILE = MyApp/Info.plist;\\nCODE_SIGN_ENTITLEMENTS = MyApp/MyApp.entitlements;\\nSWIFT_OBJC_BRIDGING_HEADER = MyApp/MyApp-Bridging-Header.h;\\n/* MyApp.m in Sources */\\nMain.storyboard\\nFeature.storyboard\\n",
                 encoding="utf-8",
             )
             (root / "Podfile").write_text(
-                "target 'MyApp' do\\n  project 'MyApp.xcodeproj'\\n  workspace 'MyApp.xcworkspace'\\nend\\n",
+                "abstract_target 'MyApp' do\\n target 'MyApp' do\\n  project 'MyApp.xcodeproj'\\n  workspace 'MyApp.xcworkspace'\\n end\\nend\\n",
                 encoding="utf-8",
             )
             (root / "Main.storyboard").write_text("Main", encoding="utf-8")
@@ -135,6 +135,8 @@ class EngineTests(unittest.TestCase):
             self.assertIn("MyAppA", pbx)
             self.assertNotIn("name = MyApp;", pbx)
             self.assertIn("target 'MyAppA'", pod)
+            self.assertIn("abstract_target 'MyAppA'", pod)
+            self.assertIn("INFOPLIST_FILE = MyAppA/Info.plist;", pbx)
             self.assertTrue((root / "MyAppA.xcodeproj").exists())
             # Main.storyboard 不应被改名，Feature.storyboard 可以改名并同步到 pbxproj
             self.assertTrue((root / "Main.storyboard").exists())

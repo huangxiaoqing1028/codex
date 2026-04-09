@@ -250,20 +250,40 @@ def _replace_pbxproj_structured(text: str, cfg: ObfConfig) -> str:
     2) 仅替换常见 name/path/productName/PRODUCT_NAME/value 语义位
     """
     out = text
-    rename_pairs = [
+    rename_pairs_raw = [
         (getattr(cfg, "source_target", ""), getattr(cfg, "rename_target", None)),
         (getattr(cfg, "source_project", ""), getattr(cfg, "rename_project", None)),
         (getattr(cfg, "source_scheme", ""), getattr(cfg, "rename_scheme", None)),
     ]
+    rename_map: Dict[str, str] = {}
+    for old, new in rename_pairs_raw:
+        if old and new:
+            rename_map.setdefault(old, new)
 
-    for old, new in rename_pairs:
+    for old, new in rename_map.items():
         if not old or not new:
             continue
         # 结构化字段替换（避免全局替换导致工程字段被误伤）
-        out = re.sub(rf"(name\s*=\s*){re.escape(old)}(\s*;)", rf"\1{new}\2", out)
-        out = re.sub(rf"(path\s*=\s*){re.escape(old)}(\s*;)", rf"\1{new}\2", out)
-        out = re.sub(rf"(productName\s*=\s*){re.escape(old)}(\s*;)", rf"\1{new}\2", out)
-        out = re.sub(rf"(PRODUCT_NAME\s*=\s*){re.escape(old)}(\s*;)", rf"\1{new}\2", out)
+        pbx_keys = [
+            "name",
+            "path",
+            "productName",
+            "productReference",
+            "productType",
+            "PRODUCT_NAME",
+            "INFOPLIST_FILE",
+            "CODE_SIGN_ENTITLEMENTS",
+            "MODULEMAP_FILE",
+            "SWIFT_OBJC_BRIDGING_HEADER",
+        ]
+        for k in pbx_keys:
+            out = re.sub(rf"({k}\s*=\s*){re.escape(old)}(\s*;)", rf"\1{new}\2", out)
+            out = re.sub(rf"({k}\s*=\s*\"){re.escape(old)}(\"\\s*;)", rf"\1{new}\2", out)
+            out = re.sub(rf"({k}\s*=\s*[^;]*?){re.escape(old)}([^;]*;)", rf"\1{new}\2", out)
+
+        # PBXBuildFile / PBXGroup 注释名
+        out = re.sub(rf"(/\*\s*){re.escape(old)}(\.[^*]+?\s*\*/)", rf"\1{new}\2", out)
+
         out = re.sub(rf"(PRODUCT_NAME\s*=\s*\"){re.escape(old)}(\"\\s*;)", rf"\1{new}\2", out)
         out = re.sub(rf"(PRODUCT_BUNDLE_IDENTIFIER\\s*=\\s*[^;]*?){re.escape(old)}([^;]*;)", rf"\1{new}\2", out)
         out = re.sub(rf"(\"?){re.escape(old)}(\\.xcodeproj\"?)", rf"\1{new}\2", out)
@@ -283,20 +303,25 @@ def _replace_podfile_structured(text: str, cfg: ObfConfig) -> str:
     - scheme => 'X' / :scheme => 'X'
     """
     out = text
-    if getattr(cfg, "source_target", "") and getattr(cfg, "rename_target", None):
-        src = re.escape(cfg.source_target)
-        dst = cfg.rename_target
-        out = re.sub(rf"(target\s+['\"])({src})(['\"])", rf"\1{dst}\3", out)
+    src_target, dst_target = getattr(cfg, "source_target", ""), getattr(cfg, "rename_target", None)
+    src_project, dst_project = getattr(cfg, "source_project", ""), getattr(cfg, "rename_project", None)
+    src_scheme, dst_scheme = getattr(cfg, "source_scheme", ""), getattr(cfg, "rename_scheme", None)
 
-    if getattr(cfg, "source_project", "") and getattr(cfg, "rename_project", None):
-        src = re.escape(cfg.source_project)
-        dst = cfg.rename_project
+    if src_target and dst_target:
+        src = re.escape(src_target)
+        dst = dst_target
+        out = re.sub(rf"(target\s+['\"])({src})(['\"])", rf"\1{dst}\3", out)
+        out = re.sub(rf"(abstract_target\s+['\"])({src})(['\"])", rf"\1{dst}\3", out)
+
+    if src_project and dst_project:
+        src = re.escape(src_project)
+        dst = dst_project
         out = re.sub(rf"(project\s+['\"])([^'\"]*?){src}([^'\"]*?['\"])", rf"\1\2{dst}\3", out)
         out = re.sub(rf"(workspace\s+['\"])([^'\"]*?){src}([^'\"]*?['\"])", rf"\1\2{dst}\3", out)
 
-    if getattr(cfg, "source_scheme", "") and getattr(cfg, "rename_scheme", None):
-        src = re.escape(cfg.source_scheme)
-        dst = cfg.rename_scheme
+    if src_scheme and dst_scheme:
+        src = re.escape(src_scheme)
+        dst = dst_scheme
         out = re.sub(rf"(scheme\s*=>\s*['\"])({src})(['\"])", rf"\1{dst}\3", out)
         out = re.sub(rf"(:scheme\s*=>\s*['\"])({src})(['\"])", rf"\1{dst}\3", out)
     return out
@@ -493,6 +518,9 @@ def write_reports(ctx: ObfContext, scan: ScanResult, meta: dict) -> None:
         "unresolved": unresolved_items,
         "by_type": {item["type"]: item["count"] for item in unresolved_items},
         "status": "manual_review_required" if unresolved_items else "ok",
+        "post_steps": [
+            "若涉及 Podfile / target / project 改名，请执行: pod deintegrate && pod install"
+        ],
     }
 
     (base / "scan_report.json").write_text(json.dumps(scan_report, ensure_ascii=False, indent=2), encoding="utf-8")
