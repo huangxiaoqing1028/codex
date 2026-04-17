@@ -1,0 +1,23 @@
+name: ResumePro
+options:
+  bundleIdPrefix: com.example
+settings:
+  base:
+    INFOPLIST_FILE: Resources/Info.plist
+    IPHONEOS_DEPLOYMENT_TARGET: 15.0
+targets:
+  ResumePro:
+    type: application
+    platform: iOS
+    sources:
+      - App
+      - Models
+      - Services
+      - Views
+      - ViewControllers
+      - Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.ResumePro
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: 5.0
