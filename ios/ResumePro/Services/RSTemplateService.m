@@ -30,6 +30,18 @@
                    backgroundColor:[self color:@"#0F1115"]
                         titleColor:[self color:@"#C7A26A"]
                          bodyColor:[UIColor colorWithWhite:0.9 alpha:1]],
+        [RSTemplate templateWithId:@"consulting_gray"
+                              name:@"咨询灰"
+                           premium:YES
+                   backgroundColor:[self color:@"#1F2937"]
+                        titleColor:[self color:@"#F3F4F6"]
+                         bodyColor:[self color:@"#D1D5DB"]],
+        [RSTemplate templateWithId:@"modern_blue"
+                              name:@"现代蓝"
+                           premium:YES
+                   backgroundColor:[self color:@"#0B1F3A"]
+                        titleColor:[self color:@"#93C5FD"]
+                         bodyColor:[self color:@"#E0F2FE"]],
     ];
 }
 

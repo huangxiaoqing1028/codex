@@ -1,48 +1,89 @@
 #import "RSPaywallViewController.h"
 #import "RSSubscriptionService.h"
+#import "RSTheme.h"
 
 @implementation RSPaywallViewController
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.view.backgroundColor = UIColor.systemBackgroundColor;
-    self.title = @"开通 Pro";
+    self.view.backgroundColor = [RSTheme bgPrimary];
+    self.title = @"Resume Pro 会员";
+
+    UIView *hero = [[UIView alloc] init];
+    hero.translatesAutoresizingMaskIntoConstraints = NO;
+    hero.backgroundColor = [RSTheme cardBackground];
+    hero.layer.cornerRadius = 18;
+    hero.layer.borderWidth = 1;
+    hero.layer.borderColor = [RSTheme border].CGColor;
 
     UILabel *title = [[UILabel alloc] init];
     title.translatesAutoresizingMaskIntoConstraints = NO;
-    title.text = @"专业模板 / 无水印 PDF / 优先支持";
+    title.text = @"解锁高端商务模板与无水印导出";
     title.numberOfLines = 0;
-    title.font = [UIFont boldSystemFontOfSize:24];
+    title.font = [RSTheme titleFont];
+    title.textColor = [RSTheme textPrimary];
+
+    UILabel *feature = [[UILabel alloc] init];
+    feature.translatesAutoresizingMaskIntoConstraints = NO;
+    feature.numberOfLines = 0;
+    feature.textColor = [RSTheme textSecondary];
+    feature.font = [RSTheme bodyFont];
+    feature.text = @"• 30+ 商务专业模板\n• 一键导出高分辨率 PDF\n• 多端同步与持续更新\n• VIP 客服支持";
 
     UIButton *buy = [UIButton buttonWithType:UIButtonTypeSystem];
     buy.translatesAutoresizingMaskIntoConstraints = NO;
-    [buy setTitle:@"立即开通" forState:UIControlStateNormal];
+    [buy setTitle:@"立即开通 Pro ¥98/年" forState:UIControlStateNormal];
+    [buy setTitleColor:[RSTheme bgPrimary] forState:UIControlStateNormal];
+    buy.backgroundColor = [RSTheme accentGold];
+    buy.layer.cornerRadius = 14;
+    buy.titleLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightBold];
     [buy addTarget:self action:@selector(onBuy) forControlEvents:UIControlEventTouchUpInside];
-    buy.backgroundColor = [UIColor colorWithRed:0.07 green:0.09 blue:0.12 alpha:1.0];
-    [buy setTitleColor:[UIColor colorWithRed:0.78 green:0.64 blue:0.42 alpha:1.0] forState:UIControlStateNormal];
-    buy.layer.cornerRadius = 12;
 
     UIButton *restore = [UIButton buttonWithType:UIButtonTypeSystem];
     restore.translatesAutoresizingMaskIntoConstraints = NO;
     [restore setTitle:@"恢复购买" forState:UIControlStateNormal];
+    [restore setTitleColor:[RSTheme textSecondary] forState:UIControlStateNormal];
     [restore addTarget:self action:@selector(onRestore) forControlEvents:UIControlEventTouchUpInside];
 
-    [self.view addSubview:title];
-    [self.view addSubview:buy];
-    [self.view addSubview:restore];
+    UILabel *legal = [[UILabel alloc] init];
+    legal.translatesAutoresizingMaskIntoConstraints = NO;
+    legal.numberOfLines = 0;
+    legal.font = [UIFont systemFontOfSize:11];
+    legal.textColor = [RSTheme textSecondary];
+    legal.text = @"订阅将自动续费，可在 iOS 设置中管理。继续即代表同意服务条款与隐私政策。";
+
+    [hero addSubview:title];
+    [hero addSubview:feature];
+    [hero addSubview:buy];
+    [hero addSubview:restore];
+    [hero addSubview:legal];
+    [self.view addSubview:hero];
 
     [NSLayoutConstraint activateConstraints:@[
-        [title.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:40],
-        [title.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
-        [title.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
+        [hero.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:20],
+        [hero.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
+        [hero.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
 
-        [buy.topAnchor constraintEqualToAnchor:title.bottomAnchor constant:28],
+        [title.topAnchor constraintEqualToAnchor:hero.topAnchor constant:20],
+        [title.leadingAnchor constraintEqualToAnchor:hero.leadingAnchor constant:18],
+        [title.trailingAnchor constraintEqualToAnchor:hero.trailingAnchor constant:-18],
+
+        [feature.topAnchor constraintEqualToAnchor:title.bottomAnchor constant:14],
+        [feature.leadingAnchor constraintEqualToAnchor:title.leadingAnchor],
+        [feature.trailingAnchor constraintEqualToAnchor:title.trailingAnchor],
+
+        [buy.topAnchor constraintEqualToAnchor:feature.bottomAnchor constant:20],
         [buy.leadingAnchor constraintEqualToAnchor:title.leadingAnchor],
         [buy.trailingAnchor constraintEqualToAnchor:title.trailingAnchor],
-        [buy.heightAnchor constraintEqualToConstant:50],
+        [buy.heightAnchor constraintEqualToConstant:52],
 
         [restore.topAnchor constraintEqualToAnchor:buy.bottomAnchor constant:12],
-        [restore.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
+        [restore.centerXAnchor constraintEqualToAnchor:hero.centerXAnchor],
+
+        [legal.topAnchor constraintEqualToAnchor:restore.bottomAnchor constant:14],
+        [legal.leadingAnchor constraintEqualToAnchor:title.leadingAnchor],
+        [legal.trailingAnchor constraintEqualToAnchor:title.trailingAnchor],
+        [legal.bottomAnchor constraintEqualToAnchor:hero.bottomAnchor constant:-16],
     ]];
 }
 

@@ -14,9 +14,11 @@
     self = [super initWithFrame:frame];
     if (self) {
         _nameLabel = [[UILabel alloc] init];
-        _nameLabel.font = [UIFont boldSystemFontOfSize:28];
+        _nameLabel.font = [UIFont boldSystemFontOfSize:30];
+
         _jobLabel = [[UILabel alloc] init];
         _jobLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightMedium];
+
         _textView = [[UITextView alloc] init];
         _textView.editable = NO;
         _textView.backgroundColor = UIColor.clearColor;
@@ -28,15 +30,15 @@
         }
 
         [NSLayoutConstraint activateConstraints:@[
-            [_nameLabel.topAnchor constraintEqualToAnchor:self.topAnchor constant:24],
-            [_nameLabel.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:20],
-            [_nameLabel.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-20],
+            [_nameLabel.topAnchor constraintEqualToAnchor:self.topAnchor constant:28],
+            [_nameLabel.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:24],
+            [_nameLabel.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-24],
 
             [_jobLabel.topAnchor constraintEqualToAnchor:_nameLabel.bottomAnchor constant:8],
             [_jobLabel.leadingAnchor constraintEqualToAnchor:_nameLabel.leadingAnchor],
             [_jobLabel.trailingAnchor constraintEqualToAnchor:_nameLabel.trailingAnchor],
 
-            [_textView.topAnchor constraintEqualToAnchor:_jobLabel.bottomAnchor constant:16],
+            [_textView.topAnchor constraintEqualToAnchor:_jobLabel.bottomAnchor constant:18],
             [_textView.leadingAnchor constraintEqualToAnchor:_nameLabel.leadingAnchor],
             [_textView.trailingAnchor constraintEqualToAnchor:_nameLabel.trailingAnchor],
             [_textView.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-20],
@@ -53,13 +55,27 @@
 
     self.nameLabel.text = resume.fullName.length ? resume.fullName : @"未命名候选人";
     self.jobLabel.text = resume.jobTitle.length ? resume.jobTitle : @"目标岗位";
-    self.textView.text = [NSString stringWithFormat:@"联系方式\n%@ | %@\n\n个人简介\n%@\n\n教育经历\n%@\n\n工作经历\n%@\n\n技能\n%@",
-                          resume.phone.length ? resume.phone : @"电话",
-                          resume.email.length ? resume.email : @"邮箱",
-                          resume.summary.length ? resume.summary : @"请填写个人简介",
-                          resume.education.length ? resume.education : @"请填写教育经历",
-                          resume.experience.length ? resume.experience : @"请填写工作经历",
-                          resume.skills.length ? resume.skills : @"请填写技能"];
+
+    NSDictionary *titleAttrs = @{ NSFontAttributeName:[UIFont systemFontOfSize:13 weight:UIFontWeightBold], NSForegroundColorAttributeName:templateModel.titleColor };
+    NSDictionary *bodyAttrs = @{ NSFontAttributeName:[UIFont systemFontOfSize:14], NSForegroundColorAttributeName:templateModel.bodyColor };
+
+    NSMutableAttributedString *content = [[NSMutableAttributedString alloc] init];
+    [content appendAttributedString:[[NSAttributedString alloc] initWithString:@"联系方式\n" attributes:titleAttrs]];
+    [content appendAttributedString:[[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"%@ | %@\n\n", resume.phone.length ? resume.phone : @"电话", resume.email.length ? resume.email : @"邮箱"] attributes:bodyAttrs]];
+
+    [content appendAttributedString:[[NSAttributedString alloc] initWithString:@"个人简介\n" attributes:titleAttrs]];
+    [content appendAttributedString:[[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"%@\n\n", resume.summary.length ? resume.summary : @"请填写个人简介"] attributes:bodyAttrs]];
+
+    [content appendAttributedString:[[NSAttributedString alloc] initWithString:@"教育经历\n" attributes:titleAttrs]];
+    [content appendAttributedString:[[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"%@\n\n", resume.education.length ? resume.education : @"请填写教育经历"] attributes:bodyAttrs]];
+
+    [content appendAttributedString:[[NSAttributedString alloc] initWithString:@"工作经历\n" attributes:titleAttrs]];
+    [content appendAttributedString:[[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"%@\n\n", resume.experience.length ? resume.experience : @"请填写工作经历"] attributes:bodyAttrs]];
+
+    [content appendAttributedString:[[NSAttributedString alloc] initWithString:@"技能证书\n" attributes:titleAttrs]];
+    [content appendAttributedString:[[NSAttributedString alloc] initWithString:(resume.skills.length ? resume.skills : @"请填写技能") attributes:bodyAttrs]];
+
+    self.textView.attributedText = content;
 }
 
 @end

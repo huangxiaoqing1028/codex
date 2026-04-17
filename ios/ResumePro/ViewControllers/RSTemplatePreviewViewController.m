@@ -5,12 +5,15 @@
 #import "RSResumeRenderView.h"
 #import "RSPaywallViewController.h"
 #import "RSSubscriptionService.h"
+#import "RSTheme.h"
 
 @interface RSTemplatePreviewViewController () <UICollectionViewDataSource, UICollectionViewDelegate>
 @property (nonatomic, strong) RSResume *resume;
 @property (nonatomic, strong) NSArray<RSTemplate *> *templates;
 @property (nonatomic, strong) RSResumeRenderView *renderView;
 @property (nonatomic, strong) UICollectionView *collectionView;
+@property (nonatomic, strong) UIButton *applyButton;
+@property (nonatomic, strong) RSTemplate *selectedTemplate;
 @end
 
 @implementation RSTemplatePreviewViewController
@@ -23,19 +26,22 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.view.backgroundColor = UIColor.systemBackgroundColor;
-    self.title = @"模板切换";
+    self.view.backgroundColor = [RSTheme bgPrimary];
+    self.title = @"模板中心";
     self.templates = [[RSTemplateService shared] allTemplates];
+    self.selectedTemplate = [[RSTemplateService shared] templateById:self.resume.templateId];
 
     self.renderView = [[RSResumeRenderView alloc] initWithFrame:CGRectZero];
     self.renderView.translatesAutoresizingMaskIntoConstraints = NO;
-    self.renderView.layer.cornerRadius = 14;
+    self.renderView.layer.cornerRadius = 18;
     self.renderView.layer.masksToBounds = YES;
+    self.renderView.layer.borderColor = [RSTheme border].CGColor;
+    self.renderView.layer.borderWidth = 1;
 
     UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
     layout.scrollDirection = UICollectionViewScrollDirectionHorizontal;
-    layout.itemSize = CGSizeMake(140, 44);
-    layout.minimumInteritemSpacing = 8;
+    layout.itemSize = CGSizeMake(170, 56);
+    layout.minimumLineSpacing = 10;
 
     self.collectionView = [[UICollectionView alloc] initWithFrame:CGRectZero collectionViewLayout:layout];
     self.collectionView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -44,23 +50,37 @@
     self.collectionView.backgroundColor = UIColor.clearColor;
     [self.collectionView registerClass:UICollectionViewCell.class forCellWithReuseIdentifier:@"cell"];
 
+    self.applyButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    self.applyButton.translatesAutoresizingMaskIntoConstraints = NO;
+    self.applyButton.backgroundColor = [RSTheme accentGold];
+    [self.applyButton setTitleColor:[RSTheme bgPrimary] forState:UIControlStateNormal];
+    self.applyButton.layer.cornerRadius = 14;
+    self.applyButton.titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightBold];
+    [self.applyButton setTitle:@"应用当前模板" forState:UIControlStateNormal];
+    [self.applyButton addTarget:self action:@selector(onApply) forControlEvents:UIControlEventTouchUpInside];
+
     [self.view addSubview:self.renderView];
     [self.view addSubview:self.collectionView];
+    [self.view addSubview:self.applyButton];
 
     [NSLayoutConstraint activateConstraints:@[
         [self.renderView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:16],
         [self.renderView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
         [self.renderView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
-        [self.renderView.heightAnchor constraintEqualToConstant:480],
+        [self.renderView.heightAnchor constraintEqualToConstant:500],
 
-        [self.collectionView.topAnchor constraintEqualToAnchor:self.renderView.bottomAnchor constant:16],
+        [self.collectionView.topAnchor constraintEqualToAnchor:self.renderView.bottomAnchor constant:14],
         [self.collectionView.leadingAnchor constraintEqualToAnchor:self.renderView.leadingAnchor],
         [self.collectionView.trailingAnchor constraintEqualToAnchor:self.renderView.trailingAnchor],
-        [self.collectionView.heightAnchor constraintEqualToConstant:52],
+        [self.collectionView.heightAnchor constraintEqualToConstant:62],
+
+        [self.applyButton.topAnchor constraintEqualToAnchor:self.collectionView.bottomAnchor constant:14],
+        [self.applyButton.leadingAnchor constraintEqualToAnchor:self.renderView.leadingAnchor],
+        [self.applyButton.trailingAnchor constraintEqualToAnchor:self.renderView.trailingAnchor],
+        [self.applyButton.heightAnchor constraintEqualToConstant:52],
     ]];
 
-    RSTemplate *initial = [[RSTemplateService shared] templateById:self.resume.templateId];
-    [self.renderView configureWithResume:self.resume template:initial];
+    [self.renderView configureWithResume:self.resume template:self.selectedTemplate];
 }
 
 - (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section {
@@ -80,24 +100,34 @@
         label.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
         [cell.contentView addSubview:label];
     }
-    label.text = item.premium ? [item.name stringByAppendingString:@" · Pro"] : item.name;
-    label.textColor = UIColor.labelColor;
-    cell.contentView.layer.cornerRadius = 10;
+
+    BOOL isSelected = [item.templateId isEqualToString:self.selectedTemplate.templateId];
+    label.text = item.premium ? [NSString stringWithFormat:@"%@ · PRO", item.name] : item.name;
+    label.textColor = isSelected ? [RSTheme bgPrimary] : [RSTheme textPrimary];
+    cell.contentView.backgroundColor = isSelected ? [RSTheme accentGold] : [RSTheme cardBackground];
+    cell.contentView.layer.cornerRadius = 12;
     cell.contentView.layer.borderWidth = 1;
-    cell.contentView.layer.borderColor = UIColor.systemGray4Color.CGColor;
+    cell.contentView.layer.borderColor = isSelected ? [RSTheme accentGold].CGColor : [RSTheme border].CGColor;
 
     return cell;
 }
 
 - (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath {
     RSTemplate *item = self.templates[indexPath.item];
-    BOOL isPro = [RSSubscriptionService shared].isPro;
-    if (item.premium && !isPro) {
+    if (item.premium && ![RSSubscriptionService shared].isPro) {
         [self.navigationController pushViewController:[[RSPaywallViewController alloc] init] animated:YES];
         return;
     }
-    self.resume.templateId = item.templateId;
+    self.selectedTemplate = item;
     [self.renderView configureWithResume:self.resume template:item];
+    [self.collectionView reloadData];
+}
+
+- (void)onApply {
+    self.resume.templateId = self.selectedTemplate.templateId;
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"已应用" message:@"模板已应用到当前简历" preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDefault handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
 }
 
 @end

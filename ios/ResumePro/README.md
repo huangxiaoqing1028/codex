@@ -1,38 +1,30 @@
-# ResumePro (Objective-C)
+# ResumePro (Objective-C 商业版 UI)
 
-可运行的 Objective-C + UIKit 简历制作 App，包含：
+高端商务风 Objective-C + UIKit 简历制作 App（可用于上架版开发基线），已包含：
 
-- 用户填写后自动生成简历预览
-- 多模板切换（含会员模板）
-- 一键导出 PDF + 系统分享
-- 订阅会员页面（购买/恢复入口）
+- 结构化简历编辑（完整度进度条、商务深色卡片化表单）
+- 模板中心（免费 / Pro 模板切换与门禁）
+- 一键导出 PDF（A4）+ 系统分享
+- 会员中心与订阅页（购买、恢复购买、合规说明文案）
+- 本地简历资产库（草稿列表）
 
-## 1) 本地运行
+## 运行方式
 
-1. 安装 XcodeGen（可选）：`brew install xcodegen`
-2. 生成工程：`cd ios/ResumePro && xcodegen`
-3. 打开 `ResumePro.xcodeproj`，选择 iPhone 模拟器运行。
+1. `cd ios/ResumePro`
+2. `xcodegen`
+3. 打开 `ResumePro.xcodeproj`，选择模拟器运行。
 
-## 2) 上架前必须替换项
+## 上架前必做（生产版）
 
-- `RSSubscriptionService` 目前是 Demo 逻辑，需接入真实 StoreKit 购买/恢复/校验。
-- `PRODUCT_BUNDLE_IDENTIFIER` 改为你的正式 Bundle ID。
-- 补齐《隐私政策》《服务条款》链接与订阅文案。
-- 打开 Signing & Capabilities：
-  - In-App Purchase
-  - Sign in with Apple（如支持第三方登录时）
+1. 将 `RSSubscriptionService` 的 Demo 购买逻辑替换为真实 StoreKit 流程（产品拉取、购买、恢复、交易校验、到期处理）。
+2. 配置真实 Bundle ID、签名证书、IAP Product。
+3. 增加隐私政策/服务条款可点击链接页。
+4. 增加埋点、崩溃监控、网络容错与单元测试。
 
-## 3) 目录
+## 架构
 
 - `App/`：应用入口
-- `Models/`：简历与模板模型
-- `Services/`：模板、订阅、PDF、存储
-- `Views/`：简历渲染视图
-- `ViewControllers/`：编辑、预览、会员、列表页面
-- `Resources/`：Info.plist
-
-## 4) App Store 合规提醒
-
-- 订阅自动续费条款必须清晰展示。
-- 必须提供恢复购买入口。
-- 不可误导性免费描述。
+- `Models/`：简历与模板
+- `Services/`：存储、模板、订阅、PDF
+- `Views/`：简历渲染与视觉主题
+- `ViewControllers/`：编辑、模板、会员、列表
