@@ -1,0 +1,364 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		B00100010000000000000001 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = F00100010000000000000001 /* main.m */; };
+		B00100010000000000000002 /* RSAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = F00100010000000000000002 /* RSAppDelegate.m */; };
+		B00100010000000000000003 /* RSResume.m in Sources */ = {isa = PBXBuildFile; fileRef = F00100010000000000000005 /* RSResume.m */; };
+		B00100010000000000000004 /* RSTemplate.m in Sources */ = {isa = PBXBuildFile; fileRef = F00100010000000000000007 /* RSTemplate.m */; };
+		B00100010000000000000005 /* RSPDFExportService.m in Sources */ = {isa = PBXBuildFile; fileRef = F00100010000000000000009 /* RSPDFExportService.m */; };
+		B00100010000000000000006 /* RSResumeStore.m in Sources */ = {isa = PBXBuildFile; fileRef = F00100010000000000000011 /* RSResumeStore.m */; };
+		B00100010000000000000007 /* RSSubscriptionService.m in Sources */ = {isa = PBXBuildFile; fileRef = F00100010000000000000013 /* RSSubscriptionService.m */; };
+		B00100010000000000000008 /* RSTemplateService.m in Sources */ = {isa = PBXBuildFile; fileRef = F00100010000000000000015 /* RSTemplateService.m */; };
+		B00100010000000000000009 /* RSResumeRenderView.m in Sources */ = {isa = PBXBuildFile; fileRef = F00100010000000000000017 /* RSResumeRenderView.m */; };
+		B00100010000000000000010 /* RSTheme.m in Sources */ = {isa = PBXBuildFile; fileRef = F00100010000000000000019 /* RSTheme.m */; };
+		B00100010000000000000011 /* RSHomeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = F00100010000000000000021 /* RSHomeViewController.m */; };
+		B00100010000000000000012 /* RSMyResumesViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = F00100010000000000000023 /* RSMyResumesViewController.m */; };
+		B00100010000000000000013 /* RSPaywallViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = F00100010000000000000025 /* RSPaywallViewController.m */; };
+		B00100010000000000000014 /* RSProfileViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = F00100010000000000000027 /* RSProfileViewController.m */; };
+		B00100010000000000000015 /* RSRootTabBarController.m in Sources */ = {isa = PBXBuildFile; fileRef = F00100010000000000000029 /* RSRootTabBarController.m */; };
+		B00100010000000000000016 /* RSTemplatePreviewViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = F00100010000000000000031 /* RSTemplatePreviewViewController.m */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		F00100010000000000000001 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = App/main.m; sourceTree = "<group>"; };
+		F00100010000000000000002 /* RSAppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = App/RSAppDelegate.m; sourceTree = "<group>"; };
+		F00100010000000000000003 /* RSAppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = App/RSAppDelegate.h; sourceTree = "<group>"; };
+		F00100010000000000000004 /* RSResume.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Models/RSResume.h; sourceTree = "<group>"; };
+		F00100010000000000000005 /* RSResume.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Models/RSResume.m; sourceTree = "<group>"; };
+		F00100010000000000000006 /* RSTemplate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Models/RSTemplate.h; sourceTree = "<group>"; };
+		F00100010000000000000007 /* RSTemplate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Models/RSTemplate.m; sourceTree = "<group>"; };
+		F00100010000000000000008 /* RSPDFExportService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Services/RSPDFExportService.h; sourceTree = "<group>"; };
+		F00100010000000000000009 /* RSPDFExportService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Services/RSPDFExportService.m; sourceTree = "<group>"; };
+		F00100010000000000000010 /* RSResumeStore.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Services/RSResumeStore.h; sourceTree = "<group>"; };
+		F00100010000000000000011 /* RSResumeStore.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Services/RSResumeStore.m; sourceTree = "<group>"; };
+		F00100010000000000000012 /* RSSubscriptionService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Services/RSSubscriptionService.h; sourceTree = "<group>"; };
+		F00100010000000000000013 /* RSSubscriptionService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Services/RSSubscriptionService.m; sourceTree = "<group>"; };
+		F00100010000000000000014 /* RSTemplateService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Services/RSTemplateService.h; sourceTree = "<group>"; };
+		F00100010000000000000015 /* RSTemplateService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Services/RSTemplateService.m; sourceTree = "<group>"; };
+		F00100010000000000000016 /* RSResumeRenderView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Views/RSResumeRenderView.h; sourceTree = "<group>"; };
+		F00100010000000000000017 /* RSResumeRenderView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Views/RSResumeRenderView.m; sourceTree = "<group>"; };
+		F00100010000000000000018 /* RSTheme.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Views/RSTheme.h; sourceTree = "<group>"; };
+		F00100010000000000000019 /* RSTheme.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Views/RSTheme.m; sourceTree = "<group>"; };
+		F00100010000000000000020 /* RSHomeViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewControllers/RSHomeViewController.h; sourceTree = "<group>"; };
+		F00100010000000000000021 /* RSHomeViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewControllers/RSHomeViewController.m; sourceTree = "<group>"; };
+		F00100010000000000000022 /* RSMyResumesViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewControllers/RSMyResumesViewController.h; sourceTree = "<group>"; };
+		F00100010000000000000023 /* RSMyResumesViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewControllers/RSMyResumesViewController.m; sourceTree = "<group>"; };
+		F00100010000000000000024 /* RSPaywallViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewControllers/RSPaywallViewController.h; sourceTree = "<group>"; };
+		F00100010000000000000025 /* RSPaywallViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewControllers/RSPaywallViewController.m; sourceTree = "<group>"; };
+		F00100010000000000000026 /* RSProfileViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewControllers/RSProfileViewController.h; sourceTree = "<group>"; };
+		F00100010000000000000027 /* RSProfileViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewControllers/RSProfileViewController.m; sourceTree = "<group>"; };
+		F00100010000000000000028 /* RSRootTabBarController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewControllers/RSRootTabBarController.h; sourceTree = "<group>"; };
+		F00100010000000000000029 /* RSRootTabBarController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewControllers/RSRootTabBarController.m; sourceTree = "<group>"; };
+		F00100010000000000000030 /* RSTemplatePreviewViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewControllers/RSTemplatePreviewViewController.h; sourceTree = "<group>"; };
+		F00100010000000000000031 /* RSTemplatePreviewViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewControllers/RSTemplatePreviewViewController.m; sourceTree = "<group>"; };
+		F00100010000000000000040 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Resources/Info.plist; sourceTree = "<group>"; };
+		F00100010000000000000041 /* ResumePro.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = ResumePro.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		P00100010000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		P00100010000000000000010 = {
+			isa = PBXGroup;
+			children = (
+				P00100010000000000000011 /* App */,
+				P00100010000000000000012 /* Models */,
+				P00100010000000000000013 /* Services */,
+				P00100010000000000000014 /* Views */,
+				P00100010000000000000015 /* ViewControllers */,
+				P00100010000000000000016 /* Resources */,
+				P00100010000000000000017 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		P00100010000000000000011 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				F00100010000000000000003 /* RSAppDelegate.h */,
+				F00100010000000000000002 /* RSAppDelegate.m */,
+				F00100010000000000000001 /* main.m */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		P00100010000000000000012 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				F00100010000000000000004 /* RSResume.h */,
+				F00100010000000000000005 /* RSResume.m */,
+				F00100010000000000000006 /* RSTemplate.h */,
+				F00100010000000000000007 /* RSTemplate.m */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		P00100010000000000000013 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				F00100010000000000000008 /* RSPDFExportService.h */,
+				F00100010000000000000009 /* RSPDFExportService.m */,
+				F00100010000000000000010 /* RSResumeStore.h */,
+				F00100010000000000000011 /* RSResumeStore.m */,
+				F00100010000000000000012 /* RSSubscriptionService.h */,
+				F00100010000000000000013 /* RSSubscriptionService.m */,
+				F00100010000000000000014 /* RSTemplateService.h */,
+				F00100010000000000000015 /* RSTemplateService.m */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		P00100010000000000000014 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				F00100010000000000000016 /* RSResumeRenderView.h */,
+				F00100010000000000000017 /* RSResumeRenderView.m */,
+				F00100010000000000000018 /* RSTheme.h */,
+				F00100010000000000000019 /* RSTheme.m */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		P00100010000000000000015 /* ViewControllers */ = {
+			isa = PBXGroup;
+			children = (
+				F00100010000000000000020 /* RSHomeViewController.h */,
+				F00100010000000000000021 /* RSHomeViewController.m */,
+				F00100010000000000000022 /* RSMyResumesViewController.h */,
+				F00100010000000000000023 /* RSMyResumesViewController.m */,
+				F00100010000000000000024 /* RSPaywallViewController.h */,
+				F00100010000000000000025 /* RSPaywallViewController.m */,
+				F00100010000000000000026 /* RSProfileViewController.h */,
+				F00100010000000000000027 /* RSProfileViewController.m */,
+				F00100010000000000000028 /* RSRootTabBarController.h */,
+				F00100010000000000000029 /* RSRootTabBarController.m */,
+				F00100010000000000000030 /* RSTemplatePreviewViewController.h */,
+				F00100010000000000000031 /* RSTemplatePreviewViewController.m */,
+			);
+			path = ViewControllers;
+			sourceTree = "<group>";
+		};
+		P00100010000000000000016 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				F00100010000000000000040 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		P00100010000000000000017 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F00100010000000000000041 /* ResumePro.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		P00100010000000000000020 /* ResumePro */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = P00100010000000000000040 /* Build configuration list for PBXNativeTarget "ResumePro" */;
+			buildPhases = (
+				P00100010000000000000002 /* Sources */,
+				P00100010000000000000003 /* Frameworks */,
+				P00100010000000000000004 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ResumePro;
+			productName = ResumePro;
+			productReference = F00100010000000000000041 /* ResumePro.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		P00100010000000000000030 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					P00100010000000000000020 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = P00100010000000000000041 /* Build configuration list for PBXProject "ResumePro" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = P00100010000000000000010;
+			productRefGroup = P00100010000000000000017 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				P00100010000000000000020 /* ResumePro */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		P00100010000000000000004 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		P00100010000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B00100010000000000000001 /* main.m in Sources */,
+				B00100010000000000000002 /* RSAppDelegate.m in Sources */,
+				B00100010000000000000003 /* RSResume.m in Sources */,
+				B00100010000000000000004 /* RSTemplate.m in Sources */,
+				B00100010000000000000005 /* RSPDFExportService.m in Sources */,
+				B00100010000000000000006 /* RSResumeStore.m in Sources */,
+				B00100010000000000000007 /* RSSubscriptionService.m in Sources */,
+				B00100010000000000000008 /* RSTemplateService.m in Sources */,
+				B00100010000000000000009 /* RSResumeRenderView.m in Sources */,
+				B00100010000000000000010 /* RSTheme.m in Sources */,
+				B00100010000000000000011 /* RSHomeViewController.m in Sources */,
+				B00100010000000000000012 /* RSMyResumesViewController.m in Sources */,
+				B00100010000000000000013 /* RSPaywallViewController.m in Sources */,
+				B00100010000000000000014 /* RSProfileViewController.m in Sources */,
+				B00100010000000000000015 /* RSRootTabBarController.m in Sources */,
+				B00100010000000000000016 /* RSTemplatePreviewViewController.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		P00100010000000000000050 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+			};
+			name = Debug;
+		};
+		P00100010000000000000051 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		P00100010000000000000052 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.ResumePro;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		P00100010000000000000053 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.ResumePro;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		P00100010000000000000040 /* Build configuration list for PBXNativeTarget "ResumePro" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				P00100010000000000000052 /* Debug */,
+				P00100010000000000000053 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		P00100010000000000000041 /* Build configuration list for PBXProject "ResumePro" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				P00100010000000000000050 /* Debug */,
+				P00100010000000000000051 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = P00100010000000000000030 /* Project object */;
+}

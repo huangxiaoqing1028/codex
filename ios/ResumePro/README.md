@@ -8,11 +8,13 @@
 - 会员中心与订阅页（购买、恢复购买、合规说明文案）
 - 本地简历资产库（草稿列表）
 
-## 运行方式
+## 运行方式（可直接用 Xcode 打开）
 
-1. `cd ios/ResumePro`
-2. `xcodegen`
-3. 打开 `ResumePro.xcodeproj`，选择模拟器运行。
+1. 打开：`ios/ResumePro/ResumePro.xcodeproj`
+2. 选择 Scheme：`ResumePro`
+3. 选择 iPhone 模拟器并运行。
+
+> 项目中保留了 `project.yml` 仅用于后续批量维护；你现在不需要安装 xcodegen 也可以直接打开运行。
 
 ## 上架前必做（生产版）
 
