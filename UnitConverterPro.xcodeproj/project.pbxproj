@@ -1,0 +1,371 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A00000010000000000000001 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000100000000000000001 /* main.m */; };
+		A00000010000000000000002 /* UCAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000100000000000000002 /* UCAppDelegate.m */; };
+		A00000010000000000000003 /* UCSceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000100000000000000003 /* UCSceneDelegate.m */; };
+		A00000010000000000000004 /* UCConversionEngine.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000100000000000000006 /* UCConversionEngine.m */; };
+		A00000010000000000000005 /* UCConversionRecord.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000100000000000000008 /* UCConversionRecord.m */; };
+		A00000010000000000000006 /* UCHistoryStore.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000100000000000000010 /* UCHistoryStore.m */; };
+		A00000010000000000000007 /* UCUnitCategory.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000100000000000000012 /* UCUnitCategory.m */; };
+		A00000010000000000000008 /* UCUnitDefinition.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000100000000000000014 /* UCUnitDefinition.m */; };
+		A00000010000000000000009 /* UCConverterViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000100000000000000016 /* UCConverterViewController.m */; };
+		A0000001000000000000000A /* UCHistoryViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000100000000000000018 /* UCHistoryViewController.m */; };
+		A0000001000000000000000B /* UCCardView.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000100000000000000020 /* UCCardView.m */; };
+		A0000001000000000000000C /* UCTheme.m in Sources */ = {isa = PBXBuildFile; fileRef = A00000100000000000000022 /* UCTheme.m */; };
+		A0000001000000000000000D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A00000100000000000000024 /* Assets.xcassets */; };
+		A0000001000000000000000E /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A00000100000000000000025 /* LaunchScreen.storyboard */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A00000100000000000000000 /* UnitConverterPro.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = UnitConverterPro.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A00000100000000000000001 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		A00000100000000000000002 /* UCAppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UCAppDelegate.m; sourceTree = "<group>"; };
+		A00000100000000000000003 /* UCSceneDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UCSceneDelegate.m; sourceTree = "<group>"; };
+		A00000100000000000000004 /* UCAppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UCAppDelegate.h; sourceTree = "<group>"; };
+		A00000100000000000000005 /* UCSceneDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UCSceneDelegate.h; sourceTree = "<group>"; };
+		A00000100000000000000006 /* UCConversionEngine.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UCConversionEngine.m; sourceTree = "<group>"; };
+		A00000100000000000000007 /* UCConversionEngine.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UCConversionEngine.h; sourceTree = "<group>"; };
+		A00000100000000000000008 /* UCConversionRecord.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UCConversionRecord.m; sourceTree = "<group>"; };
+		A00000100000000000000009 /* UCConversionRecord.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UCConversionRecord.h; sourceTree = "<group>"; };
+		A00000100000000000000010 /* UCHistoryStore.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UCHistoryStore.m; sourceTree = "<group>"; };
+		A00000100000000000000011 /* UCHistoryStore.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UCHistoryStore.h; sourceTree = "<group>"; };
+		A00000100000000000000012 /* UCUnitCategory.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UCUnitCategory.m; sourceTree = "<group>"; };
+		A00000100000000000000013 /* UCUnitCategory.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UCUnitCategory.h; sourceTree = "<group>"; };
+		A00000100000000000000014 /* UCUnitDefinition.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UCUnitDefinition.m; sourceTree = "<group>"; };
+		A00000100000000000000015 /* UCUnitDefinition.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UCUnitDefinition.h; sourceTree = "<group>"; };
+		A00000100000000000000016 /* UCConverterViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UCConverterViewController.m; sourceTree = "<group>"; };
+		A00000100000000000000017 /* UCConverterViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UCConverterViewController.h; sourceTree = "<group>"; };
+		A00000100000000000000018 /* UCHistoryViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UCHistoryViewController.m; sourceTree = "<group>"; };
+		A00000100000000000000019 /* UCHistoryViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UCHistoryViewController.h; sourceTree = "<group>"; };
+		A00000100000000000000020 /* UCCardView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UCCardView.m; sourceTree = "<group>"; };
+		A00000100000000000000021 /* UCCardView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UCCardView.h; sourceTree = "<group>"; };
+		A00000100000000000000022 /* UCTheme.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UCTheme.m; sourceTree = "<group>"; };
+		A00000100000000000000023 /* UCTheme.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UCTheme.h; sourceTree = "<group>"; };
+		A00000100000000000000024 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A00000100000000000000025 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		A00000100000000000000026 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A00000020000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A00000030000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				A00000030000000000000002 /* UnitConverterPro */,
+				A00000030000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A00000030000000000000002 /* UnitConverterPro */ = {
+			isa = PBXGroup;
+			children = (
+				A00000030000000000000004 /* App */,
+				A00000030000000000000005 /* Core */,
+				A00000030000000000000006 /* Features */,
+				A00000030000000000000007 /* UI */,
+				A00000030000000000000008 /* Resources */,
+			);
+			path = UnitConverterPro;
+			sourceTree = "<group>";
+		};
+		A00000030000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A00000100000000000000000 /* UnitConverterPro.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A00000030000000000000004 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				A00000100000000000000001 /* main.m */,
+				A00000100000000000000004 /* UCAppDelegate.h */,
+				A00000100000000000000002 /* UCAppDelegate.m */,
+				A00000100000000000000005 /* UCSceneDelegate.h */,
+				A00000100000000000000003 /* UCSceneDelegate.m */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A00000030000000000000005 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				A00000100000000000000007 /* UCConversionEngine.h */,
+				A00000100000000000000006 /* UCConversionEngine.m */,
+				A00000100000000000000009 /* UCConversionRecord.h */,
+				A00000100000000000000008 /* UCConversionRecord.m */,
+				A00000100000000000000011 /* UCHistoryStore.h */,
+				A00000100000000000000010 /* UCHistoryStore.m */,
+				A00000100000000000000013 /* UCUnitCategory.h */,
+				A00000100000000000000012 /* UCUnitCategory.m */,
+				A00000100000000000000015 /* UCUnitDefinition.h */,
+				A00000100000000000000014 /* UCUnitDefinition.m */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		A00000030000000000000006 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				A00000030000000000000009 /* Converter */,
+				A0000003000000000000000A /* History */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		A00000030000000000000007 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				A00000100000000000000021 /* UCCardView.h */,
+				A00000100000000000000020 /* UCCardView.m */,
+				A00000100000000000000023 /* UCTheme.h */,
+				A00000100000000000000022 /* UCTheme.m */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		A00000030000000000000008 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A00000100000000000000024 /* Assets.xcassets */,
+				A00000100000000000000025 /* LaunchScreen.storyboard */,
+				A00000100000000000000026 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		A00000030000000000000009 /* Converter */ = {
+			isa = PBXGroup;
+			children = (
+				A00000100000000000000017 /* UCConverterViewController.h */,
+				A00000100000000000000016 /* UCConverterViewController.m */,
+			);
+			path = Converter;
+			sourceTree = "<group>";
+		};
+		A0000003000000000000000A /* History */ = {
+			isa = PBXGroup;
+			children = (
+				A00000100000000000000019 /* UCHistoryViewController.h */,
+				A00000100000000000000018 /* UCHistoryViewController.m */,
+			);
+			path = History;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A00000040000000000000001 /* UnitConverterPro */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000050000000000000001 /* Build configuration list for PBXNativeTarget "UnitConverterPro" */;
+			buildPhases = (
+				A00000020000000000000002 /* Sources */,
+				A00000020000000000000001 /* Frameworks */,
+				A00000020000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = UnitConverterPro;
+			productName = UnitConverterPro;
+			productReference = A00000100000000000000000 /* UnitConverterPro.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A00000060000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					A00000040000000000000001 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = A00000050000000000000002 /* Build configuration list for PBXProject "UnitConverterPro" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				"zh-Hans",
+			);
+			mainGroup = A00000030000000000000001;
+			productRefGroup = A00000030000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A00000040000000000000001 /* UnitConverterPro */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A00000020000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A0000001000000000000000D /* Assets.xcassets in Resources */,
+				A0000001000000000000000E /* LaunchScreen.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A00000020000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000010000000000000001 /* main.m in Sources */,
+				A00000010000000000000002 /* UCAppDelegate.m in Sources */,
+				A00000010000000000000003 /* UCSceneDelegate.m in Sources */,
+				A00000010000000000000004 /* UCConversionEngine.m in Sources */,
+				A00000010000000000000005 /* UCConversionRecord.m in Sources */,
+				A00000010000000000000006 /* UCHistoryStore.m in Sources */,
+				A00000010000000000000007 /* UCUnitCategory.m in Sources */,
+				A00000010000000000000008 /* UCUnitDefinition.m in Sources */,
+				A00000010000000000000009 /* UCConverterViewController.m in Sources */,
+				A0000001000000000000000A /* UCHistoryViewController.m in Sources */,
+				A0000001000000000000000B /* UCCardView.m in Sources */,
+				A0000001000000000000000C /* UCTheme.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A00000070000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A00000070000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		A00000070000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = UnitConverterPro/Resources/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.UnitConverterPro;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A00000070000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = UnitConverterPro/Resources/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.UnitConverterPro;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A00000050000000000000001 /* Build configuration list for PBXNativeTarget "UnitConverterPro" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A00000070000000000000003 /* Debug */,
+				A00000070000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A00000050000000000000002 /* Build configuration list for PBXProject "UnitConverterPro" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A00000070000000000000001 /* Debug */,
+				A00000070000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A00000060000000000000001 /* Project object */;
+}
