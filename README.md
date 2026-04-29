@@ -20,3 +20,10 @@
 - 模板系统
 - 导出 PDF / Word
 - 会员支付与权益系统
+
+
+## 运行
+
+1. 使用 Xcode 打开 `ResumeMaker.xcodeproj`。
+2. 选择 `ResumeMaker` target 与任意 iOS Simulator（例如 iPhone 15）。
+3. 点击 Run 即可启动。
