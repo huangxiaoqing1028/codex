@@ -1,4 +1,5 @@
 #import <UIKit/UIKit.h>
+#import "ResumeEditorViewController.h"
 
 @interface RMFeatureItemView : UIView
 - (instancetype)initWithIcon:(NSString *)icon title:(NSString *)title subtitle:(NSString *)subtitle;
@@ -41,7 +42,7 @@
     NSMutableAttributedString *att=[[NSMutableAttributedString alloc] initWithString:title.text]; [att addAttribute:NSForegroundColorAttributeName value:[UIColor colorWithRed:0.36 green:0.38 blue:0.96 alpha:1] range:NSMakeRange(0,2)]; title.attributedText=att;
     UILabel *sub=[UILabel new]; sub.text=@"只需简单填写信息，AI 自动生成高分简历"; sub.textColor=UIColor.secondaryLabelColor;
     UIView *illustration=[UIView new]; illustration.backgroundColor=[UIColor colorWithRed:0.94 green:0.95 blue:1 alpha:1]; illustration.layer.cornerRadius=22;
-    UIButton *cta=[UIButton buttonWithType:UIButtonTypeSystem]; [cta setTitle:@"＋ 开始创建简历" forState:UIControlStateNormal]; cta.backgroundColor=[UIColor colorWithRed:0.36 green:0.38 blue:0.96 alpha:1]; [cta setTitleColor:UIColor.whiteColor forState:UIControlStateNormal]; cta.titleLabel.font=[UIFont boldSystemFontOfSize:20]; cta.layer.cornerRadius=24;
+    UIButton *cta=[UIButton buttonWithType:UIButtonTypeSystem]; [cta setTitle:@"＋ 开始创建简历" forState:UIControlStateNormal]; cta.backgroundColor=[UIColor colorWithRed:0.36 green:0.38 blue:0.96 alpha:1]; [cta setTitleColor:UIColor.whiteColor forState:UIControlStateNormal]; cta.titleLabel.font=[UIFont boldSystemFontOfSize:20]; cta.layer.cornerRadius=24; [cta addTarget:self action:@selector(createResumeTap) forControlEvents:UIControlEventTouchUpInside];
     for(UIView *v in @[hello,title,sub,illustration,cta]) v.translatesAutoresizingMaskIntoConstraints=NO;
     [card addSubview:hello];[card addSubview:title];[card addSubview:sub];[card addSubview:illustration];[card addSubview:cta];
 
@@ -61,4 +62,5 @@
         [grid1.topAnchor constraintEqualToAnchor:cta.bottomAnchor constant:16],[grid1.leadingAnchor constraintEqualToAnchor:hello.leadingAnchor],[grid1.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-18],[grid1.heightAnchor constraintEqualToConstant:106],[grid1.bottomAnchor constraintEqualToAnchor:card.bottomAnchor constant:-16]
     ]];
 }
+- (void)createResumeTap { [self.navigationController pushViewController:[ResumeEditorViewController new] animated:YES]; }
 @end

@@ -16,6 +16,12 @@
 	A007 /* ProfileViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B013 /* ProfileViewController.m */; };
 	A008 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B016 /* LaunchScreen.storyboard */; };
 	A009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B017 /* Assets.xcassets */; };
+	A010 /* ResumeModel.m in Sources */ = {isa = PBXBuildFile; fileRef = B020 /* ResumeModel.m */; };
+	A011 /* ResumeStore.m in Sources */ = {isa = PBXBuildFile; fileRef = B021 /* ResumeStore.m */; };
+	A012 /* AccountManager.m in Sources */ = {isa = PBXBuildFile; fileRef = B023 /* AccountManager.m */; };
+	A013 /* MembershipManager.m in Sources */ = {isa = PBXBuildFile; fileRef = B025 /* MembershipManager.m */; };
+	A014 /* ResumeEditorViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B027 /* ResumeEditorViewController.m */; };
+	A015 /* ComplianceViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B029 /* ComplianceViewController.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,6 +42,18 @@
 	B015 /* ResumeMaker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = ResumeMaker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 	B016 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 	B017 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+	B018 /* ResumeModel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ResumeModel.h; sourceTree = "<group>"; };
+	B019 /* ResumeStore.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ResumeStore.h; sourceTree = "<group>"; };
+	B020 /* ResumeModel.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ResumeModel.m; sourceTree = "<group>"; };
+	B021 /* ResumeStore.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ResumeStore.m; sourceTree = "<group>"; };
+	B022 /* AccountManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AccountManager.h; sourceTree = "<group>"; };
+	B023 /* AccountManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AccountManager.m; sourceTree = "<group>"; };
+	B024 /* MembershipManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MembershipManager.h; sourceTree = "<group>"; };
+	B025 /* MembershipManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MembershipManager.m; sourceTree = "<group>"; };
+	B026 /* ResumeEditorViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ResumeEditorViewController.h; sourceTree = "<group>"; };
+	B027 /* ResumeEditorViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ResumeEditorViewController.m; sourceTree = "<group>"; };
+	B028 /* ComplianceViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ComplianceViewController.h; sourceTree = "<group>"; };
+	B029 /* ComplianceViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ComplianceViewController.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -54,8 +72,11 @@
 		children = (
 			D002,
 			D003,
-			D005,
-			D004,
+				D005,
+				D006,
+				D007,
+				D008,
+				D004,
 		);
 		path = ResumeMaker;
 		sourceTree = "<group>";
@@ -64,6 +85,9 @@
 	D003 = {isa = PBXGroup; children = (B004, B005, B006, B007, B008, B009, B010, B011, B012, B013, ); path = Controllers; sourceTree = "<group>"; };
 	D004 = {isa = PBXGroup; children = (B015, ); name = Products; sourceTree = "<group>"; };
 	D005 = {isa = PBXGroup; children = (B014, B016, B017, ); path = Resources; sourceTree = "<group>"; };
+	D006 = {isa = PBXGroup; children = (B018, B020, ); path = Models; sourceTree = "<group>"; };
+	D007 = {isa = PBXGroup; children = (B019, B021, B022, B023, B024, B025, ); path = Services; sourceTree = "<group>"; };
+	D008 = {isa = PBXGroup; children = (B026, B027, B028, B029, ); path = "Controllers/Common"; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -134,8 +158,14 @@
 			A004,
 			A005,
 			A006,
-			A007,
-		);
+				A007,
+				A010,
+				A011,
+				A012,
+				A013,
+				A014,
+				A015,
+			);
 		runOnlyForDeploymentPostprocessing = 0;
 	};
 /* End PBXSourcesBuildPhase section */

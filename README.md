@@ -33,3 +33,12 @@
 
 - 启动页：`ResumeMaker/Resources/LaunchScreen.storyboard`
 - 资源目录：`ResumeMaker/Resources/Assets.xcassets`（含 `AppIcon` 与 `AccentColor`）
+
+## 第二阶段（可上架化）已补齐项
+
+- 数据模型 + 本地存储：`ResumeModel` 与 `ResumeStore`（JSON 持久化到 Documents）。
+- 登录与会员状态：`AccountManager`、`MembershipManager`（本地状态管理）。
+- 简历编辑器：`ResumeEditorViewController` 支持信息录入、保存、生成 PDF。
+- 隐私与合规页：`ComplianceViewController` 提供隐私政策/协议/SDK 列表入口文案。
+
+> 说明：IAP 订阅、真实 Word 导出、服务端模板渲染与 TestFlight 发布流程文档可在下一迭代继续补齐。
