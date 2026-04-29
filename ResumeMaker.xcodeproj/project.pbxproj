@@ -1,0 +1,257 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+	A001 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = B001 /* main.m */; };
+	A002 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = B003 /* AppDelegate.m */; };
+	A003 /* MainTabBarController.m in Sources */ = {isa = PBXBuildFile; fileRef = B005 /* MainTabBarController.m */; };
+	A004 /* HomeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B007 /* HomeViewController.m */; };
+	A005 /* ResumeListViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B009 /* ResumeListViewController.m */; };
+	A006 /* DiscoverViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B011 /* DiscoverViewController.m */; };
+	A007 /* ProfileViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B013 /* ProfileViewController.m */; };
+	A008 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B016 /* LaunchScreen.storyboard */; };
+	A009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B017 /* Assets.xcassets */; };
+	A010 /* ResumeModel.m in Sources */ = {isa = PBXBuildFile; fileRef = B020 /* ResumeModel.m */; };
+	A011 /* ResumeStore.m in Sources */ = {isa = PBXBuildFile; fileRef = B021 /* ResumeStore.m */; };
+	A012 /* AccountManager.m in Sources */ = {isa = PBXBuildFile; fileRef = B023 /* AccountManager.m */; };
+	A013 /* MembershipManager.m in Sources */ = {isa = PBXBuildFile; fileRef = B025 /* MembershipManager.m */; };
+	A014 /* ResumeEditorViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B027 /* ResumeEditorViewController.m */; };
+	A015 /* ComplianceViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B029 /* ComplianceViewController.m */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+	B001 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+	B002 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+	B003 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+	B004 /* MainTabBarController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MainTabBarController.h; sourceTree = "<group>"; };
+	B005 /* MainTabBarController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MainTabBarController.m; sourceTree = "<group>"; };
+	B006 /* HomeViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HomeViewController.h; sourceTree = "<group>"; };
+	B007 /* HomeViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HomeViewController.m; sourceTree = "<group>"; };
+	B008 /* ResumeListViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ResumeListViewController.h; sourceTree = "<group>"; };
+	B009 /* ResumeListViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ResumeListViewController.m; sourceTree = "<group>"; };
+	B010 /* DiscoverViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DiscoverViewController.h; sourceTree = "<group>"; };
+	B011 /* DiscoverViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = DiscoverViewController.m; sourceTree = "<group>"; };
+	B012 /* ProfileViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ProfileViewController.h; sourceTree = "<group>"; };
+	B013 /* ProfileViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ProfileViewController.m; sourceTree = "<group>"; };
+	B014 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+	B015 /* ResumeMaker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = ResumeMaker.app; sourceTree = BUILT_PRODUCTS_DIR; };
+	B016 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+	B017 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+	B018 /* ResumeModel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ResumeModel.h; sourceTree = "<group>"; };
+	B019 /* ResumeStore.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ResumeStore.h; sourceTree = "<group>"; };
+	B020 /* ResumeModel.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ResumeModel.m; sourceTree = "<group>"; };
+	B021 /* ResumeStore.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ResumeStore.m; sourceTree = "<group>"; };
+	B022 /* AccountManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AccountManager.h; sourceTree = "<group>"; };
+	B023 /* AccountManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AccountManager.m; sourceTree = "<group>"; };
+	B024 /* MembershipManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MembershipManager.h; sourceTree = "<group>"; };
+	B025 /* MembershipManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MembershipManager.m; sourceTree = "<group>"; };
+	B026 /* ResumeEditorViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ResumeEditorViewController.h; sourceTree = "<group>"; };
+	B027 /* ResumeEditorViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ResumeEditorViewController.m; sourceTree = "<group>"; };
+	B028 /* ComplianceViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ComplianceViewController.h; sourceTree = "<group>"; };
+	B029 /* ComplianceViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ComplianceViewController.m; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+	C001 = {
+		isa = PBXFrameworksBuildPhase;
+		buildActionMask = 2147483647;
+		files = (
+		);
+		runOnlyForDeploymentPostprocessing = 0;
+	};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+	D001 = {
+		isa = PBXGroup;
+		children = (
+			D002,
+			D003,
+				D005,
+				D006,
+				D007,
+				D008,
+				D004,
+		);
+		path = ResumeMaker;
+		sourceTree = "<group>";
+	};
+	D002 = {isa = PBXGroup; children = (B001, B002, B003, ); path = App; sourceTree = "<group>"; };
+	D003 = {isa = PBXGroup; children = (B004, B005, B006, B007, B008, B009, B010, B011, B012, B013, ); path = Controllers; sourceTree = "<group>"; };
+	D004 = {isa = PBXGroup; children = (B015, ); name = Products; sourceTree = "<group>"; };
+	D005 = {isa = PBXGroup; children = (B014, B016, B017, ); path = Resources; sourceTree = "<group>"; };
+	D006 = {isa = PBXGroup; children = (B018, B020, ); path = Models; sourceTree = "<group>"; };
+	D007 = {isa = PBXGroup; children = (B019, B021, B022, B023, B024, B025, ); path = Services; sourceTree = "<group>"; };
+	D008 = {isa = PBXGroup; children = (B026, B027, B028, B029, ); path = "Controllers/Common"; sourceTree = "<group>"; };
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+	E001 = {
+		isa = PBXNativeTarget;
+		buildConfigurationList = F002;
+		buildPhases = (
+			G001,
+			C001,
+			H001,
+		);
+		buildRules = (
+		);
+		dependencies = (
+		);
+		name = ResumeMaker;
+		productName = ResumeMaker;
+		productReference = B015;
+		productType = "com.apple.product-type.application";
+	};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+	F001 = {
+		isa = PBXProject;
+		attributes = {
+			LastSwiftUpdateCheck = 1600;
+			LastUpgradeCheck = 1600;
+			TargetAttributes = {
+				E001 = {
+					CreatedOnToolsVersion = 16.0;
+				};
+			};
+		};
+		buildConfigurationList = F003;
+		compatibilityVersion = "Xcode 14.0";
+		developmentRegion = en;
+		hasScannedForEncodings = 0;
+		knownRegions = (en, Base, );
+		mainGroup = D001;
+		productRefGroup = D004;
+		projectDirPath = "";
+		projectRoot = "";
+		targets = (E001,);
+	};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+	G001 = {
+		isa = PBXResourcesBuildPhase;
+		buildActionMask = 2147483647;
+		files = (
+			A008,
+			A009,
+		);
+		runOnlyForDeploymentPostprocessing = 0;
+	};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+	H001 = {
+		isa = PBXSourcesBuildPhase;
+		buildActionMask = 2147483647;
+		files = (
+			A001,
+			A002,
+			A003,
+			A004,
+			A005,
+			A006,
+				A007,
+				A010,
+				A011,
+				A012,
+				A013,
+				A014,
+				A015,
+			);
+		runOnlyForDeploymentPostprocessing = 0;
+	};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+	I001 = {
+		isa = XCBuildConfiguration;
+		buildSettings = {
+			ALWAYS_SEARCH_USER_PATHS = NO;
+			CLANG_ENABLE_MODULES = YES;
+			CLANG_ENABLE_OBJC_ARC = YES;
+			CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+			COPY_PHASE_STRIP = NO;
+			DEBUG_INFORMATION_FORMAT = dwarf;
+			GCC_C_LANGUAGE_STANDARD = gnu17;
+			GCC_NO_COMMON_BLOCKS = YES;
+			GCC_OPTIMIZATION_LEVEL = 0;
+			IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+			SDKROOT = iphoneos;
+		};
+		name = Debug;
+	};
+	I002 = {
+		isa = XCBuildConfiguration;
+		buildSettings = {
+			ALWAYS_SEARCH_USER_PATHS = NO;
+			CLANG_ENABLE_MODULES = YES;
+			CLANG_ENABLE_OBJC_ARC = YES;
+			COPY_PHASE_STRIP = NO;
+			DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+			GCC_C_LANGUAGE_STANDARD = gnu17;
+			GCC_NO_COMMON_BLOCKS = YES;
+			IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+			SDKROOT = iphoneos;
+			VALIDATE_PRODUCT = YES;
+		};
+		name = Release;
+	};
+	I003 = {
+		isa = XCBuildConfiguration;
+		buildSettings = {
+			ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+			CODE_SIGN_STYLE = Automatic;
+			CURRENT_PROJECT_VERSION = 1;
+			GENERATE_INFOPLIST_FILE = NO;
+			INFOPLIST_FILE = ResumeMaker/Resources/Info.plist;
+			LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", );
+			MARKETING_VERSION = 1.0;
+			PRODUCT_BUNDLE_IDENTIFIER = com.codex.ResumeMaker;
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			TARGETED_DEVICE_FAMILY = "1,2";
+		};
+		name = Debug;
+	};
+	I004 = {
+		isa = XCBuildConfiguration;
+		buildSettings = {
+			ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+			CODE_SIGN_STYLE = Automatic;
+			CURRENT_PROJECT_VERSION = 1;
+			GENERATE_INFOPLIST_FILE = NO;
+			INFOPLIST_FILE = ResumeMaker/Resources/Info.plist;
+			LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", );
+			MARKETING_VERSION = 1.0;
+			PRODUCT_BUNDLE_IDENTIFIER = com.codex.ResumeMaker;
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			TARGETED_DEVICE_FAMILY = "1,2";
+		};
+		name = Release;
+	};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+	F002 = {
+		isa = XCConfigurationList;
+		buildConfigurations = (I003, I004, );
+		defaultConfigurationIsVisible = 0;
+		defaultConfigurationName = Release;
+	};
+	F003 = {
+		isa = XCConfigurationList;
+		buildConfigurations = (I001, I002, );
+		defaultConfigurationIsVisible = 0;
+		defaultConfigurationName = Release;
+	};
+/* End XCConfigurationList section */
+	};
+	rootObject = F001;
+}
