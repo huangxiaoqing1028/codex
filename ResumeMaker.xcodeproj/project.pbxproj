@@ -14,6 +14,8 @@
 	A005 /* ResumeListViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B009 /* ResumeListViewController.m */; };
 	A006 /* DiscoverViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B011 /* DiscoverViewController.m */; };
 	A007 /* ProfileViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B013 /* ProfileViewController.m */; };
+	A008 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B016 /* LaunchScreen.storyboard */; };
+	A009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B017 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +34,8 @@
 	B013 /* ProfileViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ProfileViewController.m; sourceTree = "<group>"; };
 	B014 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 	B015 /* ResumeMaker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = ResumeMaker.app; sourceTree = BUILT_PRODUCTS_DIR; };
+	B016 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+	B017 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -53,12 +57,13 @@
 			D005,
 			D004,
 		);
+		path = ResumeMaker;
 		sourceTree = "<group>";
 	};
 	D002 = {isa = PBXGroup; children = (B001, B002, B003, ); path = App; sourceTree = "<group>"; };
 	D003 = {isa = PBXGroup; children = (B004, B005, B006, B007, B008, B009, B010, B011, B012, B013, ); path = Controllers; sourceTree = "<group>"; };
 	D004 = {isa = PBXGroup; children = (B015, ); name = Products; sourceTree = "<group>"; };
-	D005 = {isa = PBXGroup; children = (B014, ); path = Resources; sourceTree = "<group>"; };
+	D005 = {isa = PBXGroup; children = (B014, B016, B017, ); path = Resources; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -111,6 +116,8 @@
 		isa = PBXResourcesBuildPhase;
 		buildActionMask = 2147483647;
 		files = (
+			A008,
+			A009,
 		);
 		runOnlyForDeploymentPostprocessing = 0;
 	};

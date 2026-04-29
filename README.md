@@ -27,3 +27,9 @@
 1. 使用 Xcode 打开 `ResumeMaker.xcodeproj`。
 2. 选择 `ResumeMaker` target 与任意 iOS Simulator（例如 iPhone 15）。
 3. 点击 Run 即可启动。
+
+
+## 工程资源
+
+- 启动页：`ResumeMaker/Resources/LaunchScreen.storyboard`
+- 资源目录：`ResumeMaker/Resources/Assets.xcassets`（含 `AppIcon` 与 `AccentColor`）
