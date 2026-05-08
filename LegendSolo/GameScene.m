@@ -10,6 +10,18 @@
 
 @implementation GameScene
 
+- (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
+    SKNode *restart = [self childNodeWithName:@"restart"];
+    if (restart && self.heroHealth <= 0) {
+        self.view.paused = NO;
+        [self removeAllChildren];
+        self.score = 0;
+        [self removeAllActions];
+        [self didMoveToView:self.view];
+    }
+}
+
+
 - (void)didMoveToView:(SKView *)view {
     self.backgroundColor = [SKColor colorWithRed:0.07 green:0.05 blue:0.1 alpha:1];
     [self buildUI];
@@ -91,7 +103,7 @@
         over.position = CGPointMake(self.size.width/2, self.size.height/2);
         over.name = @"restart";
         [self addChild:over];
-        self.scene.paused = YES;
+        self.view.paused = YES;
     }
 }
 
