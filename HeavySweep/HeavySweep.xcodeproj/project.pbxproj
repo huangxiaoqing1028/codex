@@ -21,13 +21,27 @@ F11 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Sou
 F12 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Sources/System/BalanceLoader.m; sourceTree = "<group>";};
 F13 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Sources/System/EquipmentSystem.m; sourceTree = "<group>";};
 F14 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Sources/System/BossAIController.m; sourceTree = "<group>";};
+
+H1 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Sources/AppDelegate.h; sourceTree = "<group>";};
+H2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Sources/SceneDelegate.h; sourceTree = "<group>";};
+H3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Sources/MainMenuViewController.h; sourceTree = "<group>";};
+H4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Sources/GameViewController.h; sourceTree = "<group>";};
+H5 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Sources/GameScene.h; sourceTree = "<group>";};
+H6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Sources/SettingsViewController.h; sourceTree = "<group>";};
+H7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Sources/ProgressManager.h; sourceTree = "<group>";};
+H8 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Sources/GameConfig.h; sourceTree = "<group>";};
+H9 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Sources/AchievementViewController.h; sourceTree = "<group>";};
+H10 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Sources/GuideOverlayView.h; sourceTree = "<group>";};
+H11 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Sources/System/BalanceLoader.h; sourceTree = "<group>";};
+H12 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Sources/System/EquipmentSystem.h; sourceTree = "<group>";};
+H13 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Sources/System/BossAIController.h; sourceTree = "<group>";};
 I1 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>";};
 L1 = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>";};
 J1 = {isa = PBXFileReference; lastKnownFileType = text.json; path = Resources/Data/balance_chapters.json; sourceTree = "<group>";};
 J2 = {isa = PBXFileReference; lastKnownFileType = text.json; path = Resources/Data/balance_equipment.json; sourceTree = "<group>";};
 FR1 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
 G1 = {isa = PBXGroup; children = (G2,P1); sourceTree = "<group>";};
-G2 = {isa = PBXGroup; path = HeavySweep; sourceTree = "<group>"; children = (I1,L1,J1,J2,F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14);};
+G2 = {isa = PBXGroup; path = HeavySweep; sourceTree = "<group>"; children = (I1,L1,J1,J2,H1,H2,H3,H4,H5,H6,H7,H8,H9,H10,H11,H12,H13,F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14);};
 T1 = {isa = PBXNativeTarget; buildConfigurationList = C2; buildPhases = (S1,FR1,R1); buildRules = (); dependencies = (); name = HeavySweep; productName = HeavySweep; productReference = P1; productType = "com.apple.product-type.application";};
 PR1 = {isa = PBXProject; attributes = {LastUpgradeCheck = 1500;}; buildConfigurationList = C1; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en,Base); mainGroup = G1; productRefGroup = G1; projectDirPath = ""; projectRoot = ""; targets = (T1);};
 R1 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (R2,R3,R4); runOnlyForDeploymentPostprocessing = 0;};
