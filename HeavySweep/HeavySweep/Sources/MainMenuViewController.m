@@ -4,7 +4,7 @@
 #import "ProgressManager.h"
 #import "AchievementViewController.h"
 #import "GuideOverlayView.h"
-#import "BalanceLoader.h"
+#import "System/BalanceLoader.h"
 
 @interface MainMenuViewController ()
 @property UILabel *status;
