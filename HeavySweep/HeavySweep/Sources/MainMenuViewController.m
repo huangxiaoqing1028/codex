@@ -5,6 +5,7 @@
 #import "AchievementViewController.h"
 #import "GuideOverlayView.h"
 #import "System/BalanceLoader.h"
+#import <QuartzCore/QuartzCore.h>
 
 @interface MainMenuViewController ()
 @property UILabel *status;
