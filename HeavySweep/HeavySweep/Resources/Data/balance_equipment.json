@@ -1,0 +1,4 @@
+[
+  {"equipId":"sword_001","slot":"weapon","name":"破军刃","baseAtk":28,"rarity":"rare","affixPool":["atk_pct","crit_rate"]},
+  {"equipId":"armor_001","slot":"armor","name":"玄甲","baseHp":180,"rarity":"epic","affixPool":["hp_pct","damage_reduction"]}
+]
